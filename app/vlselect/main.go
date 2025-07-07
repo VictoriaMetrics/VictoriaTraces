@@ -141,7 +141,7 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 		return true
 	}
 	defer decRequestConcurrency()
-	
+
 	if strings.HasPrefix(path, "/select/jaeger/") {
 		// Jaeger HTTP APIs for distributed tracing.
 		// Could be used by Grafana Jaeger datasource, Jaeger UI, and more.

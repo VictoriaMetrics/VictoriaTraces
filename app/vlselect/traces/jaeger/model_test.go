@@ -3,9 +3,10 @@ package jaeger
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	otelpb "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/google/go-cmp/cmp"
+
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
+	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
 func TestFieldsToSpan(t *testing.T) {
