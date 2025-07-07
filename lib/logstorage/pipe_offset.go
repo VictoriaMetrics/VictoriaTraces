@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 // pipeOffset implements '| offset ...' pipe.

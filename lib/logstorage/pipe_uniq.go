@@ -11,8 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 // pipeUniq processes '| uniq ...' queries.

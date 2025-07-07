@@ -7,16 +7,14 @@ import (
 	"sync/atomic"
 	"unsafe"
 
-	"github.com/cespare/xxhash/v2"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
+	"github.com/cespare/xxhash/v2"
 )
 
 // pipeStats processes '| stats ...' queries.

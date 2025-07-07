@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 // pattern represents text pattern in the form 'some_text<some_field>other_text...'

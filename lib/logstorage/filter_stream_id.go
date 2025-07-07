@@ -5,8 +5,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 // filterStreamID is the filter for `_stream_id:id`

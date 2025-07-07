@@ -16,7 +16,7 @@ github-create-release: github-token-check github-tag-check
 		-X POST \
 		-H "Accept: application/vnd.github+json" \
 		-H "Authorization: token $(GITHUB_TOKEN)" \
-		https://api.github.com/repos/VictoriaMetrics/VictoriaLogs/releases \
+		https://api.github.com/repos/VictoriaMetrics/VictoriaTraces/releases \
 		-d '{"tag_name":"$(TAG)","name":"$(TAG)","body":"TODO: put here the changelog for $(TAG) release from docs/CHANGELOG.md","draft":true,"prerelease":false,"generate_release_notes":false}'); \
 		if [ $${result} = 201 ]; then \
 			release_id=$$(cat $(GITHUB_RELEASE_SPEC_FILE) | grep '"id"' -m 1 | sed -E 's/.* ([[:digit:]]+)\,/\1/'); \
@@ -44,7 +44,7 @@ endif
 		-H "Authorization: token $(GITHUB_TOKEN)" \
 		-H "Content-Type: $(CONTENT_TYPE)" \
 		--data-binary "@$(FILE)" \
-		https://uploads.github.com/repos/VictoriaMetrics/VictoriaLogs/releases/$(RELEASE_ID)/assets?name=$(notdir $(FILE))); \
+		https://uploads.github.com/repos/VictoriaMetrics/VictoriaTraces/releases/$(RELEASE_ID)/assets?name=$(notdir $(FILE))); \
 		if [ $${result} = 201 ]; then \
 			printf "Upload OK: $${result}\n"; \
 		elif [ $${result} = 422 ]; then \
@@ -61,7 +61,7 @@ github-delete-release: github-token-check
 		-X DELETE \
 		-H "Accept: application/vnd.github+json" \
 		-H "Authorization: token $(GITHUB_TOKEN)" \
-		https://api.github.com/repos/VictoriaMetrics/VictoriaLogs/releases/$${release_id}); \
+		https://api.github.com/repos/VictoriaMetrics/VictoriaTraces/releases/$${release_id}); \
 		if [ $${result} = 204 ]; then \
 			printf "Deleted release with id=$${release_id}\n"; \
 		else \

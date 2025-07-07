@@ -8,9 +8,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 	"github.com/valyala/fastjson"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // pipeUnroll processes '| unroll ...' pipe.

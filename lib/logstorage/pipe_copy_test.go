@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 func TestParsePipeCopySuccess(t *testing.T) {

@@ -6,9 +6,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 	"github.com/cespare/xxhash/v2"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 // pipeHash processes '| hash ...' pipe.

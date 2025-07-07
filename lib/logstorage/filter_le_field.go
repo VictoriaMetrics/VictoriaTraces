@@ -6,8 +6,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 // filterLeField matches if the fieldName field is smaller or equal to the otherFieldName field

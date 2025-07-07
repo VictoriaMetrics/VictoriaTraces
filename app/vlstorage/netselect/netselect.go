@@ -20,8 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
 )
 
 const (

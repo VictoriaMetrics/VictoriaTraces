@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 // pipePackJSON processes '| pack_json ...' pipe.

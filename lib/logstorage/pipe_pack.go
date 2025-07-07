@@ -5,8 +5,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 func updateNeededFieldsForPipePack(pf *prefixfilter.Filter, resultField string, fieldFilters []string) {

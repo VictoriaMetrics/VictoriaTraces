@@ -5,8 +5,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 // pipeReplace processes '| replace ...' pipe.

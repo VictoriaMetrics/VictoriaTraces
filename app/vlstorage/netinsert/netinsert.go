@@ -18,9 +18,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
 	"github.com/valyala/fastrand"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 )
 
 // the maximum size of a single data block sent to storage node.

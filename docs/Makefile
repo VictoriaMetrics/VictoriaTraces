@@ -2,7 +2,7 @@ UID := "$(shell id -u)"
 PLATFORM := $(shell uname -m)
 DOCKER_PLATFORM := "linux/$(if $(findstring $(PLATFORM),arm64),arm64,amd64)"
 
-# These commands must be run from the VictoriaLogs repository root
+# These commands must be run from the VictoriaTraces repository root
 
 docs-image: docs-repo-checkout
 	docker build \
@@ -15,7 +15,7 @@ docs-repo-checkout:
 	if [ ! -d vmdocs ]; then \
 		git clone --depth 1 git@github.com:VictoriaMetrics/vmdocs vmdocs; \
 	fi; \
-	cd vmdocs && git checkout origin/main && rm -rf content/victorialogs && git checkout ./content/victorialogs && git pull && cd ..
+	cd vmdocs && git checkout origin/main && rm -rf content/victoriatraces && git checkout ./content/victoriatraces && git pull && cd ..
 
 docs-debug: docs-image
 	docker run \
@@ -23,7 +23,7 @@ docs-debug: docs-image
 		--name vmdocs-docker-container \
 		--platform $(DOCKER_PLATFORM) \
 		-p 1313:1313 \
-		-v ./docs/victorialogs:/opt/docs/content/victorialogs \
+		-v ./docs/victoriatraces:/opt/docs/content/victoriatraces \
 			vmdocs-docker-package
 
 docs-update-version: docs-image
@@ -33,7 +33,7 @@ docs-update-version: docs-image
 			--entrypoint /usr/bin/find \
 			--platform $(DOCKER_PLATFORM) \
 			--name vmdocs-docker-container \
-			-v ./docs/victorialogs:/opt/docs/content/victorialogs vmdocs-docker-package \
+			-v ./docs/victoriatraces:/opt/docs/content/victoriatraces vmdocs-docker-package \
 				content \
 					-regex ".*\.md" \
 					-exec sed -i 's/{{% available_from "#" %}}/{{% available_from "$(PKG_TAG)" %}}/g' {} \;, \
@@ -47,7 +47,7 @@ docs-images-to-webp: docs-image
 		--platform $(DOCKER_PLATFORM) \
 		--entrypoint /usr/bin/find \
 		--name vmdocs-docker-container \
-		-v ./docs/victorialogs:/opt/docs/content/victorialogs vmdocs-docker-package \
+		-v ./docs/victoriatraces:/opt/docs/content/victoriatraces vmdocs-docker-package \
 			content \
 				-regex ".*\.\(png\|jpg\|jpeg\)" \
 				-exec sh -c 'cwebp -preset drawing -m 6 -o $$(echo {} | cut -f-1 -d.).webp {} && rm -rf {}' {} \;

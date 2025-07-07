@@ -9,10 +9,9 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 	"github.com/cespare/xxhash/v2"
 	"github.com/valyala/quicktemplate"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
 )
 
 type statsUniqValues struct {
