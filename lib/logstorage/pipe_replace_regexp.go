@@ -5,8 +5,7 @@ import (
 	"regexp"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 // pipeReplaceRegexp processes '| replace_regexp ...' pipe.

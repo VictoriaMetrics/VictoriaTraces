@@ -3,7 +3,7 @@ package logstorage
 import (
 	"fmt"
 
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 // pipeFieldValues processes '| field_values ...' queries.

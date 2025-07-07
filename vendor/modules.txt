@@ -3,7 +3,6 @@
 github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics
 github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/blockcache
-github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter
 github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo
 github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup
@@ -23,19 +22,18 @@ github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fscore
 github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver
 github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil
-github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver
 github.com/VictoriaMetrics/VictoriaMetrics/lib/logger
+github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage
 github.com/VictoriaMetrics/VictoriaMetrics/lib/memory
 github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset
 github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil
-github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue
+github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter
 github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth
 github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal
 github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb
 github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics
-github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter
 github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil
@@ -56,20 +54,13 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/cespare/xxhash/v2 v2.3.0
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/ergochat/readline v0.1.3
-## explicit; go 1.19
-github.com/ergochat/readline
-github.com/ergochat/readline/internal/ansi
-github.com/ergochat/readline/internal/platform
-github.com/ergochat/readline/internal/ringbuf
-github.com/ergochat/readline/internal/runes
-github.com/ergochat/readline/internal/term
 # github.com/golang/snappy v1.0.0
 ## explicit
 github.com/golang/snappy
 # github.com/google/go-cmp v0.7.0
 ## explicit; go 1.21
 github.com/google/go-cmp/cmp
+github.com/google/go-cmp/cmp/cmpopts
 github.com/google/go-cmp/cmp/internal/diff
 github.com/google/go-cmp/cmp/internal/flags
 github.com/google/go-cmp/cmp/internal/function
@@ -90,9 +81,6 @@ github.com/klauspost/compress/internal/snapref
 github.com/klauspost/compress/zlib
 github.com/klauspost/compress/zstd
 github.com/klauspost/compress/zstd/internal/xxhash
-# github.com/mattn/go-isatty v0.0.20
-## explicit; go 1.15
-github.com/mattn/go-isatty
 # github.com/valyala/bytebufferpool v1.0.0
 ## explicit
 github.com/valyala/bytebufferpool
@@ -123,11 +111,6 @@ golang.org/x/oauth2/internal
 # golang.org/x/sys v0.33.0
 ## explicit; go 1.23.0
 golang.org/x/sys/cpu
-golang.org/x/sys/plan9
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.25.0
-## explicit; go 1.23.0
-golang.org/x/text/transform
-golang.org/x/text/width
 # github.com/VictoriaMetrics/VictoriaMetrics => github.com/VictoriaMetrics/VictoriaMetrics v0.0.0-20250706151707-8646b73efc0e

@@ -8,14 +8,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlinsert/datadog"
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlinsert/elasticsearch"
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlinsert/internalinsert"
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlinsert/journald"
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlinsert/jsonline"
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlinsert/loki"
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlinsert/opentelemetry"
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlinsert/syslog"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlinsert/internalinsert"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlinsert/opentelemetry"
 )
 
 var (
@@ -25,12 +19,10 @@ var (
 
 // Init initializes vlinsert
 func Init() {
-	syslog.MustInit()
 }
 
 // Stop stops vlinsert
 func Stop() {
-	syslog.MustStop()
 }
 
 // RequestHandler handles insert requests for VictoriaLogs
@@ -60,9 +52,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 func insertHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 	switch path {
-	case "/insert/jsonline":
-		jsonline.RequestHandler(w, r)
-		return true
 	case "/insert/ready":
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
@@ -70,19 +59,8 @@ func insertHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 		return true
 	}
 	switch {
-	// some clients may omit trailing slash at elasticsearch protocol.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8353
-	case strings.HasPrefix(path, "/insert/elasticsearch"):
-		return elasticsearch.RequestHandler(path, w, r)
-
-	case strings.HasPrefix(path, "/insert/loki/"):
-		return loki.RequestHandler(path, w, r)
 	case strings.HasPrefix(path, "/insert/opentelemetry/"):
 		return opentelemetry.RequestHandler(path, w, r)
-	case strings.HasPrefix(path, "/insert/journald/"):
-		return journald.RequestHandler(path, w, r)
-	case strings.HasPrefix(path, "/insert/datadog/"):
-		return datadog.RequestHandler(path, w, r)
 	}
 
 	return false

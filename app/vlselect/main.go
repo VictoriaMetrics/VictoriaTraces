@@ -15,8 +15,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlselect/internalselect"
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlselect/logsql"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlselect/internalselect"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlselect/logsql"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlselect/traces/jaeger"
 )
 
 var (
@@ -140,6 +141,12 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 		return true
 	}
 	defer decRequestConcurrency()
+	
+	if strings.HasPrefix(path, "/select/jaeger/") {
+		// Jaeger HTTP APIs for distributed tracing.
+		// Could be used by Grafana Jaeger datasource, Jaeger UI, and more.
+		return jaeger.RequestHandler(ctxWithTimeout, w, r)
+	}
 
 	ok := processSelectRequest(ctxWithTimeout, w, r, path)
 	if !ok {

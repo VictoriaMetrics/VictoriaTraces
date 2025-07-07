@@ -13,11 +13,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage/netinsert"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage/netselect"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
 	"github.com/VictoriaMetrics/metrics"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlstorage/netinsert"
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlstorage/netselect"
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 )
 
 var (

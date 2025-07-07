@@ -14,11 +14,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage/netselect"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
 	"github.com/VictoriaMetrics/metrics"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlstorage"
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlstorage/netselect"
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 )
 
 // RequestHandler processes requests to /internal/select/*

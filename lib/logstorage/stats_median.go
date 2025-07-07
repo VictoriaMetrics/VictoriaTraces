@@ -1,7 +1,7 @@
 package logstorage
 
 import (
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 type statsMedian struct {

@@ -151,44 +151,23 @@ func (tc *TestCase) Assert(opts *AssertOptions) {
 	}
 }
 
-// MustStartDefaultVlsingle is a test helper function that starts an instance of
-// vlsingle with defaults suitable for most tests.
-func (tc *TestCase) MustStartDefaultVlsingle() *Vlsingle {
+// MustStartDefaultVtsingle is a test helper function that starts an instance of
+// vtsingle with defaults suitable for most tests.
+func (tc *TestCase) MustStartDefaultVtsingle() *Vtsingle {
 	tc.t.Helper()
 
-	return tc.MustStartVlsingle("vlsingle", []string{
-		"-storageDataPath=" + tc.Dir() + "/vlsingle",
+	return tc.MustStartVtsingle("vtsingle", []string{
+		"-storageDataPath=" + tc.Dir() + "/vtsingle",
 		"-retentionPeriod=100y",
 	})
 }
 
-// MustStartVlsingle is a test helper function that starts an instance of
-// vlsingle and fails the test if the app fails to start.
-func (tc *TestCase) MustStartVlsingle(instance string, flags []string) *Vlsingle {
+// MustStartVtsingle is a test helper function that starts an instance of
+// vtsingle and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVtsingle(instance string, flags []string) *Vtsingle {
 	tc.t.Helper()
 
-	app, err := StartVlsingle(instance, flags, tc.cli)
-	if err != nil {
-		tc.t.Fatalf("Could not start %s: %v", instance, err)
-	}
-	tc.addApp(instance, app)
-	return app
-}
-
-// MustStartDefaultVlagent is a test helper function that starts an instance of
-// vlagent with defaults suitable for most tests.
-func (tc *TestCase) MustStartDefaultVlagent(remoteWriteURLs []string) *Vlagent {
-	tc.t.Helper()
-
-	return tc.MustStartVlagent("vlagent", remoteWriteURLs, nil)
-}
-
-// MustStartVlagent is a test helper function that starts an instance of
-// vlagent and fails the test if the app fails to start.
-func (tc *TestCase) MustStartVlagent(instance string, remoteWriteURLs []string, flags []string) *Vlagent {
-	tc.t.Helper()
-
-	app, err := StartVlagent(instance, remoteWriteURLs, flags, tc.cli)
+	app, err := StartVtsingle(instance, flags, tc.cli)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}

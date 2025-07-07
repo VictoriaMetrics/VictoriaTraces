@@ -2,8 +2,7 @@ package logstorage
 
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 var maxStringRangeValue = string([]byte{255, 255, 255, 255})

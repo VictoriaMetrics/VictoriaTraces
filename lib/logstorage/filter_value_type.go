@@ -3,7 +3,7 @@ package logstorage
 import (
 	"fmt"
 
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 // filterValueType filters field entries by value type.

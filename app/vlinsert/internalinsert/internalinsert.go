@@ -10,9 +10,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 	"github.com/VictoriaMetrics/metrics"
 
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlinsert/insertutil"
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlstorage/netinsert"
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlinsert/insertutil"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage/netinsert"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
 )
 
 var (

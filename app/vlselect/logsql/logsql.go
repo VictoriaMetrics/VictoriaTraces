@@ -21,11 +21,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/app/vlstorage"
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 )
 
 // ProcessFacetsRequest handles /select/logsql/facets request.

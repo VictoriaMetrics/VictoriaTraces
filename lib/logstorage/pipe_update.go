@@ -2,8 +2,7 @@ package logstorage
 
 import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
-
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/prefixfilter"
 )
 
 func updateNeededFieldsForUpdatePipe(pf *prefixfilter.Filter, field string, iff *ifFilter) {
