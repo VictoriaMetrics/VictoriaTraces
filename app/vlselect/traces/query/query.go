@@ -363,13 +363,14 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *Co
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
 		for i := range clonedColumnNames {
-			if clonedColumnNames[i] == "trace_id" {
+			switch clonedColumnNames[i] {
+			case "trace_id":
 				traceIDListLock.Lock()
 				for _, v := range columns[i].Values {
 					traceIDList = append(traceIDList, strings.Clone(v))
 				}
 				traceIDListLock.Unlock()
-			} else if clonedColumnNames[i] == "_time" {
+			case "_time":
 				for _, v := range columns[i].Values {
 					if v < maxStartTimeStr {
 						maxStartTimeStr = strings.Clone(v)

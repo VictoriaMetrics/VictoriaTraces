@@ -367,9 +367,10 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 		// convert to OpenTelemetry field name in storage.
 		if field, ok := spanAttributeMap[k]; ok {
 			// 2 special cases that need to converted value as well.
-			if k == "error" {
+			switch k {
+			case "error":
 				v = errorStatusCodeMap[v]
-			} else if k == "span.kind" {
+			case "span.kind":
 				v = spanKindMap[v]
 			}
 			attributesFilter[field] = v
