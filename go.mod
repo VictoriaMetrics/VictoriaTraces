@@ -5,6 +5,7 @@ go 1.24.4
 replace github.com/VictoriaMetrics/VictoriaMetrics => github.com/VictoriaMetrics/VictoriaMetrics v0.0.0-20250706151707-8646b73efc0e
 
 require (
+	github.com/VictoriaMetrics/VictoriaLogs v1.25.0
 	github.com/VictoriaMetrics/VictoriaMetrics v0.0.0-00010101000000-000000000000
 	github.com/VictoriaMetrics/easyproto v0.1.4
 	github.com/VictoriaMetrics/metrics v1.37.0

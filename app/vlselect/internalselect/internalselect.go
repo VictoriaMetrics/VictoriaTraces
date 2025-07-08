@@ -8,16 +8,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage/netselect"
-	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 // RequestHandler processes requests to /internal/select/*

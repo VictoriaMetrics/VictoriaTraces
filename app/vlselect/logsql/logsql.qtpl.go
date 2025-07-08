@@ -6,7 +6,7 @@ package logsql
 
 //line app/vlselect/logsql/logsql.qtpl:1
 import (
-	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 )
 
 // ValuesWithHitsJSON generates JSON from the given values.

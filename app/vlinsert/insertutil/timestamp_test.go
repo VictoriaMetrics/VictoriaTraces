@@ -3,7 +3,7 @@ package insertutil
 import (
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 )
 
 func TestExtractTimestampFromFields_Success(t *testing.T) {

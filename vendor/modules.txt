@@ -1,3 +1,7 @@
+# github.com/VictoriaMetrics/VictoriaLogs v1.25.0
+## explicit; go 1.24.4
+github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage
+github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter
 # github.com/VictoriaMetrics/VictoriaMetrics v0.0.0-00010101000000-000000000000 => github.com/VictoriaMetrics/VictoriaMetrics v0.0.0-20250706151707-8646b73efc0e
 ## explicit; go 1.24.4
 github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics
@@ -23,15 +27,12 @@ github.com/VictoriaMetrics/VictoriaMetrics/lib/fs/fsutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver
 github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/logger
-github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage
 github.com/VictoriaMetrics/VictoriaMetrics/lib/memory
 github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset
 github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil
-github.com/VictoriaMetrics/VictoriaMetrics/lib/prefixfilter
 github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth
 github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal
-github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb
 github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics
 github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil

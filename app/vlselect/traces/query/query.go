@@ -11,8 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
+
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage"
-	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 

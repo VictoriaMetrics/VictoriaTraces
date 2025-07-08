@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vlinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage/netinsert"
-	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
 )
 
 var (
