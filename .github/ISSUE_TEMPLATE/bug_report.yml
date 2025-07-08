@@ -5,8 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Before filling a bug report it would be great to [upgrade](https://docs.victoriametrics.com/victorialogs/#upgrading)
-        to [the latest available release](https://docs.victoriametrics.com/victorialogs/changelog/)
+        Before filling a bug report it would be great to [upgrade](https://docs.victoriametrics.com/victoriatraces/#upgrading)
+        to [the latest available release](https://docs.victoriametrics.com/victoriatraces/changelog/)
         and verify whether the bug is reproducible there.
   - type: textarea
     id: describe-the-bug
@@ -36,8 +36,8 @@ body:
       description: |
         The line returned when passing `--version` command line flag to the binary. For example:
         ```
-        $ ./victoria-logs-prod --version
-        victoria-logs-v1.24.0
+        $ ./victoria-traces-prod --version
+        victoria-traces-v1.24.0
         ```
     validations:
       required: true
@@ -46,8 +46,8 @@ body:
     attributes:
       label: Logs
       description: |
-        Check if any warnings or errors were logged by VictoriaLogs components
-        or components in communication with VictoriaLogs (e.g. log collectors and shippers, Grafana, etc.).
+        Check if any warnings or errors were logged by VictoriaTraces components
+        or components in communication with VictoriaTraces (e.g. log collectors and shippers, Grafana, etc.).
     validations:
       required: false
   - type: textarea
@@ -57,12 +57,12 @@ body:
       description: |
         If applicable, add screenshots to help explain your problem.
   
-        For VictoriaLogs health-state issues please provide full-length screenshots
+        For VictoriaTraces health-state issues please provide full-length screenshots
         of Grafana dashboards if possible:
           * [Grafana dashboard for single-node VictoriaLogs](https://grafana.com/grafana/dashboards/22084)
           * [Grafana dashboard for VictoriaLogs cluster](https://grafana.com/grafana/dashboards/23274)
         
-        See [how to setup monitoring](https://docs.victoriametrics.com/victorialogs/#monitoring)
+        See [how to setup monitoring](https://docs.victoriametrics.com/victoriatraces/#monitoring)
     validations:
       required: false
   - type: textarea
@@ -70,7 +70,7 @@ body:
     attributes:
       label: Used command-line flags
       description: |
-        Please provide the command-line flags used for running VictoriaLogs and its components.
+        Please provide the command-line flags used for running VictoriaTraces and its components.
     validations:
       required: false
   - type: textarea

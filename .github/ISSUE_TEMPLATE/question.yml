@@ -1,5 +1,5 @@
 name: Question
-description: Ask a question regarding VictoriaLogs or its components
+description: Ask a question regarding VictoriaTraces or its components
 labels: [question]
 body:
   - type: textarea
@@ -7,7 +7,7 @@ body:
     attributes:
       label: Is your question request related to a specific component?
       placeholder: |
-        VictoriaLogs, vlagent, vlogscli, built-in web UI, Grafana plugin, etc...
+        VictoriaTraces, built-in web UI, Grafana plugin, etc...
     validations:
       required: false
   - type: textarea
@@ -24,7 +24,7 @@ body:
       label: Key concepts docs
       description: I am familiar with the following docs
       options:
-        - label: VictoriaLogs key conepts - https://docs.victoriametrics.com/victorialogs/keyconcepts/
+        - label: VictoriaTraces key conepts - https://docs.victoriametrics.com/victoriatraces/keyconcepts/
           required: false
         - label: LogsQL - https://docs.victoriametrics.com/victorialogs/logsql/
           required: false

@@ -3,6 +3,6 @@ FROM $base_image
 
 EXPOSE 10428
 
-ENTRYPOINT ["/victoria-logs-prod"]
+ENTRYPOINT ["/victoria-traces-prod"]
 ARG src_binary=non-existing
-COPY $src_binary ./victoria-logs-prod
+COPY $src_binary ./victoria-traces-prod
