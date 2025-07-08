@@ -221,16 +221,9 @@ package-via-docker-386:
 remove-docker-images:
 	docker image ls --format '{{.ID}}' | xargs docker image rm -f
 
-# VL single
-docker-vl-single-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml up -d
+# VT single
+docker-vt-single-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vt-single.yml up -d
 
-docker-vl-single-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-single.yml down -v
-
-# VL cluster
-docker-vl-cluster-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml up -d
-
-docker-vl-cluster-down:
-	$(DOCKER_COMPOSE) -f deployment/docker/compose-vl-cluster.yml down -v
+docker-vt-single-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/compose-vt-single.yml down -v
