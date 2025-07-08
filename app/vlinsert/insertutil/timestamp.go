@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
 )
 
 // ExtractTimestampFromFields extracts timestamp in nanoseconds from the first field the name from timeFields at fields.

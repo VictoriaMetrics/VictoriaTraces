@@ -15,16 +15,17 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage"
-	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson"
+
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage"
 )
 
 // ProcessFacetsRequest handles /select/logsql/facets request.

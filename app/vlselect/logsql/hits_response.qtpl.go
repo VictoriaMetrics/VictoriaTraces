@@ -8,7 +8,7 @@ package logsql
 import (
 	"slices"
 
-	"github.com/VictoriaMetrics/VictoriaTraces/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 )
 
 // FieldsForHits formats labels for /select/logsql/hits response
