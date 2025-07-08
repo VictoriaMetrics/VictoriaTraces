@@ -1,6 +1,6 @@
 # All these commands must run from repository root.
 
-DOCKER_REGISTRIES ?= docker.io quay.io
+DOCKER_REGISTRIES ?= docker.io
 DOCKER_NAMESPACE ?= victoriametrics
 
 ROOT_IMAGE ?= alpine:3.22.0
