@@ -6,7 +6,7 @@ RUN apk update && apk upgrade && apk --update --no-cache add ca-certificates
 
 FROM $root_image
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-EXPOSE 9428
+EXPOSE 10428
 ENTRYPOINT ["/victoria-logs-prod"]
 ARG TARGETARCH
 COPY victoria-logs-linux-${TARGETARCH}-prod ./victoria-logs-prod

@@ -32,13 +32,13 @@ The OpenTelemetry provides detailed document and examples for various programmin
 - [Rust](https://opentelemetry.io/docs/languages/rust/)
 - [Swift](https://opentelemetry.io/docs/languages/swift/)
 
-To send data to VictoriaTraces, specify the `EndpointURL` for http-exporter builder to `http://<victoria-traces>:9428/insert/opentelemetry/v1/traces`.
+To send data to VictoriaTraces, specify the `EndpointURL` for http-exporter builder to `http://<victoria-traces>:10428/insert/opentelemetry/v1/traces`.
 
 Consider the following example for Go SDK:
 
 ```go
 traceExporter, err := otlptracehttp.New(ctx,
-	otlptracehttp.WithEndpointURL("http://<victoria-traces>:9428/insert/opentelemetry/v1/traces"),
+	otlptracehttp.WithEndpointURL("http://<victoria-traces>:10428/insert/opentelemetry/v1/traces"),
 )
 ```
 
@@ -62,7 +62,7 @@ To send the collected traces to VictoriaTraces, specify traces endpoint for [OTL
 ```yaml
 exporters:
   otlphttp:
-    traces_endpoint: http://<victoria-traces>:9428/insert/opentelemetry/v1/traces
+    traces_endpoint: http://<victoria-traces>:10428/insert/opentelemetry/v1/traces
 ```
 
 VictoriaTraces supports various HTTP headers, which can be used during data ingestion - see the list [here](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers).
@@ -71,7 +71,7 @@ These headers can be passed to OpenTelemetry exporter config via `headers` optio
 ```yaml
 exporters:
   otlphttp:
-    traces_endpoint: http://<victoria-traces>:9428/insert/opentelemetry/v1/traces
+    traces_endpoint: http://<victoria-traces>:10428/insert/opentelemetry/v1/traces
     headers:
       VL-Extra-Fields: foo=bar
 ```

@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vlselect/traces/query"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/query"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 

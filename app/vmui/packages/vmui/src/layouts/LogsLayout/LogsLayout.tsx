@@ -19,7 +19,7 @@ const LogsLayout: FC = () => {
   useFetchDefaultTimezone();
 
   const setDocumentTitle = () => {
-    const defaultTitle = "vmui for VictoriaLogs";
+    const defaultTitle = "vmui for VictoriaTraces";
     const routeTitle = routerOptions[router.logs]?.title;
     document.title = routeTitle ? `${routeTitle} - ${defaultTitle}` : defaultTitle;
   };

@@ -22,7 +22,7 @@ Simply click "Add new data source" on Grafana, and then fill your VictoriaTraces
 
 The URL format for VictoriaTraces single-node is:
 ```
-http://<victoria-traces>:9428/select/jaeger
+http://<victoria-traces>:10428/select/jaeger
 ```
 
 Finally, click "Save & Test" at the bottom to complete the process.

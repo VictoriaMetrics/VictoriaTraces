@@ -20,7 +20,7 @@ export interface HeaderProps {
 }
 const Logo = () => {
   switch (APP_TYPE) {
-    case AppType.victorialogs:
+    case AppType.victoriatraces:
       return <LogoLogsIcon/>;
     case AppType.vmanomaly:
       return <LogoAnomalyIcon/>;

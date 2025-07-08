@@ -9,7 +9,7 @@
 *.swp
 /vmdocs
 /gocache-for-docker
-/victoria-logs-data
+/victoria-traces-data
 /vlagent-remotewritewrite
 .DS_store
 Gemfile.lock

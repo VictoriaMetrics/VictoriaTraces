@@ -220,7 +220,7 @@ VictoriaTraces works perfectly with such fields unless they are associated with 
 - Increased disk space usage
 - Increased disk read / write IO
 
-VictoriaTraces exposes `vl_streams_created_total` [metric](https://docs.victoriametrics.com/victorialogs/#monitoring),
+VictoriaTraces exposes `vt_streams_created_total` [metric](https://docs.victoriametrics.com/victorialogs/#monitoring),
 which shows the number of created streams since the last VictoriaTraces restart. If this metric grows at a rapid rate
 during long period of time, then there are high chances of high cardinality issues mentioned above.
 VictoriaTraces can log all the newly registered streams when `-logNewStreams` command-line flag is passed to it.

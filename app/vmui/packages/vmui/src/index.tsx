@@ -9,7 +9,7 @@ import AppAnomaly from "./AppAnomaly";
 
 const getAppComponent = () => {
   switch (APP_TYPE) {
-    case AppType.victorialogs:
+    case AppType.victoriatraces:
       return <AppLogs/>;
     case AppType.vmanomaly:
       return <AppAnomaly/>;

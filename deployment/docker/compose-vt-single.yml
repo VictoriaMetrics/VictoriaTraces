@@ -10,7 +10,7 @@ services:
     command:
       - "all"
     environment:
-      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://victoriatraces:9428/insert/opentelemetry/v1/traces
+      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://victoriatraces:10428/insert/opentelemetry/v1/traces
     depends_on:
       - victoriatraces
 
@@ -35,7 +35,7 @@ services:
     # todo: use official image when it is released
     image: 'docker.io/victoriametrics/victoria-traces:heads-victoriatraces-0-g4429ac366EXTRA_DOCKER_TAG_SUFFIX'
     ports:
-      - "9428:9428"
+      - "10428:10428"
     command:
       - "--storageDataPath=/vtraces"
     volumes:

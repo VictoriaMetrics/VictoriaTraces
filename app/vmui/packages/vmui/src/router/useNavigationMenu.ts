@@ -24,7 +24,7 @@ const useNavigationMenu = () => {
 
   const menu = useMemo(() => {
     switch (APP_TYPE) {
-      case AppType.victorialogs:
+      case AppType.victoriatraces:
         return getLogsNavigation();
       case AppType.vmanomaly:
         return getAnomalyNavigation();

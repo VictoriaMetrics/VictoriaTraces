@@ -12,4 +12,4 @@ vmui-build: vmui-package-base-image
 		vmui-builder-image -c "npm install && npm run build:logs"
 
 vmui-update: vmui-build
-	rm -rf app/vlselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vlselect/vmui && rm -rf app/vlselect/vmui/dashboards
+	rm -rf app/vtselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vtselect/vmui && rm -rf app/vtselect/vmui/dashboards

@@ -12,7 +12,7 @@ export const getDefaultServer = (tenantId?: string): string => {
   const url = serverURL || storageURL || defaultURL;
 
   switch (APP_TYPE) {
-    case AppType.victorialogs:
+    case AppType.victoriatraces:
       return logsURL;
     case AppType.vmanomaly:
       return storageURL || anomalyURL;

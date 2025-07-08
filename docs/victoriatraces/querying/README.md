@@ -13,7 +13,7 @@ These APIs can be used with:
 ## Web UI
 
 VictoriaTraces provides Web UI for trace spans [querying](https://docs.victoriametrics.com/victorialogs/logsql/) and exploration
-at `http://<victoria-traces>:9428/select/vmui`. 
+at `http://<victoria-traces>:10428/select/vmui`. 
 
 There are three modes of displaying query results:
 
@@ -49,7 +49,7 @@ For example, the following queries are typically how users try to find a specifi
 
 1. List all the services:
 ```sh
-curl http://<victoria-traces>:9428/select/jaeger/api/services
+curl http://<victoria-traces>:10428/select/jaeger/api/services
 ```
 
 Here's a response example:
@@ -71,7 +71,7 @@ Here's a response example:
 
 2. List all the span names of a service:
 ```sh
-curl http://<victoria-traces>:9428/select/jaeger/api/services/checkout/operations
+curl http://<victoria-traces>:10428/select/jaeger/api/services/checkout/operations
 ```
 
 Here's a response example:
@@ -93,7 +93,7 @@ Here's a response example:
 
 3. Filter traces by conditions:
 ```sh
-curl http://<victoria-traces>:9428/select/jaeger/api/traces?service=checkout&operation=oteldemo&tags=%7B%22rpc.method%22%3A%22Convert%22%7D&minDuration=1ms&maxDuration=10ms&limit=5&start=1749969952453000&end=1750056352453000
+curl http://<victoria-traces>:10428/select/jaeger/api/traces?service=checkout&operation=oteldemo&tags=%7B%22rpc.method%22%3A%22Convert%22%7D&minDuration=1ms&maxDuration=10ms&limit=5&start=1749969952453000&end=1750056352453000
 ```
 
 Here's a response example:
@@ -103,7 +103,7 @@ Here's a response example:
 
 4. Find a trace by `trace_id`
 ```sh
-curl http://<victoria-traces>:9428/select/jaeger/api/traces/9e06226196051d9c3c10dfab343791ad
+curl http://<victoria-traces>:10428/select/jaeger/api/traces/9e06226196051d9c3c10dfab343791ad
 ```
 
 Here's a response example:

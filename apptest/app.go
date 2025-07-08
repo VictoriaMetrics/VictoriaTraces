@@ -20,7 +20,7 @@ var (
 	logsStorageDataPathRE = regexp.MustCompile(`opening storage at -storageDataPath=(.*)`)
 )
 
-// app represents an instance of some VictoriaLogs server (such as vlsingle or vlagent).
+// app represents an instance of some VictoriaTraces server (such as vtsingle).
 type app struct {
 	instance string
 	binary   string
