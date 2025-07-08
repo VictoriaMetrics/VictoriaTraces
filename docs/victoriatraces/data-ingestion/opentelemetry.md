@@ -4,6 +4,7 @@ title: OpenTelemetry setup
 disableToc: true
 menu:
   docs:
+    identifier: victoriatraces-opentelemetry-setup
     parent: "victoriatraces-data-ingestion"
     weight: 4
 tags:
