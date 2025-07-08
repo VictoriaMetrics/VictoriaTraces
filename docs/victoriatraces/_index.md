@@ -1,11 +1,17 @@
 ---
 title: VictoriaTraces
+weight: 0
 menu:
   docs:
-    weight: 17
+    weight: 15
     identifier: victoriatraces
-    pageRef: "/"
+    pageRef: /victoriatraces/
 tags:
-  - traces
+  - logs
+aliases:
+  - /VictoriaTraces.html
+  - /VictoriaTraces/
+  - /victoriatraces/
+  - /victoriatraces/index.html
 ---
 {{% content "README.md" %}}
