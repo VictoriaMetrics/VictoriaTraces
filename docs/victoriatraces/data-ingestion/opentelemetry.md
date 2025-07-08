@@ -80,4 +80,4 @@ See also:
 
 * [Data ingestion troubleshooting](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#troubleshooting).
 * [How to query VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/querying/).
-* [Docker-compose demo for OpenTelemetry collector integration with VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victoriatraces/opentelemetry-collector).
+* [Docker-compose demo for HotROD application integration with VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/compose-vt-single.yml).

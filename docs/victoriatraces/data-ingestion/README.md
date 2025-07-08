@@ -74,14 +74,14 @@ VictoriaTraces provides the following command-line flags, which can help debuggi
   [trace span entries](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model).
   See also `debug` [parameter](#http-parameters).
 
-VictoriaTraces exposes various [metrics](https://docs.victoriametrics.com/victoriatraces/#monitoring), which may help debugging data ingestion issues:
+VictoriaTraces exposes various metrics, which may help debugging data ingestion issues:
 
 - `vl_rows_ingested_total` - the number of ingested [trace span entries](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model)
   since the last VictoriaTraces restart. If this number increases over time, then trace spans are successfully ingested into VictoriaTraces.
   The ingested trace spans can be inspected in the following ways:
     - By passing `debug=1` parameter to every request to [data ingestion APIs](#http-apis). The ingested spans aren't stored in VictoriaTraces
       in this case. Instead, they are logged, so they can be investigated later.
-      The `vl_rows_dropped_total` [metric](https://docs.victoriametrics.com/victoriatraces/#monitoring) is incremented for each logged row.
+      The `vl_rows_dropped_total` metric is incremented for each logged row.
     - By passing `-logIngestedRows` command-line flag to VictoriaTraces. In this case it traces all the ingested data, so it can be investigated later.
 - `vl_streams_created_total` - the number of created [trace streams](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields)
   since the last VictoriaTraces restart. If this metric grows rapidly during extended periods of time, then this may lead

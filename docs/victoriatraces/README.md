@@ -18,8 +18,8 @@ Everything is preconfigured and connected out of the box, so you can start explo
 
 Clone the repository:
 ```bash 
-git clone -b victoriatraces --single-branch https://github.com/VictoriaMetrics/VictoriaMetrics.git;
-cd  VictoriaMetrics;
+git clone https://github.com/VictoriaMetrics/VictoriaTraces.git;
+cd  VictoriaTraces;
 ```
 
 Run VictoriaTraces with Docker Compose:
@@ -43,10 +43,10 @@ Building from sources is reasonable when developing additional features specific
 
 {{% collapse name="How to build from sources" %}}
 
-Clone VictoriaMetrics repository: 
+Clone VictoriaTraces repository: 
 ```bash 
-git clone -b victoriatraces --single-branch https://github.com/VictoriaMetrics/VictoriaMetrics.git;
-cd  VictoriaMetrics;
+git clone https://github.com/VictoriaMetrics/VictoriaTraces.git;
+cd  VictoriaTraces;
 ```
 
 #### Build binary with go build
@@ -127,6 +127,18 @@ For detailed data model and example, see: [Key Concepts](https://docs.victoriame
 ![How does VictoriaTraces work](how-does-it-work.webp)
 
 Building VictoriaTraces in this way enables it to scale easily and linearly with the available resources, like VictoriaLogs.
+
+## Multitenancy
+
+VictoriaTraces supports multitenancy. A tenant is identified by `(AccountID, ProjectID)` pair, where `AccountID` and `ProjectID` are arbitrary 32-bit unsigned integers.
+The `AccountID` and `ProjectID` fields can be set during [data ingestion](https://docs.victoriametrics.com/victoriatraces/data-ingestion/)
+and [querying](https://docs.victoriametrics.com/victoriatraces/querying/) via `AccountID` and `ProjectID` request headers.
+
+If `AccountID` and/or `ProjectID` request headers aren't set, then the default `0` value is used.
+
+VictoriaTraces has very low overhead for per-tenant management, so it is OK to have thousands of tenants in a single VictoriaTraces instance.
+
+VictoriaTraces doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) or similar tools for per-tenant authorization.
 
 ## List of command-line flags
 
