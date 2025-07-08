@@ -120,9 +120,9 @@ const TenantsFields: FC = () => {
             type="number"
           />
           <div className="vm-tenant-input-list__buttons">
-            <Tooltip title="Multitenancy in VictoriaLogs documentation">
+            <Tooltip title="Multitenancy in VictoriaTraces documentation">
               <a
-                href="https://docs.victoriametrics.com/victorialogs/#multitenancy"
+                href="https://docs.victoriametrics.com/victoriatraces/#multitenancy"
                 target="_blank"
                 rel="help noreferrer"
               >

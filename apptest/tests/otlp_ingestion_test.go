@@ -9,7 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vlselect/traces/query"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/query"
 	at "github.com/VictoriaMetrics/VictoriaTraces/apptest"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )

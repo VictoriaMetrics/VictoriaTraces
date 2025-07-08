@@ -1,15 +1,15 @@
 # vmui
 
-Web UI for VictoriaLogs
+Web UI for VictoriaTraces
 
 * [Static build](#static-build)
-* [Updating vmui embedded into VictoriaLogs](#updating-vmui-embedded-into-victorialogs)
+* [Updating vmui embedded into VictoriaTraces](#updating-vmui-embedded-into-victoriatraces)
 
 ----
 
 ### Static build
 
-Run the following command from the root of VictoriaLogs repository for building `vmui` static contents:
+Run the following command from the root of VictoriaTraces repository for building `vmui` static contents:
 
 ```
 make vmui-build
@@ -18,26 +18,26 @@ make vmui-build
 The built static contents is put into `app/vmui/packages/vmui/` directory.
 
 
-### Updating vmui embedded into VictoriaLogs
+### Updating vmui embedded into VictoriaTraces
 
-Run the following command from the root of VictoriaLogs repository for updating `vmui` embedded into VictoriaLogs:
+Run the following command from the root of VictoriaTraces repository for updating `vmui` embedded into VictoriaTraces:
 
 ```
 make vmui-update
 ```
 
-This command should update `vmui` static files at `app/vlselect/vmui` directory. Commit changes to these files if needed.
+This command should update `vmui` static files at `app/vtselect/vmui` directory. Commit changes to these files if needed.
 
-Then build VictoriaLogs with the following command:
+Then build VictoriaTraces with the following command:
 
 ```
-make victoria-logs
+make victoria-traces
 ```
 
 Then run the built binary with the following command:
 
 ```
-bin/victoria-logs
+bin/victoria-traces
 ```
 
-Then navigate to `http://localhost:9428/vmui/`. See [these docs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui) for more details.
+Then navigate to `http://localhost:10428/vmui/`. See [these docs](https://docs.victoriametrics.com/victoriatraces/querying/#web-ui) for more details.

@@ -136,7 +136,7 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
           <a
             className="vm-link vm-link_with-icon"
             target="_blank"
-            href="https://docs.victoriametrics.com/victorialogs/"
+            href="https://docs.victoriametrics.com/victoriatraces/"
             rel="help noreferrer"
           >
             <WikiIcon/>

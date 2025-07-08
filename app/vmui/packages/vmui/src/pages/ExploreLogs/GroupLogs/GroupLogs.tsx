@@ -50,7 +50,7 @@ const GroupLogs: FC<Props> = ({ logs, settingsRef }) => {
       const streamValue = item.values[0]?.[groupBy] || "";
       const pairs = getStreamPairs(streamValue);
 
-      // VictoriaLogs sends rows oldest → newest when the query has no `| sort` pipe,
+      // VictoriaTraces sends rows oldest → newest when the query has no `| sort` pipe,
       // so we reverse the array to put the newest entries first.
       // If a sort is already specified, keep the original order.
       const values = queryHasSort ? item.values : item.values.toReversed();

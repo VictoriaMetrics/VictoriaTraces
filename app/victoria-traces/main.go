@@ -15,10 +15,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vlinsert"
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vlinsert/insertutil"
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vlselect"
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vlstorage"
+
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 )
 
 var (
@@ -38,21 +39,21 @@ func main() {
 
 	listenAddrs := *httpListenAddrs
 	if len(listenAddrs) == 0 {
-		listenAddrs = []string{":9428"}
+		listenAddrs = []string{":10428"}
 	}
-	logger.Infof("starting VictoriaLogs at %q...", listenAddrs)
+	logger.Infof("starting VictoriaTraces at %q...", listenAddrs)
 	startTime := time.Now()
 
-	vlstorage.Init()
-	vlselect.Init()
+	vtstorage.Init()
+	vtselect.Init()
 
-	insertutil.SetLogRowsStorage(&vlstorage.Storage{})
-	vlinsert.Init()
+	insertutil.SetLogRowsStorage(&vtstorage.Storage{})
+	vtinsert.Init()
 
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 	})
-	logger.Infof("started VictoriaLogs in %.3f seconds; see https://docs.victoriametrics.com/victorialogs/", time.Since(startTime).Seconds())
+	logger.Infof("started VictoriaTraces in %.3f seconds; see https://docs.victoriametrics.com/victoriatraces/", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()
 	sig := procutil.WaitForSigterm()
@@ -66,13 +67,13 @@ func main() {
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 
-	vlinsert.Stop()
-	vlselect.Stop()
-	vlstorage.Stop()
+	vtinsert.Stop()
+	vtselect.Stop()
+	vtstorage.Stop()
 
 	fs.MustStopDirRemover()
 
-	logger.Infof("the VictoriaLogs has been stopped in %.3f seconds", time.Since(startTime).Seconds())
+	logger.Infof("the VictoriaTraces has been stopped in %.3f seconds", time.Since(startTime).Seconds())
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
@@ -81,23 +82,23 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return false
 		}
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintf(w, "<h2>Single-node VictoriaLogs</h2></br>")
-		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/victorialogs/'>https://docs.victoriametrics.com/victorialogs/</a></br>")
+		fmt.Fprintf(w, "<h2>Single-node VictoriaTraces</h2></br>")
+		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/victoriatraces/'>https://docs.victoriametrics.com/victoriatraces/</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		httpserver.WriteAPIHelp(w, [][2]string{
-			{"select/vmui", "Web UI for VictoriaLogs"},
+			{"select/vmui", "Web UI for VictoriaTraces"},
 			{"metrics", "available service metrics"},
 			{"flags", "command-line flags"},
 		})
 		return true
 	}
-	if vlinsert.RequestHandler(w, r) {
+	if vtinsert.RequestHandler(w, r) {
 		return true
 	}
-	if vlselect.RequestHandler(w, r) {
+	if vtselect.RequestHandler(w, r) {
 		return true
 	}
-	if vlstorage.RequestHandler(w, r) {
+	if vtstorage.RequestHandler(w, r) {
 		return true
 	}
 	return false
@@ -105,9 +106,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 func usage() {
 	const s = `
-victoria-logs is a log management and analytics service.
+victoria-traces is a traces storage and analytics service.
 
-See the docs at https://docs.victoriametrics.com/victorialogs/
+See the docs at https://docs.victoriametrics.com/victoriatraces/
 `
 	flagutil.Usage(s)
 }

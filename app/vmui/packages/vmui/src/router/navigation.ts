@@ -76,7 +76,7 @@ export const getDefaultNavigation = ({
 ];
 
 /**
- * VictoriaLogs navigation menu
+ * VictoriaTraces navigation menu
  */
 export const getLogsNavigation = (): NavigationItem[] => [
   {

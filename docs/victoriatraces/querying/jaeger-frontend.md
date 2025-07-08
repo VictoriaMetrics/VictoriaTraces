@@ -30,7 +30,7 @@ Here's an example where we use Nginx to:
 - Forward query requests to VictoriaTraces.
 
 Assume you already have:
-1. VictoriaTraces running locally and listening on port `:9428`.
+1. VictoriaTraces running locally and listening on port `:10428`.
 2. Jaeger UI assets (`index.html` and `/static`) located under `/path/to/jaeger-ui/build/`.
 3. Nginx Installed.
 
@@ -48,7 +48,7 @@ server {
     }
 
     location /api {
-        proxy_pass http://127.0.0.1:9428/select/jaeger/api; # change this address to VictoriaTraces' address.
+        proxy_pass http://127.0.0.1:10428/select/jaeger/api; # change this address to VictoriaTraces' address.
     }
 }
 ```

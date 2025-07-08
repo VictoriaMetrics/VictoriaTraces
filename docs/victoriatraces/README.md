@@ -86,7 +86,7 @@ VictoriaTraces can be run with:
 
 or with Docker:
 ```shell
-docker run --rm -it -p 9428:9428 -v ./victoria-traces-data:/victoria-traces-data \
+docker run --rm -it -p 10428:10428 -v ./victoria-traces-data:/victoria-traces-data \
   docker.io/victoriametrics/victoria-traces:latest -storageDataPath=victoria-traces-data
 ```
 
@@ -105,14 +105,14 @@ The following command-line flags are used the most:
 * `-storageDataPath` - VictoriaTraces stores all the data in this directory. The default path is `victoria-traces-data` in the current working directory.
 * `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 7 days.
 
-Once it's running, it will listen to port `9428` (`-httpListenAddr`) and provide the following APIs:
+Once it's running, it will listen to port `10428` (`-httpListenAddr`) and provide the following APIs:
 1. for ingestion:
 ```
-http://<victoria-traces>:9428/insert/opentelemetry/v1/traces
+http://<victoria-traces>:10428/insert/opentelemetry/v1/traces
 ```
 2. for querying:
 ```
-http://<victoria-traces>:9428/select/jaeger/<endpoints>
+http://<victoria-traces>:10428/select/jaeger/<endpoints>
 ```
 
 See [data ingestion](https://docs.victoriametrics.com/victoriatraces/data-ingestion/) and [querying](https://docs.victoriametrics.com/VictoriaTraces/querying/) for more details.

@@ -1,7 +1,7 @@
 # App Integration Tests
 
 The `apptest` package contains the integration tests for the VictoriaLogs
-applications (such as victoria-logs, vlagent and vlogscli).
+applications (such as victoria-traces).
 
 An integration test aims at verifying the behavior of an application as a whole,
 as apposed to a unit test that verifies the behavior of a building block of an
@@ -21,7 +21,7 @@ queries to them:
 
 -   `app.go` - contains the generic code for staring an application and should
     not be used by integration tests directly.
--   `{vlsingle,vlagent,etc}.go` - build on top of `app.go` and provide the
+-   `{vtsingle,etc}.go` - build on top of `app.go` and provide the
     code for staring a specific application.
 -   `client.go` - provides helper functions for sending HTTP requests to
     applications.

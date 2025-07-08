@@ -27,7 +27,7 @@ export const footerLinksToLogs = [
     title: "LogsQL",
   },
   {
-    href: "https://docs.victoriametrics.com/victorialogs/",
+    href: "https://docs.victoriametrics.com/victoriatraces/",
     Icon: WikiIcon,
     title: "Documentation",
   },
