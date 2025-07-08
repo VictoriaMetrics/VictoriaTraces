@@ -19,17 +19,17 @@ import (
 
 var (
 	traceMaxDurationWindow = flag.Duration("search.traceMaxDurationWindow", 10*time.Minute, "The window of searching for the rest trace spans after finding one span."+
-		"It allows extending the search start time and end time by `-search.traceMaxDurationWindow` to make sure all spans are included."+
-		"It affects both Jaeger's `/api/traces` and `/api/traces/<trace_id>` APIs.")
+		"It allows extending the search start time and end time by -search.traceMaxDurationWindow to make sure all spans are included."+
+		"It affects both Jaeger's /api/traces and /api/traces/<trace_id> APIs.")
 	traceServiceAndSpanNameLookbehind = flag.Duration("search.traceServiceAndSpanNameLookbehind", 7*24*time.Hour, "The time range of searching for service name and span name. "+
-		"It affects Jaeger's `/api/services` and `/api/services/*/operations` APIs.")
+		"It affects Jaeger's /api/services and /api/services/*/operations APIs.")
 	traceSearchStep = flag.Duration("search.traceSearchStep", 24*time.Hour, "Splits the [0, now] time range into many small time ranges by -search.traceSearchStep "+
 		"when searching for spans by trace_id. Once it finds spans in a time range, it performs an additional search according to -search.traceMaxDurationWindow and then stops. "+
-		"It affects Jaeger's `/api/traces/<trace_id>` API.")
+		"It affects Jaeger's /api/traces/<trace_id> API.")
 	traceMaxServiceNameList = flag.Uint64("search.traceMaxServiceNameList", 1000, "The maximum number of service name can return in a get service name request. "+
-		"This limit affects Jaeger's `/api/services` API.")
+		"This limit affects Jaeger's /api/services API.")
 	traceMaxSpanNameList = flag.Uint64("search.traceMaxSpanNameList", 1000, "The maximum number of span name can return in a get span name request. "+
-		"This limit affects Jaeger's `/api/services/*/operations` API.")
+		"This limit affects Jaeger's /api/services/*/operations API.")
 )
 
 var (
