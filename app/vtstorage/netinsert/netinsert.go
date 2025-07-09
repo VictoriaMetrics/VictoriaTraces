@@ -136,6 +136,7 @@ func (sn *storageNode) addRow(r *logstorage.InsertRow) {
 
 	if len(b) > maxInsertBlockSize {
 		logger.Warnf("skipping too long log entry, since its length exceeds %d bytes; the actual log entry length is %d bytes; log entry contents: %s", maxInsertBlockSize, len(b), b)
+		bbPool.Put(bb)
 		return
 	}
 
