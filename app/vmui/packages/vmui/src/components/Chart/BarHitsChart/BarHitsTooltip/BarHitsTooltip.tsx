@@ -5,7 +5,7 @@ import { DATE_TIME_FORMAT } from "../../../../constants/date";
 import classNames from "classnames";
 import "./style.scss";
 import "../../ChartTooltip/style.scss";
-import { sortLogHits } from "../../../../utils/logs";
+import { sortTraceHits } from "../../../../utils/traces";
 
 interface Props {
   data: AlignedData;
@@ -35,7 +35,7 @@ const BarHitsTooltip: FC<Props> = ({ data, focusDataIdx, uPlotInst }) => {
         value,
         show
       };
-    }).filter(item => item.value > 0 && item.show).sort(sortLogHits("value"));
+    }).filter(item => item.value > 0 && item.show).sort(sortTraceHits("value"));
 
     const point = {
       top: tooltipItems[0] ? uPlotInst?.valToPos?.(tooltipItems[0].value, "y") || 0 : 0,

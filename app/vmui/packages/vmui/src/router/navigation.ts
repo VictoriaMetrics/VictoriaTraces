@@ -59,38 +59,11 @@ const getExploreNav = () => [
 ];
 
 /**
- * Default navigation menu
- */
-export const getDefaultNavigation = ({
-  serverUrl,
-  isEnterpriseLicense,
-  showPredefinedDashboards,
-  showAlertLink,
-}: NavigationConfig): NavigationItem[] => [
-  { value: router.home },
-  { value: router.rawQuery },
-  { label: "Explore", submenu: getExploreNav() },
-  { label: "Tools", submenu: getToolsNav(isEnterpriseLicense) },
-  { value: router.dashboards, hide: !showPredefinedDashboards },
-  getAlertLink(serverUrl, showAlertLink),
-];
-
-/**
  * VictoriaTraces navigation menu
  */
-export const getLogsNavigation = (): NavigationItem[] => [
+export const getTracesNavigation = (): NavigationItem[] => [
   {
-    label: routerOptions[router.logs].title,
-    value: router.home,
-  },
-];
-
-/**
- * vmanomaly navigation menu
- */
-export const getAnomalyNavigation = (): NavigationItem[] => [
-  {
-    label: routerOptions[router.anomaly].title,
+    label: routerOptions[router.traces].title,
     value: router.home,
   },
 ];

@@ -2,11 +2,11 @@ import React, { FC } from "preact/compat";
 import LegendHitsMenuRow from "./LegendHitsMenuRow";
 import useCopyToClipboard from "../../../../hooks/useCopyToClipboard";
 import { CopyIcon, FilterIcon, FilterOffIcon } from "../../../Main/Icons";
-import { LegendLogHits, LegendLogHitsMenu } from "../../../../api/types";
-import { LOGS_GROUP_BY } from "../../../../constants/logs";
+import { LegendTraceHits, LegendTraceHitsMenu } from "../../../../api/types";
+import { TRACES_GROUP_BY } from "../../../../constants/traces";
 
 interface Props {
-  legend: LegendLogHits;
+  legend: LegendTraceHits;
   onApplyFilter: (value: string) => void;
   onClose: () => void;
 }
@@ -15,12 +15,12 @@ const LegendHitsMenuBase: FC<Props> = ({ legend, onApplyFilter, onClose }) => {
   const copyToClipboard = useCopyToClipboard();
 
   const handleAddStreamToFilter = () => {
-    onApplyFilter(`${LOGS_GROUP_BY}: ${legend.label}`);
+    onApplyFilter(`${TRACES_GROUP_BY}: ${legend.label}`);
     onClose();
   };
 
   const handleExcludeStreamToFilter = () => {
-    onApplyFilter(`(NOT ${LOGS_GROUP_BY}: ${legend.label})`);
+    onApplyFilter(`(NOT ${TRACES_GROUP_BY}: ${legend.label})`);
     onClose();
   };
 
@@ -29,19 +29,19 @@ const LegendHitsMenuBase: FC<Props> = ({ legend, onApplyFilter, onClose }) => {
     onClose();
   };
 
-  const options: LegendLogHitsMenu[] = [
+  const options: LegendTraceHitsMenu[] = [
     {
-      title: `Copy ${LOGS_GROUP_BY} name`,
+      title: `Copy ${TRACES_GROUP_BY} name`,
       icon: <CopyIcon/>,
       handler: handlerCopyLabel,
     },
     {
-      title: `Add ${LOGS_GROUP_BY} to filter`,
+      title: `Add ${TRACES_GROUP_BY} to filter`,
       icon: <FilterIcon/>,
       handler: handleAddStreamToFilter,
     },
     {
-      title: `Exclude ${LOGS_GROUP_BY} to filter`,
+      title: `Exclude ${TRACES_GROUP_BY} to filter`,
       icon: <FilterOffIcon/>,
       handler: handleExcludeStreamToFilter,
     }

@@ -1,8 +1,8 @@
 import React, { FC, useMemo } from "preact/compat";
 import LegendHitsMenuRow from "./LegendHitsMenuRow";
 import { CopyIcon, FilterIcon, FilterOffIcon } from "../../../Main/Icons";
-import { convertToFieldFilter } from "../../../../utils/logs";
-import { LegendLogHitsMenu } from "../../../../api/types";
+import { convertToFieldFilter } from "../../../../utils/traces";
+import { LegendTraceHitsMenu } from "../../../../api/types";
 import useCopyToClipboard from "../../../../hooks/useCopyToClipboard";
 
 interface Props {
@@ -29,7 +29,7 @@ const LegendHitsMenuFields: FC<Props> = ({ fields, onApplyFilter, onClose }) => 
     onClose();
   };
 
-  const generateFieldMenu = (field: string): LegendLogHitsMenu[] => {
+  const generateFieldMenu = (field: string): LegendTraceHitsMenu[] => {
     return [
       {
         title: "Copy",
@@ -49,7 +49,7 @@ const LegendHitsMenuFields: FC<Props> = ({ fields, onApplyFilter, onClose }) => 
     ];
   };
 
-  const fieldsWithMenu: LegendLogHitsMenu[] = useMemo(() => {
+  const fieldsWithMenu: LegendTraceHitsMenu[] = useMemo(() => {
     return fields.map(field => {
       const title = convertToFieldFilter(field);
       return {

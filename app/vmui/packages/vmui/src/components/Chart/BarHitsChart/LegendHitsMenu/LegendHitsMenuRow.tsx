@@ -2,7 +2,7 @@ import React, { FC, useRef, useState } from "preact/compat";
 import classNames from "classnames";
 import { ReactNode, useEffect } from "react";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
-import { LegendLogHitsMenu } from "../../../../api/types";
+import { LegendTraceHitsMenu } from "../../../../api/types";
 import { ArrowDropDownIcon } from "../../../Main/Icons";
 import useClickOutside from "../../../../hooks/useClickOutside";
 
@@ -12,7 +12,7 @@ interface Props {
   iconStart?: ReactNode;
   iconEnd?: ReactNode;
   className?: string;
-  submenu?: LegendLogHitsMenu[];
+  submenu?: LegendTraceHitsMenu[];
 }
 
 const LegendHitsMenuRow: FC<Props> = ({ title, handler, iconStart, iconEnd, className, submenu }) => {

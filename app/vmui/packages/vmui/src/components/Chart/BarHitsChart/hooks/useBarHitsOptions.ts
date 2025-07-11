@@ -6,17 +6,17 @@ import uPlot, { AlignedData, Band, Options, Series } from "uplot";
 import { getCssVariable } from "../../../../utils/theme";
 import { useAppState } from "../../../../state/common/StateContext";
 import { MinMax, SetMinMax } from "../../../../types";
-import { LogHits } from "../../../../api/types";
+import { TraceHits } from "../../../../api/types";
 import getSeriesPaths from "../../../../utils/uplot/paths";
 import { GraphOptions, GRAPH_STYLES } from "../types";
 import { getMaxFromArray } from "../../../../utils/math";
 
 const seriesColors = [
-  "color-log-hits-bar-1",
-  "color-log-hits-bar-2",
-  "color-log-hits-bar-3",
-  "color-log-hits-bar-4",
-  "color-log-hits-bar-5",
+  "color-trace-hits-bar-1",
+  "color-trace-hits-bar-2",
+  "color-trace-hits-bar-3",
+  "color-trace-hits-bar-4",
+  "color-trace-hits-bar-5",
 ];
 
 const strokeWidth = {
@@ -28,7 +28,7 @@ const strokeWidth = {
 
 interface UseGetBarHitsOptionsArgs {
   data: AlignedData;
-  logHits: LogHits[];
+  traceHits: TraceHits[];
   xRange: MinMax;
   bands?: Band[];
   containerSize: { width: number, height: number };
@@ -39,9 +39,9 @@ interface UseGetBarHitsOptionsArgs {
 
 export const OTHER_HITS_LABEL = "other";
 
-export const getLabelFromLogHit = (logHit: LogHits) => {
-  if (logHit?._isOther) return OTHER_HITS_LABEL;
-  const fields = Object.values(logHit?.fields || {});
+export const getLabelFromTraceHit = (traceHit: TraceHits) => {
+  if (traceHit?._isOther) return OTHER_HITS_LABEL;
+  const fields = Object.values(traceHit?.fields || {});
   return fields.map((value) => value || "\"\"").join(", ");
 };
 
@@ -53,7 +53,7 @@ const getYRange = (u: uPlot, _initMin = 0, initMax = 1) => {
 
 const useBarHitsOptions = ({
   data,
-  logHits,
+  traceHits,
   xRange,
   bands,
   containerSize,
@@ -76,12 +76,12 @@ const useBarHitsOptions = ({
     return data.map((_d, i) => {
       if (i === 0) return {}; // x-axis
 
-      const logHit = logHits?.[i - 1];
-      const label = getLabelFromLogHit(logHit);
+      const traceHit = traceHits?.[i - 1];
+      const label = getLabelFromTraceHit(traceHit);
 
-      const isOther = logHit?._isOther;
+      const isOther = traceHit?._isOther;
       const colorVar = isOther
-        ? "color-log-hits-bar-0"
+        ? "color-trace-hits-bar-0"
         : seriesColors[visibleColorIndex++];
 
       const color = getCssVariable(colorVar);

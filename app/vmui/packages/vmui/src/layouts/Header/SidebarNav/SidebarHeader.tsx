@@ -8,7 +8,7 @@ import MenuBurger from "../../../components/Main/MenuBurger/MenuBurger";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import "./style.scss";
 import useBoolean from "../../../hooks/useBoolean";
-import { APP_TYPE_LOGS } from "../../../constants/appType";
+import { APP_TYPE_TRACES } from "../../../constants/appType";
 
 interface SidebarHeaderProps {
   background: string
@@ -61,7 +61,7 @@ const SidebarHeader: FC<SidebarHeaderProps> = ({
         />
       </div>
       <div className="vm-header-sidebar-menu-settings">
-        {!isMobile && !APP_TYPE_LOGS && <ShortcutKeys showTitle={true}/>}
+        {!isMobile && !APP_TYPE_TRACES && <ShortcutKeys showTitle={true}/>}
       </div>
     </div>
   </div>;

@@ -3,11 +3,11 @@ import uPlot, { Series } from "uplot";
 import "./style.scss";
 import "../../Line/Legend/style.scss";
 import BarHitsLegendItem from "./BarHitsLegendItem";
-import { LegendLogHits } from "../../../../api/types";
+import { LegendTraceHits } from "../../../../api/types";
 
 interface Props {
   uPlotInst: uPlot;
-  legendDetails: LegendLogHits[];
+  legendDetails: LegendTraceHits[];
   onApplyFilter: (value: string) => void;
 }
 

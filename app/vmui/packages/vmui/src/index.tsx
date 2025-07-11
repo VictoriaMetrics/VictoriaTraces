@@ -1,21 +1,11 @@
 import React, { render } from "preact/compat";
 import "./constants/dayjsPlugins";
-import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import "./styles/style.scss";
-import { APP_TYPE, AppType } from "./constants/appType";
-import AppLogs from "./AppLogs";
-import AppAnomaly from "./AppAnomaly";
+import AppTraces from "./AppTraces";
 
 const getAppComponent = () => {
-  switch (APP_TYPE) {
-    case AppType.victoriatraces:
-      return <AppLogs/>;
-    case AppType.vmanomaly:
-      return <AppAnomaly/>;
-    default:
-      return <App/>;
-  }
+  return <AppTraces/>;
 };
 
 const root = document.getElementById("root");

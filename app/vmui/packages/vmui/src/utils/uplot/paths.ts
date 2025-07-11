@@ -1,5 +1,5 @@
 import uPlot, { Series } from "uplot";
-import { LOGS_BARS_VIEW } from "../../constants/logs";
+import { TRACES_BARS_VIEW } from "../../constants/traces";
 import { GRAPH_STYLES } from "../../components/Chart/BarHitsChart/types";
 
 const barPaths = (
@@ -8,7 +8,7 @@ const barPaths = (
   idx0: number,
   idx1: number,
 ): Series.Paths | null => {
-  const barSize = (u.under.clientWidth/LOGS_BARS_VIEW ) - 1;
+  const barSize = (u.under.clientWidth/TRACES_BARS_VIEW ) - 1;
   const pathBuilderFactory = uPlot?.paths?.bars?.({ size: [0.96, barSize] });
   return pathBuilderFactory ? pathBuilderFactory(u, seriesIdx, idx0, idx1) : null;
 };

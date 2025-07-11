@@ -2,15 +2,15 @@ import React, { FC, useMemo, useRef, useState } from "preact/compat";
 import classNames from "classnames";
 import { Series } from "uplot";
 import { MouseEvent } from "react";
-import { LegendLogHits } from "../../../../api/types";
-import { getStreamPairs } from "../../../../utils/logs";
+import { LegendTraceHits } from "../../../../api/types";
+import { getStreamPairs } from "../../../../utils/traces";
 import { formatNumberShort } from "../../../../utils/math";
 import Popper from "../../../Main/Popper/Popper";
 import useBoolean from "../../../../hooks/useBoolean";
 import LegendHitsMenu from "../LegendHitsMenu/LegendHitsMenu";
 
 interface Props {
-  legend: LegendLogHits;
+  legend: LegendTraceHits;
   series: Series[];
   onRedrawGraph: () => void;
   onApplyFilter: (value: string) => void;

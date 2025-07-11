@@ -7,17 +7,17 @@ import usePlotScale from "../../../../hooks/uplot/usePlotScale";
 import useReadyChart from "../../../../hooks/uplot/useReadyChart";
 import useZoomChart from "../../../../hooks/uplot/useZoomChart";
 import stack from "../../../../utils/uplot/stack";
-import useBarHitsOptions, { getLabelFromLogHit } from "../hooks/useBarHitsOptions";
-import { LegendLogHits, LogHits } from "../../../../api/types";
+import useBarHitsOptions, { getLabelFromTraceHit } from "../hooks/useBarHitsOptions";
+import { LegendTraceHits, TraceHits } from "../../../../api/types";
 import { addSeries, delSeries, setBand } from "../../../../utils/uplot";
 import classNames from "classnames";
 import BarHitsTooltip from "../BarHitsTooltip/BarHitsTooltip";
 import { TimeParams } from "../../../../types";
 import BarHitsLegend from "../BarHitsLegend/BarHitsLegend";
-import { calculateTotalHits, sortLogHits } from "../../../../utils/logs";
+import { calculateTotalHits, sortTraceHits } from "../../../../utils/traces";
 
 interface Props {
-  logHits: LogHits[];
+  traceHits: TraceHits[];
   data: AlignedData;
   period: TimeParams;
   setPeriod: ({ from, to }: { from: Date, to: Date }) => void;
@@ -25,7 +25,7 @@ interface Props {
   graphOptions: GraphOptions;
 }
 
-const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, setPeriod, onApplyFilter }: Props) => {
+const BarHitsPlot: FC<Props> = ({ graphOptions, traceHits, data: _data, period, setPeriod, onApplyFilter }: Props) => {
   const [containerRef, containerSize] = useElementSize();
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
@@ -40,7 +40,7 @@ const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, se
 
   const { options, series, focusDataIdx } = useBarHitsOptions({
     data,
-    logHits,
+    traceHits,
     bands,
     xRange,
     containerSize,
@@ -49,11 +49,11 @@ const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, se
     graphOptions
   });
 
-  const prepareLegend = useCallback((hits: LogHits[], totalHits: number): LegendLogHits[] => {
+  const prepareLegend = useCallback((hits: TraceHits[], totalHits: number): LegendTraceHits[] => {
     return hits.map((hit) => {
-      const label = getLabelFromLogHit(hit);
+      const label = getLabelFromTraceHit(hit);
 
-      const legendItem: LegendLogHits = {
+      const legendItem: LegendTraceHits = {
         label,
         isOther: hit._isOther,
         fields: hit.fields,
@@ -63,14 +63,14 @@ const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, se
       };
 
       return legendItem;
-    }).sort(sortLogHits("total"));
+    }).sort(sortTraceHits("total"));
   }, [series]);
 
 
-  const legendDetails: LegendLogHits[] = useMemo(() => {
-    const totalHits = calculateTotalHits(logHits);
-    return prepareLegend(logHits, totalHits);
-  }, [logHits, prepareLegend]);
+  const legendDetails: LegendTraceHits[] = useMemo(() => {
+    const totalHits = calculateTotalHits(traceHits);
+    return prepareLegend(traceHits, totalHits);
+  }, [traceHits, prepareLegend]);
 
   useEffect(() => {
     if (!uPlotInst) return;

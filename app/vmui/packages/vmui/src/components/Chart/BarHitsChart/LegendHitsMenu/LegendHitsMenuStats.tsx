@@ -1,8 +1,8 @@
 import React, { FC } from "preact/compat";
-import { LegendLogHits } from "../../../../api/types";
+import { LegendTraceHits } from "../../../../api/types";
 
 interface Props {
-  legend: LegendLogHits;
+  legend: LegendTraceHits;
 }
 
 const LegendHitsMenuStats: FC<Props> = ({ legend }) => {

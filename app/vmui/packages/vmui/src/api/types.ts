@@ -36,14 +36,14 @@ export interface QueryStats {
   isPartial?: boolean;
 }
 
-export interface Logs {
+export interface Traces {
   _msg: string;
   _stream: string;
   _time: string;
   [key: string]: string;
 }
 
-export interface LogHits {
+export interface TraceHits {
   timestamps: string[];
   values: number[];
   total: number;
@@ -51,7 +51,7 @@ export interface LogHits {
   _isOther: boolean;
 }
 
-export interface LegendLogHits {
+export interface LegendTraceHits {
   label: string;
   total: number;
   totalHits: number;
@@ -60,7 +60,7 @@ export interface LegendLogHits {
   stroke?: uPlot.Series.Stroke;
 }
 
-export interface LegendLogHitsMenu {
+export interface LegendTraceHitsMenu {
   title: string;
   icon?: ReactNode;
   handler?: () => void;
@@ -74,7 +74,7 @@ export interface ReportMetaData {
   params: Record<string, string>;
 }
 
-export interface LogsFiledValues {
+export interface TracesFiledValues {
   value: string;
   hits: number;
 }

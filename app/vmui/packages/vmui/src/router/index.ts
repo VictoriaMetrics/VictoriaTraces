@@ -1,19 +1,16 @@
-import { APP_TYPE_LOGS } from "../constants/appType";
+import { APP_TYPE_TRACES } from "../constants/appType";
 
 const router = {
   home: "/",
-  metrics: "/metrics",
   dashboards: "/dashboards",
   cardinality: "/cardinality",
   topQueries: "/top-queries",
   trace: "/trace",
   withTemplate: "/expand-with-exprs",
-  relabel: "/relabeling",
-  logs: "/logs",
+  traces: "/traces",
   activeQueries: "/active-queries",
   queryAnalyzer: "/query-analyzer",
   icons: "/icons",
-  anomaly: "/anomaly",
   query: "/query",
   rawQuery: "/raw-query",
   downsamplingDebug: "/downsampling-filters-debug",
@@ -37,9 +34,9 @@ export interface RouterOptions {
 const routerOptionsDefault = {
   header: {
     tenant: true,
-    stepControl: !APP_TYPE_LOGS,
-    timeSelector: !APP_TYPE_LOGS,
-    executionControls: !APP_TYPE_LOGS,
+    stepControl: !APP_TYPE_TRACES,
+    timeSelector: !APP_TYPE_TRACES,
+    executionControls: !APP_TYPE_TRACES,
   }
 };
 
@@ -51,14 +48,6 @@ export const routerOptions: { [key: string]: RouterOptions } = {
   [router.rawQuery]: {
     title: "Raw query",
     ...routerOptionsDefault
-  },
-  [router.metrics]: {
-    title: "Explore Prometheus metrics",
-    header: {
-      tenant: true,
-      stepControl: true,
-      timeSelector: true,
-    }
   },
   [router.cardinality]: {
     title: "Explore cardinality",
@@ -93,8 +82,8 @@ export const routerOptions: { [key: string]: RouterOptions } = {
     title: "Metric relabel debug",
     header: {}
   },
-  [router.logs]: {
-    title: "Logs Explorer",
+  [router.traces]: {
+    title: "Traces Explorer",
     header: {}
   },
   [router.activeQueries]: {
@@ -104,10 +93,6 @@ export const routerOptions: { [key: string]: RouterOptions } = {
   [router.icons]: {
     title: "Icons",
     header: {}
-  },
-  [router.anomaly]: {
-    title: "Anomaly exploration",
-    ...routerOptionsDefault
   },
   [router.query]: {
     title: "Query",

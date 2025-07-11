@@ -1,4 +1,4 @@
-import { Logs, MetricBase } from "../api/types";
+import { Traces, MetricBase } from "../api/types";
 export * from "./uplot";
 
 declare global {
@@ -176,10 +176,10 @@ export interface AppConfig {
   }
 }
 
-export interface GroupLogsType {
+export interface GroupTracesType {
   keys: string[]
   keysString: string
-  values: Logs[]
+  values: Traces[]
   pairs: string[]
   total: number
 }

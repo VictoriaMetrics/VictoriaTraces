@@ -4,19 +4,19 @@ import "uplot/dist/uPlot.min.css";
 import { AlignedData } from "uplot";
 import { TimeParams } from "../../../types";
 import classNames from "classnames";
-import { LogHits } from "../../../api/types";
+import { TraceHits } from "../../../api/types";
 import { GraphOptions, GRAPH_STYLES } from "./types";
 import BarHitsOptions from "./BarHitsOptions/BarHitsOptions";
 import BarHitsPlot from "./BarHitsPlot/BarHitsPlot";
 
 interface Props {
-  logHits: LogHits[];
+  traceHits: TraceHits[];
   data: AlignedData;
   period: TimeParams;
   setPeriod: ({ from, to }: { from: Date, to: Date }) => void;
   onApplyFilter: (value: string) => void;
 }
-const BarHitsChart: FC<Props> = ({ logHits, data: _data, period, setPeriod, onApplyFilter }) => {
+const BarHitsChart: FC<Props> = ({ traceHits, data: _data, period, setPeriod, onApplyFilter }) => {
   const [graphOptions, setGraphOptions] = useState<GraphOptions>({
     graphStyle: GRAPH_STYLES.LINE_STEPPED,
     stacked: false,
@@ -34,7 +34,7 @@ const BarHitsChart: FC<Props> = ({ logHits, data: _data, period, setPeriod, onAp
     >
       {!graphOptions.hideChart && (
         <BarHitsPlot
-          logHits={logHits}
+          traceHits={traceHits}
           data={_data}
           period={period}
           setPeriod={setPeriod}

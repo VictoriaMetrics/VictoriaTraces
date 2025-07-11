@@ -12,7 +12,7 @@ import Timezones from "./Timezones/Timezones";
 import ThemeControl from "../ThemeControl/ThemeControl";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
-import { APP_TYPE_LOGS } from "../../../constants/appType";
+import { APP_TYPE_TRACES } from "../../../constants/appType";
 
 const title = "Settings";
 
@@ -44,14 +44,14 @@ const GlobalSettings: FC = () => {
 
   const controls = [
     {
-      show: !appModeEnable && !APP_TYPE_LOGS,
+      show: !appModeEnable && !APP_TYPE_TRACES,
       component: <ServerConfigurator
         ref={serverSettingRef}
         onClose={handleClose}
       />
     },
     {
-      show: !APP_TYPE_LOGS,
+      show: !APP_TYPE_TRACES,
       component: <LimitsConfigurator
         ref={limitsSettingRef}
         onClose={handleClose}

@@ -1,16 +1,16 @@
 import React, { FC } from "preact/compat";
 import "./style.scss";
-import { LegendLogHits } from "../../../../api/types";
+import { LegendTraceHits } from "../../../../api/types";
 import LegendHitsMenuStats from "./LegendHitsMenuStats";
 import LegendHitsMenuBase from "./LegendHitsMenuBase";
 import LegendHitsMenuRow from "./LegendHitsMenuRow";
 import LegendHitsMenuFields from "./LegendHitsMenuFields";
-import { LOGS_LIMIT_HITS } from "../../../../constants/logs";
+import { TRACES_LIMIT_HITS } from "../../../../constants/traces";
 
-const otherDescription = `aggregated results for fields not in the top ${LOGS_LIMIT_HITS}`;
+const otherDescription = `aggregated results for fields not in the top ${TRACES_LIMIT_HITS}`;
 
 interface Props {
-  legend: LegendLogHits;
+  legend: LegendTraceHits;
   fields: string[];
   onApplyFilter: (value: string) => void;
   onClose: () => void;
