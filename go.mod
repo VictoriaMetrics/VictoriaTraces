@@ -14,6 +14,7 @@ require (
 	github.com/valyala/fastjson v1.6.4
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/quicktemplate v1.8.0
+	golang.org/x/time v0.12.0
 )
 
 require (
