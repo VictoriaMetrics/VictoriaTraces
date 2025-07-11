@@ -2,7 +2,7 @@ import React, { FC, useMemo } from "preact/compat";
 import { useNavigate } from "react-router-dom";
 import router from "../../router";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
-import { LogoAnomalyIcon, LogoIcon, LogoLogsIcon } from "../../components/Main/Icons";
+import { LogoTracesIcon } from "../../components/Main/Icons";
 import { getCssVariable } from "../../utils/theme";
 import "./style.scss";
 import classNames from "classnames";
@@ -13,20 +13,12 @@ import HeaderControls, { ControlsProps } from "./HeaderControls/HeaderControls";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import useWindowSize from "../../hooks/useWindowSize";
 import { ComponentType } from "react";
-import { APP_TYPE, AppType } from "../../constants/appType";
 
 export interface HeaderProps {
   controlsComponent: ComponentType<ControlsProps>
 }
 const Logo = () => {
-  switch (APP_TYPE) {
-    case AppType.victoriatraces:
-      return <LogoLogsIcon/>;
-    case AppType.vmanomaly:
-      return <LogoAnomalyIcon/>;
-    default:
-      return <LogoIcon/>;
-  }
+  return <LogoTracesIcon/>;
 };
 
 const Header: FC<HeaderProps> = ({ controlsComponent }) => {

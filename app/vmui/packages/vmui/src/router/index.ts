@@ -9,7 +9,6 @@ const router = {
   withTemplate: "/expand-with-exprs",
   traces: "/traces",
   activeQueries: "/active-queries",
-  queryAnalyzer: "/query-analyzer",
   icons: "/icons",
   query: "/query",
   rawQuery: "/raw-query",
@@ -64,10 +63,6 @@ export const routerOptions: { [key: string]: RouterOptions } = {
   },
   [router.trace]: {
     title: "Trace analyzer",
-    header: {}
-  },
-  [router.queryAnalyzer]: {
-    title: "Query analyzer",
     header: {}
   },
   [router.dashboards]: {

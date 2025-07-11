@@ -127,7 +127,7 @@ const ExploreTracesHeader: FC<ExploreTraceHeaderProps> = ({
           <a
             className="vm-link vm-link_with-icon"
             target="_blank"
-            href="https://docs.victoriametrics.com/victoriatraces/tracesql/"
+            href="https://docs.victoriametrics.com/victoriatraces/logsql/"
             rel="help noreferrer"
           >
             <InfoIcon/>
