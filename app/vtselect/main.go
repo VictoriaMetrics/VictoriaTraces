@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/internalselect"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/logsql"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/jaeger"
 )
 
@@ -122,7 +123,16 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 		return true
 	}
 
+	if path == "/select/logsql/tail" {
+		logsqlTailRequests.Inc()
+		// Process live tailing request without timeout, since it is OK to run live tailing requests for very long time.
+		// Also do not apply concurrency limit to tail requests, since these limits are intended for non-tail requests.
+		logsql.ProcessLiveTailRequest(ctx, w, r)
+		return true
+	}
+
 	// Limit the number of concurrent queries, which can consume big amounts of CPU time.
+	startTime := time.Now()
 	d := getMaxQueryDuration(r)
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, d)
 	defer cancel()
@@ -138,7 +148,13 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 		return jaeger.RequestHandler(ctxWithTimeout, w, r)
 	}
 
-	return false
+	ok := processSelectRequest(ctxWithTimeout, w, r, path)
+	if !ok {
+		return false
+	}
+
+	logRequestErrorIfNeeded(ctxWithTimeout, w, r, startTime)
+	return true
 }
 
 func incRequestConcurrency(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
