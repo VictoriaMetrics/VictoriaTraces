@@ -94,7 +94,7 @@ export const routerOptions: { [key: string]: RouterOptions } = {
     header: {}
   },
   [router.logs]: {
-    title: "Logs Explorer",
+    title: "Traces Explorer",
     header: {}
   },
   [router.activeQueries]: {
