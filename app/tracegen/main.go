@@ -16,9 +16,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"golang.org/x/time/rate"
-
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
+	"golang.org/x/time/rate"
 )
 
 var requestBodyList = make([][]byte, 0, 101)
@@ -28,7 +27,7 @@ func main() {
 	addr := flag.String("addr", "", "otlp trace export endpoint.")
 	authHeader := flag.String("authorization", "", "authorization header.")
 	flag.Parse()
-	if _, err := url.Parse(*addr); err != nil {
+	if _, err := url.ParseRequestURI(*addr); err != nil {
 		panic(fmt.Sprintf("invalid otlp trace export endpoint: %v", err))
 	}
 	for i := 0; i <= 100; i++ {
