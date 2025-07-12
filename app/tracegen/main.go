@@ -26,6 +26,7 @@ var requestBodyList = make([][]byte, 0, 101)
 func main() {
 	spanRate := flag.Int("rate", 10000, "spans per second.")
 	addr := flag.String("addr", "", "otlp trace export endpoint.")
+	authHeader := flag.String("authorization", "", "authorization header.")
 	flag.Parse()
 	if _, err := url.Parse(*addr); err != nil {
 		panic(fmt.Sprintf("invalid otlp trace export endpoint: %v", err))
@@ -74,7 +75,11 @@ func main() {
 				}
 			}
 			limiter.WaitN(context.TODO(), spanCount)
-			_, err := http.Post(*addr, "application/x-protobuf", bytes.NewReader(req.MarshalProtobuf(nil)))
+			httpReq, err := http.NewRequest("POST", *addr, bytes.NewReader(req.MarshalProtobuf(nil)))
+			httpReq.Header.Add("authorization", *authHeader)
+			httpReq.Header.Add("content-type", "application/x-protobuf")
+			_, err = http.DefaultClient.Do(httpReq)
+
 			if err != nil {
 				logger.Errorf("trace export error: %s", err)
 			}
