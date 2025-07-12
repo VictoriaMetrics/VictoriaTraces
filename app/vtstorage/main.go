@@ -288,6 +288,10 @@ func (*Storage) MustAddRows(lr *logstorage.LogRows) {
 
 // RunQuery runs the given q and calls writeBlock for the returned data blocks
 func RunQuery(ctx context.Context, tenantIDs []logstorage.TenantID, q *logstorage.Query, writeBlock logstorage.WriteDataBlockFunc) error {
+	startTime := time.Now()
+	defer func() {
+		logger.Infof("finish query in %.2f seconds: %s", time.Now().Sub(startTime).Seconds(), q.String())
+	}()
 	if localStorage != nil {
 		return localStorage.RunQuery(ctx, tenantIDs, q, writeBlock)
 	}
