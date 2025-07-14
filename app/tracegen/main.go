@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"encoding/gob"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -16,39 +17,48 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"golang.org/x/time/rate"
 
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
-var requestBodyList = make([][]byte, 0, 101)
+var BodyList [][]byte
 
 func main() {
 	spanRate := flag.Int("rate", 10000, "spans per second.")
-	addrs := flag.String("addr", "", "otlp trace export endpoint.")
+	addrs := flag.String("addrs", "", "otlp trace export endpoint.")
 	flag.Parse()
 	addrList := strings.Split(*addrs, ",")
 	for _, addr := range addrList {
 		if _, err := url.ParseRequestURI(addr); err != nil {
-			panic(fmt.Sprintf("invalid otlp trace export endpoint: %v", err))
+			panic(fmt.Sprintf("invalid otlp trace export endpoint %s: %v", addr, err))
 		}
 	}
 
-	for i := 0; i <= 100; i++ {
-		dat, err := os.ReadFile(fmt.Sprintf("%d.bin", i))
-		if err != nil {
-			panic(fmt.Sprintf("cannot read file %d: %v", i, err))
-		}
-		requestBodyList = append(requestBodyList, dat)
+	data, err := os.ReadFile("./app/tracegen/testdata/testdata.bin")
+	if err != nil {
+		panic(fmt.Sprintf("cannot read file %v", err))
 	}
+	var uncompressed []byte
+	uncompressed, err = zstd.Decompress(uncompressed, data)
+	if err != nil {
+		panic(fmt.Sprintf("cannot decompress %v", err))
+	}
+
+	gobDec := gob.NewDecoder(bytes.NewReader(uncompressed))
+	if err = gobDec.Decode(&BodyList); err != nil {
+		panic(fmt.Sprintf("cannot decode %v", err))
+	}
+
 	limiter := rate.NewLimiter(rate.Limit(*spanRate), *spanRate)
 	for {
 		traceIDMap := make(map[string]string)
 		once := sync.Once{}
 		timeOffset := uint64(0)
-		for i := range requestBodyList {
-			data := requestBodyList[i]
+		for i := range BodyList {
+			data := BodyList[i]
 			var req otelpb.ExportTraceServiceRequest
 			if err := req.UnmarshalProtobuf(data); err != nil {
 				panic(err)
@@ -87,4 +97,29 @@ func main() {
 			}
 		}
 	}
+}
+
+// readWrite Does the following:
+// 1. read request body binary files like `1.bin`, `2.bin` and puts them into `BodyList`.
+// 2. encode and compress the `BodyList` into `[]byte`.
+// 3. write the `[]byte` result to `./app/tracegen/testdata/testdata.bin`.
+//
+// You have to prepare the request body binary in advance.
+func readWrite() {
+	for i := 0; i <= 100; i++ {
+		dat, err := os.ReadFile(fmt.Sprintf("%d.bin", i))
+		if err != nil {
+			panic(fmt.Sprintf("cannot read file %d: %v", i, err))
+		}
+		BodyList = append(BodyList, dat)
+	}
+
+	var buf bytes.Buffer
+	gobEnc := gob.NewEncoder(&buf)
+	if err := gobEnc.Encode(BodyList); err != nil {
+		panic(err)
+	}
+	var compressed []byte
+	compressed = zstd.CompressLevel(compressed, buf.Bytes(), 3)
+	os.WriteFile("./app/tracegen/testdata/testdata.bin", compressed, 0666)
 }

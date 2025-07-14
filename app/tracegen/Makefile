@@ -80,3 +80,6 @@ tracegen-windows-amd64:
 
 tracegen-pure:
 	APP_NAME=tracegen $(MAKE) app-local-pure
+
+run-tracegen:
+	./bin/tracegen
