@@ -12,23 +12,29 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 	"golang.org/x/time/rate"
+
+	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
 var requestBodyList = make([][]byte, 0, 101)
 
 func main() {
 	spanRate := flag.Int("rate", 10000, "spans per second.")
-	addr := flag.String("addr", "", "otlp trace export endpoint.")
+	addrs := flag.String("addr", "", "otlp trace export endpoint.")
 	flag.Parse()
-	if _, err := url.ParseRequestURI(*addr); err != nil {
-		panic(fmt.Sprintf("invalid otlp trace export endpoint: %v", err))
+	addrList := strings.Split(*addrs, ",")
+	for _, addr := range addrList {
+		if _, err := url.ParseRequestURI(addr); err != nil {
+			panic(fmt.Sprintf("invalid otlp trace export endpoint: %v", err))
+		}
 	}
+
 	for i := 0; i <= 100; i++ {
 		dat, err := os.ReadFile(fmt.Sprintf("%d.bin", i))
 		if err != nil {
@@ -73,9 +79,11 @@ func main() {
 				}
 			}
 			limiter.WaitN(context.TODO(), spanCount)
-			_, err := http.Post(*addr, "application/x-protobuf", bytes.NewReader(req.MarshalProtobuf(nil)))
-			if err != nil {
-				logger.Errorf("trace export error: %s", err)
+			for _, addr := range addrList {
+				_, err := http.Post(addr, "application/x-protobuf", bytes.NewReader(req.MarshalProtobuf(nil)))
+				if err != nil {
+					logger.Errorf("trace export error: %s", err)
+				}
 			}
 		}
 	}
