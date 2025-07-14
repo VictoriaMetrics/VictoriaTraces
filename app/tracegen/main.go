@@ -29,12 +29,18 @@ var BodyList [][]byte
 func main() {
 	spanRate := flag.Int("rate", 10000, "spans per second.")
 	addrs := flag.String("addrs", "", "otlp trace export endpoint.")
+	authHeaders := flag.String("authorizations", "", "authorization header.")
+
 	flag.Parse()
 	addrList := strings.Split(*addrs, ",")
 	for _, addr := range addrList {
 		if _, err := url.ParseRequestURI(addr); err != nil {
 			panic(fmt.Sprintf("invalid otlp trace export endpoint %s: %v", addr, err))
 		}
+	}
+	authHeaderList := strings.Split(*authHeaders, ",")
+	if *authHeaders != "" && len(addrList) != len(authHeaderList) {
+		panic("len(addrList) != len(authHeaderList)")
 	}
 
 	data, err := os.ReadFile("./app/tracegen/testdata/testdata.bin")
@@ -89,8 +95,13 @@ func main() {
 				}
 			}
 			limiter.WaitN(context.TODO(), spanCount)
-			for _, addr := range addrList {
-				_, err := http.Post(addr, "application/x-protobuf", bytes.NewReader(req.MarshalProtobuf(nil)))
+			for addrIdx, addr := range addrList {
+				httpReq, err := http.NewRequest("POST", addr, bytes.NewReader(req.MarshalProtobuf(nil)))
+				if *authHeaders != "" {
+					httpReq.Header.Add("authorization", authHeaderList[addrIdx])
+				}
+				httpReq.Header.Add("content-type", "application/x-protobuf")
+				_, err = http.DefaultClient.Do(httpReq)
 				if err != nil {
 					logger.Errorf("trace export error: %s", err)
 				}

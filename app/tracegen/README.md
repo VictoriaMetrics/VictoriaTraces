@@ -10,4 +10,6 @@
     to ensure that each address receive the same pressure. (default: 10000)
 -addrs
 	OTLP trace export endpoints, split by `,`.
+-authorizations
+    Basic auth value, split by `,`. If -authorizations is not empty, it must contains same items as -addrs.
 ```
