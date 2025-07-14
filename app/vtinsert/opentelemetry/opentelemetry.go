@@ -10,10 +10,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var maxRequestSize = flagutil.NewBytes("opentelemetry.traces.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single OpenTelemetry trace export request.")
@@ -26,8 +25,9 @@ var (
 )
 
 var (
-	mandatoryStreamFields = []string{otelpb.ResourceAttrServiceName, otelpb.NameField}
-	msgFieldValue         = "-"
+	mandatoryStreamFields    = []string{otelpb.ResourceAttrServiceName, otelpb.NameField}
+	traceIDIndexStreamFields = []logstorage.Field{{Name: otelpb.TraceIDIndexStreamName, Value: otelpb.TraceIDIndexStreamValue}}
+	msgFieldValue            = "-"
 )
 
 // RequestHandler processes Opentelemetry insert requests
@@ -176,6 +176,14 @@ func pushFieldsFromSpan(span *otelpb.Span, scopeCommonFields []logstorage.Field,
 		Value: msgFieldValue,
 	})
 	lmp.AddRow(int64(span.EndTimeUnixNano), fields, nil)
+
+	// for root span, create an entity in trace-id-idx stream.
+	if span.ParentSpanID == "" {
+		lmp.AddRow(int64(span.StartTimeUnixNano), []logstorage.Field{
+			{Name: otelpb.TraceIDIndexFieldName, Value: span.TraceID},
+			{Name: "_msg", Value: msgFieldValue},
+		}, traceIDIndexStreamFields)
+	}
 	return fields
 }
 

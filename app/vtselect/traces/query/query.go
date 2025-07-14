@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
@@ -137,89 +138,22 @@ func GetSpanNameList(ctx context.Context, cp *CommonParams, serviceName string) 
 func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, error) {
 	currentTime := time.Now()
 
-	// query: trace_id:traceID
-	qStr := fmt.Sprintf(otelpb.TraceIDField+": %q", traceID)
+	// query: {trace_id_idx="-"} AND trace_id:traceID
+	qStr := fmt.Sprintf(`{%s="%s"} AND %s:=%q | fields _time`, otelpb.TraceIDIndexStreamName, otelpb.TraceIDIndexStreamValue, otelpb.TraceIDIndexFieldName, traceID)
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
+
+	traceStartTime, err := findTraceIDTimeSplitTimeRange(ctx, q, cp)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
+		return nil, fmt.Errorf("cannot find trace_id %q start time: %s", traceID, err)
 	}
 
-	ctxWithCancel, cancel := context.WithCancel(ctx)
-
-	// search for trace spans and write to `rows []*Row`
-	var rowsLock sync.Mutex
-	var rows []*Row
-	var missingTimeColumn atomic.Bool
-	writeBlock := func(_ uint, db *logstorage.DataBlock) {
-		if missingTimeColumn.Load() {
-			return
-		}
-
-		columns := db.Columns
-		clonedColumnNames := make([]string, len(columns))
-		for i, c := range columns {
-			clonedColumnNames[i] = strings.Clone(c.Name)
-		}
-
-		timestamps, ok := db.GetTimestamps(nil)
-		if !ok {
-			missingTimeColumn.Store(true)
-			cancel()
-			return
-		}
-
-		for i, timestamp := range timestamps {
-			fields := make([]logstorage.Field, 0, len(columns))
-			for j := range columns {
-				// column could be empty if this span does not contain such field.
-				// only append non-empty columns.
-				if columns[j].Values[i] != "" {
-					fields = append(fields, logstorage.Field{
-						Name:  clonedColumnNames[j],
-						Value: strings.Clone(columns[j].Values[i]),
-					})
-				}
-			}
-
-			rowsLock.Lock()
-			rows = append(rows, &Row{
-				Timestamp: timestamp,
-				Fields:    fields,
-			})
-			rowsLock.Unlock()
-		}
+	// fast path: trace start time found, search in [trace start time, trace start time + *traceMaxDurationWindow] time range.
+	if !traceStartTime.IsZero() {
+		return findSpansByTraceIDAndTime(ctx, cp, traceID, traceStartTime, traceStartTime.Add(*traceMaxDurationWindow))
 	}
-
-	startTime := currentTime.Add(-*traceSearchStep)
-	endTime := currentTime
-	for startTime.UnixNano() > 0 { // todo: no need to search time range before retention period.
-		qq := q.CloneWithTimeFilter(currentTime.UnixNano(), startTime.UnixNano(), endTime.UnixNano())
-		if err = vtstorage.RunQuery(ctxWithCancel, cp.TenantIDs, qq, writeBlock); err != nil {
-			return nil, err
-		}
-		if missingTimeColumn.Load() {
-			return nil, fmt.Errorf("missing _time column in the result for the query [%s]", qq)
-		}
-
-		// no hit in this time range, continue with step.
-		if len(rows) == 0 {
-			endTime = startTime
-			startTime = startTime.Add(-*traceSearchStep)
-			continue
-		}
-
-		// found result, perform extra search for traceMaxDurationWindow and then break.
-		qq = q.CloneWithTimeFilter(currentTime.UnixNano(), startTime.Add(-*traceMaxDurationWindow).UnixNano(), startTime.UnixNano())
-		if err = vtstorage.RunQuery(ctxWithCancel, cp.TenantIDs, qq, writeBlock); err != nil {
-			return nil, err
-		}
-		if missingTimeColumn.Load() {
-			return nil, fmt.Errorf("missing _time column in the result for the query [%s]", qq)
-		}
-		break
-	}
-
-	return rows, nil
+	// slow path: if trace start time not exist, probably the root span was not available.
+	// try to search from now to 0 timestamp.
+	return findSpansByTraceID(ctx, cp, traceID)
 }
 
 // GetTraceList returns multiple traceIDs and spans of them in []*Row format.
@@ -418,6 +352,162 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *Co
 	}
 
 	return checkTraceIDList(traceIDList), maxStartTime, nil
+}
+
+// findTraceIDTimeSplitTimeRange try to search from {trace_id_idx_stream="-"} stream, which contains
+// the trace_id and start time of the root span. It returns the start time of the trace if found.
+// Otherwise, the root span may not reach VictoriaTraces, and zero time is returned.
+func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *CommonParams) (time.Time, error) {
+	traceIDStartTimeInt := int64(0)
+	var missingTimeColumn atomic.Bool
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		if missingTimeColumn.Load() {
+			return
+		}
+
+		columns := db.Columns
+		clonedColumnNames := make([]string, len(columns))
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+		}
+
+		timestamps, ok := db.GetTimestamps(nil)
+		if !ok {
+			missingTimeColumn.Store(true)
+			cancel()
+			return
+		}
+		if len(timestamps) > 1 {
+			logger.Errorf("found multiple trace_id in index, timestamps: %v", timestamps)
+		}
+		traceIDStartTimeInt = timestamps[0]
+	}
+
+	currentTime := time.Now()
+	startTime := currentTime.Add(-*traceSearchStep)
+	endTime := currentTime
+	for startTime.UnixNano() > 0 { // todo: no need to search time range before retention period.
+		qq := q.CloneWithTimeFilter(currentTime.UnixNano(), startTime.UnixNano(), endTime.UnixNano())
+		if err := vtstorage.RunQuery(ctxWithCancel, cp.TenantIDs, qq, writeBlock); err != nil {
+			return time.Time{}, err
+		}
+		if missingTimeColumn.Load() {
+			return time.Time{}, fmt.Errorf("missing _time column in the result for the query [%s]", qq)
+		}
+
+		// no hit in this time range, continue with step.
+		if traceIDStartTimeInt == 0 {
+			endTime = startTime
+			startTime = startTime.Add(-*traceSearchStep)
+			continue
+		}
+
+		// found result, perform extra search for traceMaxDurationWindow and then break.
+		return time.Unix(traceIDStartTimeInt/1e9, traceIDStartTimeInt%1e9), nil
+	}
+
+	return time.Time{}, nil
+}
+
+// findSpanByTraceID search for spans from now to 0 time with steps.
+// It stops when rows are found in a time range.
+func findSpansByTraceID(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, error) {
+	// query: trace_id:traceID
+	currentTime := time.Now()
+	startTime := currentTime.Add(-*traceSearchStep)
+	endTime := currentTime
+	var (
+		rows []*Row
+		err  error
+	)
+	for startTime.UnixNano() > 0 { // todo: no need to search time range before retention period.
+		rows, err = findSpansByTraceIDAndTime(ctx, cp, traceID, startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		// no hit in this time range, continue with step.
+		if len(rows) == 0 {
+			endTime = startTime
+			startTime = startTime.Add(-*traceSearchStep)
+			continue
+		}
+
+		// found result, perform extra search for traceMaxDurationWindow and then break.
+		extraRows, err := findSpansByTraceIDAndTime(ctx, cp, traceID, startTime.Add(-*traceMaxDurationWindow), startTime)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, extraRows...)
+		break
+	}
+	return rows, nil
+}
+
+// findSpansByTraceIDAndTime search for spans in given time range.
+func findSpansByTraceIDAndTime(ctx context.Context, cp *CommonParams, traceID string, startTime, endTime time.Time) ([]*Row, error) {
+	// query: trace_id:traceID
+	qStr := fmt.Sprintf(otelpb.TraceIDField+": %q", traceID)
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, endTime.UnixNano())
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
+	}
+
+	ctxWithCancel, cancel := context.WithCancel(ctx)
+
+	// search for trace spans and write to `rows []*Row`
+	var rowsLock sync.Mutex
+	var rows []*Row
+	var missingTimeColumn atomic.Bool
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		if missingTimeColumn.Load() {
+			return
+		}
+
+		columns := db.Columns
+		clonedColumnNames := make([]string, len(columns))
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+		}
+
+		timestamps, ok := db.GetTimestamps(nil)
+		if !ok {
+			missingTimeColumn.Store(true)
+			cancel()
+			return
+		}
+
+		for i, timestamp := range timestamps {
+			fields := make([]logstorage.Field, 0, len(columns))
+			for j := range columns {
+				// column could be empty if this span does not contain such field.
+				// only append non-empty columns.
+				if columns[j].Values[i] != "" {
+					fields = append(fields, logstorage.Field{
+						Name:  clonedColumnNames[j],
+						Value: strings.Clone(columns[j].Values[i]),
+					})
+				}
+			}
+
+			rowsLock.Lock()
+			rows = append(rows, &Row{
+				Timestamp: timestamp,
+				Fields:    fields,
+			})
+			rowsLock.Unlock()
+		}
+	}
+
+	qq := q.CloneWithTimeFilter(endTime.UnixNano(), startTime.UnixNano(), endTime.UnixNano())
+	if err = vtstorage.RunQuery(ctxWithCancel, cp.TenantIDs, qq, writeBlock); err != nil {
+		return nil, err
+	}
+	if missingTimeColumn.Load() {
+		return nil, fmt.Errorf("missing _time column in the result for the query [%s]", qq)
+	}
+	return rows, nil
 }
 
 // checkTraceIDList removes invalid `trace_id`. It helps prevent query injection.
