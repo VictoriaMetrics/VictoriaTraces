@@ -1,6 +1,6 @@
-## tracegen
+## vtgen
 
-`tracegen` is a trace data generator. It reads the OTLP request body in `testdata/testdata.bin`, modifies the `trace_id`, `start_time` and `end_time`, and sends them to OTLP trace endpoint (`/v1/traces`).
+`vtgen` is a trace data generator. It reads the OTLP request body in `testdata/testdata.bin`, modifies the `trace_id`, `start_time` and `end_time`, and sends them to OTLP trace endpoint (`/v1/traces`).
 
 ### Command-line flags
 ```

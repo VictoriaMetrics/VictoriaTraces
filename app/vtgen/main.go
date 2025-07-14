@@ -43,7 +43,7 @@ func main() {
 		panic("len(addrList) != len(authHeaderList)")
 	}
 
-	data, err := os.ReadFile("./app/tracegen/testdata/testdata.bin")
+	data, err := os.ReadFile("./app/vtgen/testdata/testdata.bin")
 	if err != nil {
 		panic(fmt.Sprintf("cannot read file %v", err))
 	}
@@ -113,7 +113,7 @@ func main() {
 // readWrite Does the following:
 // 1. read request body binary files like `1.bin`, `2.bin` and puts them into `BodyList`.
 // 2. encode and compress the `BodyList` into `[]byte`.
-// 3. write the `[]byte` result to `./app/tracegen/testdata/testdata.bin`.
+// 3. write the `[]byte` result to `./app/vtgen/testdata/testdata.bin`.
 //
 // You have to prepare the request body binary in advance.
 func readWrite() {
@@ -132,5 +132,5 @@ func readWrite() {
 	}
 	var compressed []byte
 	compressed = zstd.CompressLevel(compressed, buf.Bytes(), 3)
-	os.WriteFile("./app/tracegen/testdata/testdata.bin", compressed, 0666)
+	os.WriteFile("./app/vtgen/testdata/testdata.bin", compressed, 0666)
 }
