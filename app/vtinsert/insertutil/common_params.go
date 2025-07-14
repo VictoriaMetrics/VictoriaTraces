@@ -314,9 +314,10 @@ func (lmp *logMessageProcessor) MustClose() {
 // MustClose() must be called on the returned LogMessageProcessor when it is no longer needed.
 func (cp *CommonParams) NewLogMessageProcessor(protocolName string, isStreamMode bool) LogMessageProcessor {
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.DecolorizeFields, cp.ExtraFields, *defaultMsgValue)
-	rowsIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vt_rows_ingested_total{type=%q}", protocolName))
-	bytesIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vt_bytes_ingested_total{type=%q}", protocolName))
-	flushDuration := metrics.GetOrCreateSummary(fmt.Sprintf("vt_insert_flush_duration_seconds{type=%q}", protocolName))
+	tenantLabel := fmt.Sprintf("%d:%d", cp.TenantID.AccountID, cp.TenantID.ProjectID)
+	rowsIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf(`vt_rows_ingested_total{type="%s",tenant="%s"}`, protocolName, tenantLabel))
+	bytesIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf(`vt_bytes_ingested_total{type="%s",tenant="%s"}`, protocolName, tenantLabel))
+	flushDuration := metrics.GetOrCreateSummary(fmt.Sprintf(`vt_insert_flush_duration_seconds{type="%s",tenant="%s"}`, protocolName, tenantLabel))
 	lmp := &logMessageProcessor{
 		cp: cp,
 		lr: lr,
