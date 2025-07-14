@@ -141,6 +141,9 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 	// query: {trace_id_idx="-"} AND trace_id:traceID
 	qStr := fmt.Sprintf(`{%s="%s"} AND %s:=%q | fields _time`, otelpb.TraceIDIndexStreamName, otelpb.TraceIDIndexStreamValue, otelpb.TraceIDIndexFieldName, traceID)
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
+	if err != nil {
+		return nil, fmt.Errorf("cannot unmarshal query=%q: %w", qStr, err)
+	}
 
 	traceStartTime, err := findTraceIDTimeSplitTimeRange(ctx, q, cp)
 	if err != nil {
