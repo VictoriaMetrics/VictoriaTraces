@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useMemo } from "preact/compat";
+import { FC, useCallback, useMemo } from "preact/compat";
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
@@ -75,7 +75,7 @@ const ExploreLogsBarChart: FC<Props> = ({ logHits, period, error, isLoading, onA
     if (hideChart) {
       return "Chart hidden. Hits updates paused.";
     } else if (noData) {
-      return "No logs volume available\nNo volume information available for the current queries and time range.";
+      return "No traces volume available\nNo volume information available for the current queries and time range.";
     } else if (noTimestamps) {
       return "No timestamp information available for the current queries and time range.";
     } else if (noValues) {
