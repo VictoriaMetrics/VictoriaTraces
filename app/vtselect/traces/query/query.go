@@ -13,13 +13,14 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
 var (
-	traceMaxDurationWindow = flag.Duration("search.traceMaxDurationWindow", 10*time.Minute, "The window of searching for the rest trace spans after finding one span."+
+	traceMaxDurationWindow = flag.Duration("search.traceMaxDurationWindow", 45*time.Second, "The window of searching for the rest trace spans after finding one span."+
 		"It allows extending the search start time and end time by -search.traceMaxDurationWindow to make sure all spans are included."+
 		"It affects both Jaeger's /api/traces and /api/traces/<trace_id> APIs.")
 	traceServiceAndSpanNameLookbehind = flag.Duration("search.traceServiceAndSpanNameLookbehind", 7*24*time.Hour, "The time range of searching for service name and span name. "+
@@ -138,21 +139,23 @@ func GetSpanNameList(ctx context.Context, cp *CommonParams, serviceName string) 
 func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, error) {
 	currentTime := time.Now()
 
+	// possible partition
+
 	// query: {trace_id_idx="-"} AND trace_id:traceID
-	qStr := fmt.Sprintf(`{%s="%s"} AND %s:=%q | fields _time`, otelpb.TraceIDIndexStreamName, otelpb.TraceIDIndexStreamValue, otelpb.TraceIDIndexFieldName, traceID)
+	qStr := fmt.Sprintf(`{%s="%d"} AND %s:=%q | fields _time`, otelpb.TraceIDIndexStreamName, xxhash.Sum64String(traceID)%otelpb.TraceIDIndexPartitionCount, otelpb.TraceIDIndexFieldName, traceID)
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("cannot unmarshal query=%q: %w", qStr, err)
 	}
 
-	traceStartTime, err := findTraceIDTimeSplitTimeRange(ctx, q, cp)
+	traceTimestamp, err := findTraceIDTimeSplitTimeRange(ctx, q, cp)
 	if err != nil {
 		return nil, fmt.Errorf("cannot find trace_id %q start time: %s", traceID, err)
 	}
 
 	// fast path: trace start time found, search in [trace start time, trace start time + *traceMaxDurationWindow] time range.
-	if !traceStartTime.IsZero() {
-		return findSpansByTraceIDAndTime(ctx, cp, traceID, traceStartTime, traceStartTime.Add(*traceMaxDurationWindow))
+	if !traceTimestamp.IsZero() {
+		return findSpansByTraceIDAndTime(ctx, cp, traceID, traceTimestamp.Add(-*traceMaxDurationWindow), traceTimestamp.Add(*traceMaxDurationWindow))
 	}
 	// slow path: if trace start time not exist, probably the root span was not available.
 	// try to search from now to 0 timestamp.

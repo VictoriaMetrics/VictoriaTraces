@@ -4,9 +4,9 @@ package pb
 
 // Special: TraceID index stream and fields
 const (
-	TraceIDIndexStreamName  = "trace_id_idx_stream"
-	TraceIDIndexStreamValue = "-"
-	TraceIDIndexFieldName   = "trace_id_idx"
+	TraceIDIndexStreamName     = "trace_id_idx_stream"
+	TraceIDIndexFieldName      = "trace_id_idx"
+	TraceIDIndexPartitionCount = uint64(1024)
 )
 
 // Resource
