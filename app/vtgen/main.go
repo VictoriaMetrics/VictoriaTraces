@@ -103,8 +103,9 @@ func main() {
 								} else {
 									// generate a new traceID by md5(timestamp) and put it into cache.
 									traceID := generateTraceID()
+									oldTraceID := sp.TraceID
 									sp.TraceID = traceID
-									traceIDMap[sp.TraceID] = traceID
+									traceIDMap[oldTraceID] = traceID
 
 									// log traceID for query test if needed.
 									if rand.Intn(10000) < *logNTraceIDEvery10K {
