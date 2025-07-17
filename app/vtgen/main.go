@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"strconv"
@@ -59,6 +60,8 @@ func main() {
 	if err = gobDec.Decode(&BodyList); err != nil {
 		panic(fmt.Sprintf("cannot decode %v", err))
 	}
+
+	go http.ListenAndServe("0.0.0.0:8080", nil)
 
 	limiter := rate.NewLimiter(rate.Limit(*spanRate), *spanRate)
 	wg := sync.WaitGroup{}
