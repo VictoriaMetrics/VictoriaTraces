@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useState } from "preact/compat";
 import { InfoIcon, PlayIcon, SpinnerIcon, WikiIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
@@ -102,7 +102,7 @@ const ExploreLogsHeader: FC<ExploreLogHeaderProps> = ({
           onArrowDown={createHandlerArrow(1)}
           onEnter={onRun}
           onChange={onChange}
-          label={"Log query"}
+          label={"Trace query"}
           error={error}
         />
         <TextField

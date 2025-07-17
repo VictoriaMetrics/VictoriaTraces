@@ -9,7 +9,7 @@ vmui-build: vmui-package-base-image
 		--mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \
 		-w /build/packages/vmui \
 		--entrypoint=/bin/bash \
-		vmui-builder-image -c "npm install && npm run build:logs"
+		vmui-builder-image -c "npm install && npm run build"
 
 vmui-update: vmui-build
 	rm -rf app/vtselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vtselect/vmui && rm -rf app/vtselect/vmui/dashboards
