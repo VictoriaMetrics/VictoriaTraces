@@ -7,16 +7,28 @@
 1. Generating identical data for different targets, which is useful for query performance benchmarking of different storage backends against the same dataset.
 2. Generating different data at the same rate (on a best-effort basis) for different targets, which is useful for data ingestion performance benchmarking of different storage backends.
 
+You can build `vtgen` via the following commands:
+```
+# build via go build
+make vtgen
+# build via Docker
+make vtgen-prod
+```
+
+These commands will generate `vtgen(-prod)` binary in `bin` folder.
+
+`vtgen` MUST be run from the root path of `VictoriaTraces` repository, to load the test data correctly from `app/vtgen/testdata`.
+
 To send identical data to different targets:
 ```
-./vtgen -addrs=http://example-url1:port/v1/traces,http://example-url2:port/insert/opentelemetry/v1/traces
+./bin/vtgen -addrs=http://example-url1:port/v1/traces,http://example-url2:port/insert/opentelemetry/v1/traces
 ```
 The performance of different targets will affect each other, as `vtgen` generates data and makes HTTP requests to them one by one.
 
 To send (potentially) different data to different addresses at the same rate, simply run multiple `vtgen` with different HTTP listening port:
 ```
-./vtgen -addrs=http://example-url1:port/v1/traces -httpListenAddr=0.0.0.0:8080
-./vtgen -addrs=http://example-url2:port/insert/opentelemetry/v1/traces -httpListenAddr=0.0.0.0:8081
+./bin/vtgen -addrs=http://example-url1:port/v1/traces -httpListenAddr=0.0.0.0:8080
+./bin/vtgen -addrs=http://example-url2:port/insert/opentelemetry/v1/traces -httpListenAddr=0.0.0.0:8081
 ```
 
 ### Metrics
