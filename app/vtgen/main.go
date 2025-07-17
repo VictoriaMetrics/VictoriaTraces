@@ -57,7 +57,9 @@ func main() {
 		metrics.WritePrometheus(w, true)
 	})
 	go func() {
-		_ = http.ListenAndServe(*httpListenAddrs, nil)
+		if err := http.ListenAndServe(*httpListenAddrs, nil); err != nil {
+			logger.Fatalf("failed to start HTTP server: %s", err)
+		}
 	}()
 
 	for i := 0; i < *worker; i++ {
