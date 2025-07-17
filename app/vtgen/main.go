@@ -30,6 +30,8 @@ func main() {
 	spanRate := flag.Int("rate", 10000, "spans per second.")
 	addrs := flag.String("addrs", "", "otlp trace export endpoint.")
 	authHeaders := flag.String("authorizations", "", "authorization header.")
+	worker := flag.Int("worker", 4, "number of workers.")
+	logNTraceIDEvery10K := flag.Int("logEvery10k", 2, "log N trace id for every 10000 traces.")
 
 	flag.Parse()
 	addrList := strings.Split(*addrs, ",")
@@ -59,55 +61,65 @@ func main() {
 	}
 
 	limiter := rate.NewLimiter(rate.Limit(*spanRate), *spanRate)
-	for {
-		traceIDMap := make(map[string]string)
-		once := sync.Once{}
-		timeOffset := uint64(0)
-		for i := range BodyList {
-			data := BodyList[i]
-			var req otelpb.ExportTraceServiceRequest
-			if err := req.UnmarshalProtobuf(data); err != nil {
-				panic(err)
-			}
-			spanCount := 0
-			for j := range req.ResourceSpans {
-				for k := range req.ResourceSpans[j].ScopeSpans {
-					spanCount += len(req.ResourceSpans[j].ScopeSpans[k].Spans)
-					for l := range req.ResourceSpans[j].ScopeSpans[k].Spans {
-						sp := req.ResourceSpans[j].ScopeSpans[k].Spans[l]
-						once.Do(func() {
-							timeOffset = uint64(time.Now().UnixNano()) - sp.StartTimeUnixNano
-						})
-						// replace TraceID
-						if tid, ok := traceIDMap[sp.TraceID]; ok {
-							sp.TraceID = tid
-						} else {
-							// generate one
-							h := md5.New()
-							h.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
-							traceID := hex.EncodeToString(h.Sum(nil))
-							traceIDMap[sp.TraceID] = traceID
-							sp.TraceID = traceID
+	wg := sync.WaitGroup{}
+	for i := 0; i < *worker; i++ {
+		wg.Add(1)
+		go func() {
+			for {
+				traceIDMap := make(map[string]string)
+				once := sync.Once{}
+				timeOffset := uint64(0)
+				for i := range BodyList {
+					data := BodyList[i]
+					var req otelpb.ExportTraceServiceRequest
+					if err := req.UnmarshalProtobuf(data); err != nil {
+						panic(err)
+					}
+					spanCount := 0
+					for j := range req.ResourceSpans {
+						for k := range req.ResourceSpans[j].ScopeSpans {
+							spanCount += len(req.ResourceSpans[j].ScopeSpans[k].Spans)
+							for l := range req.ResourceSpans[j].ScopeSpans[k].Spans {
+								sp := req.ResourceSpans[j].ScopeSpans[k].Spans[l]
+								once.Do(func() {
+									timeOffset = uint64(time.Now().UnixNano()) - sp.StartTimeUnixNano
+								})
+								// replace TraceID
+								if tid, ok := traceIDMap[sp.TraceID]; ok {
+									sp.TraceID = tid
+								} else {
+									// generate one
+									h := md5.New()
+									h.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
+									traceID := hex.EncodeToString(h.Sum(nil))
+									traceIDMap[sp.TraceID] = traceID
+									sp.TraceID = traceID
+									if rand.Intn(10000) < *logNTraceIDEvery10K {
+										logger.Infof(traceID)
+									}
+								}
+								sp.StartTimeUnixNano = sp.StartTimeUnixNano + timeOffset
+								sp.EndTimeUnixNano = sp.EndTimeUnixNano + timeOffset + uint64(rand.Int63n(100000000))
+							}
 						}
-						sp.StartTimeUnixNano = sp.StartTimeUnixNano + timeOffset
-						sp.EndTimeUnixNano = sp.EndTimeUnixNano + timeOffset + uint64(rand.Int63n(100000000))
+					}
+					limiter.WaitN(context.TODO(), spanCount)
+					for addrIdx, addr := range addrList {
+						httpReq, err := http.NewRequest("POST", addr, bytes.NewReader(req.MarshalProtobuf(nil)))
+						if *authHeaders != "" {
+							httpReq.Header.Add("authorization", authHeaderList[addrIdx])
+						}
+						httpReq.Header.Add("content-type", "application/x-protobuf")
+						_, err = http.DefaultClient.Do(httpReq)
+						if err != nil {
+							logger.Errorf("trace export error: %s", err)
+						}
 					}
 				}
 			}
-			limiter.WaitN(context.TODO(), spanCount)
-			for addrIdx, addr := range addrList {
-				httpReq, err := http.NewRequest("POST", addr, bytes.NewReader(req.MarshalProtobuf(nil)))
-				if *authHeaders != "" {
-					httpReq.Header.Add("authorization", authHeaderList[addrIdx])
-				}
-				httpReq.Header.Add("content-type", "application/x-protobuf")
-				_, err = http.DefaultClient.Do(httpReq)
-				if err != nil {
-					logger.Errorf("trace export error: %s", err)
-				}
-			}
-		}
+		}()
 	}
+	wg.Wait()
 }
 
 // readWrite Does the following:
