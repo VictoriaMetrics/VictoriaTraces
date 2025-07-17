@@ -20,6 +20,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/metrics"
 	"golang.org/x/time/rate"
 
@@ -59,9 +60,7 @@ func main() {
 		_ = http.ListenAndServe(*httpListenAddrs, nil)
 	}()
 
-	wg := sync.WaitGroup{}
 	for i := 0; i < *worker; i++ {
-		wg.Add(1)
 		go func() {
 			for {
 				// The traceIDMap recorded old traceID->new traceID.
@@ -152,7 +151,8 @@ func main() {
 			}
 		}()
 	}
-	wg.Wait()
+	sig := procutil.WaitForSigterm()
+	logger.Infof("received signal %s", sig)
 }
 
 func initFlags() ([]string, []string) {
