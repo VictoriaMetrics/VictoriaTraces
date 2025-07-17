@@ -31,7 +31,7 @@ func main() {
 	addrs := flag.String("addrs", "", "otlp trace export endpoint.")
 	authHeaders := flag.String("authorizations", "", "authorization header.")
 	worker := flag.Int("worker", 4, "number of workers.")
-	logNTraceIDEvery10K := flag.Int("logEvery10k", 2, "log N trace id for every 10000 traces.")
+	logNTraceIDEvery10K := flag.Int("logEvery10k", 2, "how many trace id should be logged for every 10000 traces for each worker.")
 
 	flag.Parse()
 	addrList := strings.Split(*addrs, ",")
