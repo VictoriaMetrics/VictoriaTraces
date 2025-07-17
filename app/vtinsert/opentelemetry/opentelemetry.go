@@ -35,7 +35,7 @@ var (
 
 var (
 	// traceIDCache for deduplicating trace_id
-	traceIDCache = fastcache.New(64 * 1024 * 1024)
+	traceIDCache = fastcache.New(32 * 1024 * 1024)
 )
 
 // RequestHandler processes Opentelemetry insert requests
