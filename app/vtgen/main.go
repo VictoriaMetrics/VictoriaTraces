@@ -113,13 +113,15 @@ func main() {
 							httpReq.Header.Add("authorization", authHeaderList[addrIdx])
 						}
 						httpReq.Header.Add("content-type", "application/x-protobuf")
-						_, err = http.DefaultClient.Do(httpReq)
+						res, err := http.DefaultClient.Do(httpReq)
 						if err != nil {
 							logger.Errorf("trace export error: %s", err)
 						}
+						res.Body.Close()
 					}
 				}
 			}
+			wg.Done()
 		}()
 	}
 	wg.Wait()
