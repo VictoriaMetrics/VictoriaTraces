@@ -56,7 +56,7 @@ func main() {
 		metrics.WritePrometheus(w, true)
 	})
 	go func() {
-		http.ListenAndServe(*httpListenAddrs, nil)
+		_ = http.ListenAndServe(*httpListenAddrs, nil)
 	}()
 
 	wg := sync.WaitGroup{}
@@ -121,12 +121,16 @@ func main() {
 					}
 
 					// rate limit
-					limiter.WaitN(context.TODO(), spanCount)
+					_ = limiter.WaitN(context.TODO(), spanCount)
 
 					// send request to each address.
 					for addrIdx, addr := range addrList {
 						// prepare request.
 						httpReq, err := http.NewRequest("POST", addr, bytes.NewReader(req.MarshalProtobuf(nil)))
+						if err != nil {
+							logger.Errorf("cannot create http request for addr %q: %s", addr, err)
+							continue
+						}
 						if *authHeaders != "" {
 							httpReq.Header.Add("authorization", authHeaderList[addrIdx])
 						}
@@ -142,40 +146,13 @@ func main() {
 						if res != nil {
 							res.Body.Close()
 						}
-						requestHistogramList[addrIdx].Update(time.Now().Sub(startTime).Seconds())
+						requestHistogramList[addrIdx].Update(time.Since(startTime).Seconds())
 					}
 				}
 			}
-			wg.Done()
 		}()
 	}
 	wg.Wait()
-}
-
-// readWrite Does the following:
-// 1. read request body binary files like `1.bin`, `2.bin` and puts them into `BodyList`.
-// 2. encode and compress the `BodyList` into `[]byte`.
-// 3. write the `[]byte` result to `./app/vtgen/testdata/testdata.bin`.
-//
-// You have to prepare the request body binary in advance.
-func readWrite() {
-	var bodyList [][]byte
-	for i := 0; i <= 100; i++ {
-		dat, err := os.ReadFile(fmt.Sprintf("%d.bin", i))
-		if err != nil {
-			panic(fmt.Sprintf("cannot read file %d: %v", i, err))
-		}
-		bodyList = append(bodyList, dat)
-	}
-
-	var buf bytes.Buffer
-	gobEnc := gob.NewEncoder(&buf)
-	if err := gobEnc.Encode(bodyList); err != nil {
-		panic(err)
-	}
-	var compressed []byte
-	compressed = zstd.CompressLevel(compressed, buf.Bytes(), 3)
-	os.WriteFile("./app/vtgen/testdata/testdata.bin", compressed, 0666)
 }
 
 func initFlags() ([]string, []string) {
@@ -223,3 +200,29 @@ func generateTraceID() string {
 	h.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
 	return hex.EncodeToString(h.Sum(nil))
 }
+
+// readWrite Does the following:
+// 1. read request body binary files like `1.bin`, `2.bin` and puts them into `BodyList`.
+// 2. encode and compress the `BodyList` into `[]byte`.
+// 3. write the `[]byte` result to `./app/vtgen/testdata/testdata.bin`.
+//
+// You have to prepare the request body binary in advance.
+//func readWrite() {
+//	var bodyList [][]byte
+//	for i := 0; i <= 100; i++ {
+//		dat, err := os.ReadFile(fmt.Sprintf("%d.bin", i))
+//		if err != nil {
+//			panic(fmt.Sprintf("cannot read file %d: %v", i, err))
+//		}
+//		bodyList = append(bodyList, dat)
+//	}
+//
+//	var buf bytes.Buffer
+//	gobEnc := gob.NewEncoder(&buf)
+//	if err := gobEnc.Encode(bodyList); err != nil {
+//		panic(err)
+//	}
+//	var compressed []byte
+//	compressed = zstd.CompressLevel(compressed, buf.Bytes(), 3)
+//	os.WriteFile("./app/vtgen/testdata/testdata.bin", compressed, 0666)
+//}
