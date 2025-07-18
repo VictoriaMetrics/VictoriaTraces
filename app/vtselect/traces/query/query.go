@@ -147,19 +147,14 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 	if err != nil {
 		return nil, fmt.Errorf("cannot unmarshal query=%q: %w", qStr, err)
 	}
-	startTime1 := time.Now()
 	traceTimestamp, err := findTraceIDTimeSplitTimeRange(ctx, q, cp)
 	if err != nil {
 		return nil, fmt.Errorf("cannot find trace_id %q start time: %s", traceID, err)
 	}
-	logger.Infof("find trace id time done: %.3fms", time.Since(startTime1).Seconds())
 
 	// fast path: trace start time found, search in [trace start time, trace start time + *traceMaxDurationWindow] time range.
 	if !traceTimestamp.IsZero() {
-		startTime2 := time.Now()
-		result, err := findSpansByTraceIDAndTime(ctx, cp, traceID, traceTimestamp.Add(-*traceMaxDurationWindow), traceTimestamp.Add(*traceMaxDurationWindow))
-		logger.Infof("find all spans done: %.3fms", time.Since(startTime2).Seconds())
-		return result, err
+		return findSpansByTraceIDAndTime(ctx, cp, traceID, traceTimestamp.Add(-*traceMaxDurationWindow), traceTimestamp.Add(*traceMaxDurationWindow))
 	}
 	// slow path: if trace start time not exist, probably the root span was not available.
 	// try to search from now to 0 timestamp.
