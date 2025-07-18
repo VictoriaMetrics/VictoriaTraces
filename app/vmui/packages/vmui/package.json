@@ -7,7 +7,7 @@
   "scripts": {
     "start": "vite",
     "build": "vite build",
-    "lint": "eslint 'src/**/*.{ts,tsx}'",
+    "lint": "eslint --output-file vmui-lint-report.json --format json 'src/**/*.{ts,tsx}'",
     "lint:fix": "eslint 'src/**/*.{ts,tsx}' --fix",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
