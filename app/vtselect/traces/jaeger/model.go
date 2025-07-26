@@ -188,11 +188,10 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 				// we have to display `scope_attr:` prefix as there's no way to distinguish these from span attributes.
 				spanTagList = append(spanTagList, keyValue{key: field.Name, vStr: field.Value})
 			} else if strings.HasPrefix(field.Name, otelpb.EventPrefix) { // event list
-				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, otelpb.EventPrefix), ":", 2)
-				if len(fieldSplit) != 2 {
+				fieldName, idx := extraAttributeNameAndIndex(strings.TrimPrefix(field.Name, otelpb.EventPrefix))
+				if idx == "" {
 					return nil, fmt.Errorf("invalid event field: %s", field.Name)
 				}
-				idx, fieldName := fieldSplit[0], fieldSplit[1]
 				if _, ok := logsMap[idx]; !ok {
 					logsMap[idx] = &log{}
 				}
@@ -210,11 +209,10 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 					lg.fields = append(lg.fields, keyValue{key: strings.TrimPrefix(fieldName, otelpb.EventAttrPrefix), vStr: field.Value})
 				}
 			} else if strings.HasPrefix(field.Name, otelpb.LinkPrefix) { // link list
-				fieldSplit := strings.SplitN(strings.TrimPrefix(field.Name, otelpb.LinkPrefix), ":", 2)
-				if len(fieldSplit) != 2 {
+				fieldName, idx := extraAttributeNameAndIndex(strings.TrimPrefix(field.Name, otelpb.LinkPrefix))
+				if idx == "" {
 					return nil, fmt.Errorf("invalid link field: %s", field.Name)
 				}
-				idx, fieldName := fieldSplit[0], fieldSplit[1]
 				if _, ok := refsMap[idx]; !ok {
 					refsMap[idx] = &spanRef{
 						refType: "FOLLOWS_FROM", // default FOLLOWS_FROM
@@ -272,4 +270,16 @@ func fieldsToSpan(fields []logstorage.Field) (*span, error) {
 	}
 
 	return sp, nil
+}
+
+func extraAttributeNameAndIndex(input string) (string, string) {
+	splitIdx := strings.LastIndex(input, ":")
+	if splitIdx == -1 {
+		return input, ""
+	}
+	idx := input[splitIdx+1:]
+	if _, err := strconv.Atoi(idx); err != nil {
+		return input, ""
+	}
+	return input[:splitIdx], idx
 }

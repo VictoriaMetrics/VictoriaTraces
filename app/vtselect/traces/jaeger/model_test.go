@@ -163,3 +163,17 @@ func TestFieldsToSpan(t *testing.T) {
 	}
 	f(fields, sp, "")
 }
+
+func TestRemoveArrayIndex(t *testing.T) {
+	f := func(input, want string) {
+		t.Helper()
+		if output := removeArrayIndex(input); output != want {
+			t.Fatalf("removeArrayIndex %q: got %q, want %q", input, output, want)
+		}
+	}
+	f("hello:1", "hello")
+	f("hello:my_index", "hello:my_index")
+	f("hello", "hello")
+	f("hello:my_index:99999", "hello:my_index")
+	f("hello:my_index:", "hello:my_index:")
+}
