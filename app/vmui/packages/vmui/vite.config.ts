@@ -4,56 +4,6 @@ import { defineConfig, ProxyOptions } from "vite";
 import preact from "@preact/preset-vite";
 import dynamicIndexHtmlPlugin from "./config/plugins/dynamicIndexHtml";
 
-const getProxy = (): Record<string, ProxyOptions> | undefined => {
-  const playground = process.env.PLAYGROUND;
-
-  switch (playground) {
-    case "METRICS": {
-      return {
-        "^/vmalert/.*": {
-          target: "https://play.victoriametrics.com",
-          changeOrigin: true,
-          configure: (proxy) => {
-            proxy.on("error", (err) => {
-              console.error("[proxy error]", err.message);
-            });
-          }
-        },
-        "^/api/.*": {
-          target: "https://play.victoriametrics.com/select/0/prometheus/",
-          changeOrigin: true,
-          configure: (proxy) => {
-            proxy.on("error", (err) => {
-              console.error("[proxy error]", err.message);
-            });
-          }
-        }
-      };
-    }
-    case "LOGS": {
-      return {
-        "^/select/.*": {
-          target: "https://play-vmlogs.victoriametrics.com",
-          changeOrigin: true,
-          configure: (proxy) => {
-            proxy.on("proxyReq", (proxyReq) => {
-              proxyReq.removeHeader("AccountID");
-              proxyReq.removeHeader("ProjectID");
-            });
-
-            proxy.on("error", (err) => {
-              console.error("[proxy error]", err.message);
-            });
-          }
-        }
-      };
-    }
-    default: {
-      return undefined;
-    }
-  }
-};
-
 export default defineConfig(({ mode }) => {
   return {
     base: "",
@@ -65,7 +15,6 @@ export default defineConfig(({ mode }) => {
     server: {
       open: true,
       port: 3000,
-      proxy: getProxy(),
     },
     resolve: {
       alias: {

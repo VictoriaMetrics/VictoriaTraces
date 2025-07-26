@@ -6,15 +6,19 @@ on:
       - master
     paths:
       - '**.go'
-      - '**/Dockerfile*' # The trailing * is for app/vmui/Dockerfile-*.
+      - '**/Dockerfile'
       - '**/Makefile'
+      - '!app/vmui/Makefile'
+      - '.github/workflows/build.yml'
   pull_request:
     branches:
       - master
     paths:
       - '**.go'
-      - '**/Dockerfile*' # The trailing * is for app/vmui/Dockerfile-*.
+      - '**/Dockerfile'
       - '**/Makefile'
+      - '!app/vmui/Makefile'
+      - '.github/workflows/build.yml'
 
 permissions:
   contents: read
