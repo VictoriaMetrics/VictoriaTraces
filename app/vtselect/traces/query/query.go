@@ -23,7 +23,7 @@ var (
 	traceMaxDurationWindow = flag.Duration("search.traceMaxDurationWindow", 45*time.Second, "The window of searching for the rest trace spans after finding one span."+
 		"It allows extending the search start time and end time by -search.traceMaxDurationWindow to make sure all spans are included."+
 		"It affects both Jaeger's /api/traces and /api/traces/<trace_id> APIs.")
-	traceServiceAndSpanNameLookbehind = flag.Duration("search.traceServiceAndSpanNameLookbehind", 7*24*time.Hour, "The time range of searching for service name and span name. "+
+	traceServiceAndSpanNameLookbehind = flag.Duration("search.traceServiceAndSpanNameLookbehind", 3*24*time.Hour, "The time range of searching for service name and span name. "+
 		"It affects Jaeger's /api/services and /api/services/*/operations APIs.")
 	traceSearchStep = flag.Duration("search.traceSearchStep", 24*time.Hour, "Splits the [0, now] time range into many small time ranges by -search.traceSearchStep "+
 		"when searching for spans by trace_id. Once it finds spans in a time range, it performs an additional search according to -search.traceMaxDurationWindow and then stops. "+
@@ -125,23 +125,18 @@ func GetSpanNameList(ctx context.Context, cp *CommonParams, serviceName string) 
 }
 
 // GetTrace returns all spans of a trace in []*Row format.
-// In order to avoid scanning all data blocks, search is performed on time range splitting by traceSearchStep.
-// Once a trace is found, it assumes other spans will exist on the same time range, and only search this
-// time range (with traceMaxDurationWindow).
-//
-// e.g.
-//  1. find traces span on [now-traceSearchStep, now], no hit.
-//  2. find traces span on [now-2 * traceSearchStep, now - traceSearchStep], hit.
-//  3. make sure to include all the spans by an additional search on: [now-2 * traceSearchStep-traceMaxDurationWindow, now-2 * traceSearchStep].
-//  4. skip [0,  now-2 * traceSearchStep-traceMaxDurationWindow] and return.
+// It search in the index stream for the approximate timestamp.
+// If found:
+// - search for span in time range [aTimestamp-traceMaxDurationWindow, aTimestamp+traceMaxDurationWindow].
+// If not found:
+// - search span by step via findSpansByTraceID.
 //
 // todo in-memory cache of hot traces.
 func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, error) {
 	currentTime := time.Now()
 
 	// possible partition
-
-	// query: {trace_id_idx="-"} AND trace_id:traceID
+	// query: {trace_id_idx="xx"} AND trace_id:traceID
 	qStr := fmt.Sprintf(`{%s="%d"} AND %s:=%q | fields _time`, otelpb.TraceIDIndexStreamName, xxhash.Sum64String(traceID)%otelpb.TraceIDIndexPartitionCount, otelpb.TraceIDIndexFieldName, traceID)
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {
@@ -359,7 +354,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *Co
 	return checkTraceIDList(traceIDList), maxStartTime, nil
 }
 
-// findTraceIDTimeSplitTimeRange try to search from {trace_id_idx_stream="-"} stream, which contains
+// findTraceIDTimeSplitTimeRange try to search from {trace_id_idx_stream="xx"} stream, which contains
 // the trace_id and start time of the root span. It returns the start time of the trace if found.
 // Otherwise, the root span may not reach VictoriaTraces, and zero time is returned.
 func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *CommonParams) (time.Time, error) {
@@ -417,7 +412,15 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 }
 
 // findSpanByTraceID search for spans from now to 0 time with steps.
-// It stops when rows are found in a time range.
+// In order to avoid scanning all data blocks, search is performed on time range splitting by traceSearchStep.
+// Once a trace is found, it assumes other spans will exist on the same time range, and only search this
+// time range (with traceMaxDurationWindow).
+//
+// e.g.
+//  1. find traces span on [now-traceSearchStep, now], no hit.
+//  2. find traces span on [now-2 * traceSearchStep, now - traceSearchStep], hit.
+//  3. make sure to include all the spans by an additional search on: [now-2 * traceSearchStep-traceMaxDurationWindow, now-2 * traceSearchStep].
+//  4. skip [0,  now-2 * traceSearchStep-traceMaxDurationWindow] and return.
 func findSpansByTraceID(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, error) {
 	// query: trace_id:traceID
 	currentTime := time.Now()

@@ -28,9 +28,8 @@ var (
 )
 
 var (
-	mandatoryStreamFields    = []string{otelpb.ResourceAttrServiceName, otelpb.NameField}
-	traceIDIndexStreamFields = []logstorage.Field{{Name: otelpb.TraceIDIndexStreamName}}
-	msgFieldValue            = "-"
+	mandatoryStreamFields = []string{otelpb.ResourceAttrServiceName, otelpb.NameField}
+	msgFieldValue         = "-"
 )
 
 var (
