@@ -410,7 +410,7 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 	return time.Time{}, nil
 }
 
-// findSpanByTraceID searches for spans from now to 0 time with steps.
+// findSpansByTraceID searches for spans from now to 0 time with steps.
 // In order to avoid scanning all data blocks, search is performed on time range splitting by traceSearchStep.
 // Once a trace is found, it assumes other spans will exist on the same time range, and only search this
 // time range (with traceMaxDurationWindow).
