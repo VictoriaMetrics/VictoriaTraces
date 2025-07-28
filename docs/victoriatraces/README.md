@@ -81,13 +81,13 @@ ROOT_IMAGE=scratch make package-victoria-traces
 
 VictoriaTraces can be run with:
 ```shell
-/path/to/victoria-traces -storageDataPath=victoria-traces-data -retentionPeriod=7d
+/path/to/victoria-traces
 ```
 
 or with Docker:
 ```shell
 docker run --rm -it -p 10428:10428 -v ./victoria-traces-data:/victoria-traces-data \
-  docker.io/victoriametrics/victoria-traces:latest -storageDataPath=victoria-traces-data
+  docker.io/victoriametrics/victoria-traces:latest
 ```
 
 VictoriaTraces is configured via command-line flags. 
