@@ -185,7 +185,7 @@ func pushFieldsFromSpan(span *otelpb.Span, scopeCommonFields []logstorage.Field,
 	})
 	lmp.AddRow(int64(span.EndTimeUnixNano), fields, nil)
 
-	// for root span, create an entity in trace-id-idx stream.
+	// create an entity in trace-id-idx stream, if this trace_id hasn't been seen before.
 	if !traceIDCache.Has([]byte(span.TraceID)) {
 		lmp.AddRow(int64(span.StartTimeUnixNano), []logstorage.Field{
 			{Name: otelpb.TraceIDIndexFieldName, Value: span.TraceID},

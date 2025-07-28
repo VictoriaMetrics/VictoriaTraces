@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
@@ -142,6 +141,7 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 	if err != nil {
 		return nil, fmt.Errorf("cannot unmarshal query=%q: %w", qStr, err)
 	}
+	q.AddPipeLimit(1)
 	traceTimestamp, err := findTraceIDTimeSplitTimeRange(ctx, q, cp)
 	if err != nil {
 		return nil, fmt.Errorf("cannot find trace_id %q start time: %s", traceID, err)
@@ -379,10 +379,9 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 			cancel()
 			return
 		}
-		if len(timestamps) > 1 {
-			logger.Errorf("found multiple trace_id in index, timestamps: %v", timestamps)
+		if len(timestamps) > 0 {
+			traceIDStartTimeInt = timestamps[0]
 		}
-		traceIDStartTimeInt = timestamps[0]
 	}
 
 	currentTime := time.Now()
@@ -411,7 +410,7 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 	return time.Time{}, nil
 }
 
-// findSpanByTraceID search for spans from now to 0 time with steps.
+// findSpanByTraceID searches for spans from now to 0 time with steps.
 // In order to avoid scanning all data blocks, search is performed on time range splitting by traceSearchStep.
 // Once a trace is found, it assumes other spans will exist on the same time range, and only search this
 // time range (with traceMaxDurationWindow).
