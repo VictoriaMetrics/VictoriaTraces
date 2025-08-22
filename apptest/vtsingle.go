@@ -1,6 +1,7 @@
 package apptest
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -148,11 +149,18 @@ func (app *Vtsingle) JaegerAPIDependencies(_ *testing.T, _ QueryOpts) {}
 // OTLPExportTraces is a test helper function that exports OTLP trace data
 // by sending an HTTP POST request to /insert/opentelemetry/v1/traces
 // Vtsingle endpoint.
-func (app *Vtsingle) OTLPExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, _ QueryOpts) {
+func (app *Vtsingle) OTLPExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, opts QueryOpts) {
 	t.Helper()
+	var body string
+	var code int
+	if opts.Format == "protobuf" {
+		pbData := request.MarshalProtobuf(nil)
+		body, code = app.cli.Post(t, app.otlpTracesURL, "application/x-protobuf", pbData)
+	} else if opts.Format == "json" {
+		jsonData, _ := json.Marshal(request)
+		body, code = app.cli.Post(t, app.otlpTracesURL, "application/json", jsonData)
+	}
 
-	pbData := request.MarshalProtobuf(nil)
-	body, code := app.cli.Post(t, app.otlpTracesURL, "application/x-protobuf", pbData)
 	if code != 200 {
 		t.Fatalf("got %d, expected 200. body: %s", code, body)
 	}

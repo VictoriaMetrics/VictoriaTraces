@@ -10,7 +10,7 @@ import (
 
 // Resource represents the corresponding OTEL protobuf message
 type Resource struct {
-	Attributes []*KeyValue
+	Attributes []*KeyValue `json:"attributes"`
 }
 
 // marshalProtobuf marshals
@@ -49,8 +49,8 @@ func (r *Resource) unmarshalProtobuf(src []byte) (err error) {
 
 // KeyValue represents the corresponding OTEL protobuf message
 type KeyValue struct {
-	Key   string
-	Value *AnyValue
+	Key   string    `json:"key"`
+	Value *AnyValue `json:"value"`
 }
 
 func (kv *KeyValue) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -95,13 +95,13 @@ func (kv *KeyValue) unmarshalProtobuf(src []byte) (err error) {
 
 // AnyValue represents the corresponding OTEL protobuf message
 type AnyValue struct {
-	StringValue  *string
-	BoolValue    *bool
-	IntValue     *int64
-	DoubleValue  *float64
-	ArrayValue   *ArrayValue
-	KeyValueList *KeyValueList
-	BytesValue   *[]byte
+	StringValue  *string       `json:"stringValue"`
+	BoolValue    *bool         `json:"boolValue"`
+	IntValue     *int64        `json:"intValue,string"`
+	DoubleValue  *float64      `json:"doubleValue"`
+	ArrayValue   *ArrayValue   `json:"arrayValue"`
+	KeyValueList *KeyValueList `json:"keyValueList"`
+	BytesValue   *[]byte       `json:"BytesValue"`
 }
 
 func (av *AnyValue) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -200,7 +200,7 @@ func (av *AnyValue) unmarshalProtobuf(src []byte) (err error) {
 
 // ArrayValue represents the corresponding OTEL protobuf message
 type ArrayValue struct {
-	Values []*AnyValue
+	Values []*AnyValue `json:"values"`
 }
 
 func (av *ArrayValue) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -238,7 +238,7 @@ func (av *ArrayValue) unmarshalProtobuf(src []byte) (err error) {
 
 // KeyValueList represents the corresponding OTEL protobuf message
 type KeyValueList struct {
-	Values []*KeyValue
+	Values []*KeyValue `json:"values"`
 }
 
 func (kvl *KeyValueList) marshalProtobuf(mm *easyproto.MessageMarshaler) {

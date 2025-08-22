@@ -20,7 +20,7 @@ type (
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/collector/trace/v1/trace_service.proto#L36
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/collector/trace/v1/trace_service.pb.go#L33
 type ExportTraceServiceRequest struct {
-	ResourceSpans []*ResourceSpans
+	ResourceSpans []*ResourceSpans `json:"resourceSpans"`
 }
 
 // MarshalProtobuf marshals r to protobuf message, appends it to dst and returns the result.
@@ -70,9 +70,9 @@ func (r *ExportTraceServiceRequest) UnmarshalProtobuf(src []byte) (err error) {
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L48
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L230
 type ResourceSpans struct {
-	Resource   Resource
-	ScopeSpans []*ScopeSpans
-	SchemaURL  string
+	Resource   Resource      `json:"resource"`
+	ScopeSpans []*ScopeSpans `json:"scopeSpans"`
+	SchemaURL  string        `json:"schemaUrl"`
 }
 
 func (rs *ResourceSpans) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -130,9 +130,9 @@ func (rs *ResourceSpans) unmarshalProtobuf(src []byte) (err error) {
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L68
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L308
 type ScopeSpans struct {
-	Scope     InstrumentationScope
-	Spans     []*Span
-	SchemaURL string
+	Scope     InstrumentationScope `json:"scope"`
+	Spans     []*Span              `json:"spans"`
+	SchemaURL string               `json:"schemaURL"`
 }
 
 func (ss *ScopeSpans) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -191,10 +191,10 @@ func (ss *ScopeSpans) unmarshalProtobuf(src []byte) (err error) {
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/common/v1/common.proto#L71
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/common/v1/common.pb.go#L340
 type InstrumentationScope struct {
-	Name                   string
-	Version                string
-	Attributes             []*KeyValue
-	DroppedAttributesCount uint32
+	Name                   string      `json:"name"`
+	Version                string      `json:"version"`
+	Attributes             []*KeyValue `json:"attributes"`
+	DroppedAttributesCount uint32      `json:"droppedAttributesCount"`
 }
 
 func (is *InstrumentationScope) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -258,22 +258,22 @@ func (is *InstrumentationScope) unmarshalProtobuf(src []byte) (err error) {
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L88
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L380
 type Span struct {
-	TraceID                string
-	SpanID                 string
-	TraceState             string
-	ParentSpanID           string
-	Flags                  uint32
-	Name                   string
-	Kind                   SpanKind
-	StartTimeUnixNano      uint64
-	EndTimeUnixNano        uint64
-	Attributes             []*KeyValue
-	DroppedAttributesCount uint32
-	Events                 []*SpanEvent
-	DroppedEventsCount     uint32
-	Links                  []*SpanLink
-	DroppedLinksCount      uint32
-	Status                 Status
+	TraceID                string       `json:"traceId"`
+	SpanID                 string       `json:"spanId"`
+	TraceState             string       `json:"traceState"`
+	ParentSpanID           string       `json:"parentSpanID"`
+	Flags                  uint32       `json:"flags"`
+	Name                   string       `json:"name"`
+	Kind                   SpanKind     `json:"kind"`
+	StartTimeUnixNano      uint64       `json:"startTimeUnixNano,string"`
+	EndTimeUnixNano        uint64       `json:"endTimeUnixNano,string"`
+	Attributes             []*KeyValue  `json:"attributes"`
+	DroppedAttributesCount uint32       `json:"droppedAttributesCount"`
+	Events                 []*SpanEvent `json:"events"`
+	DroppedEventsCount     uint32       `json:"droppedEventsCount"`
+	Links                  []*SpanLink  `json:"links"`
+	DroppedLinksCount      uint32       `json:"droppedLinksCount"`
+	Status                 Status       `json:"status"`
 }
 
 func (s *Span) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -457,10 +457,10 @@ func (s *Span) unmarshalProtobuf(src []byte) (err error) {
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L222
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L613
 type SpanEvent struct {
-	TimeUnixNano           uint64
-	Name                   string
-	Attributes             []*KeyValue
-	DroppedAttributesCount uint32
+	TimeUnixNano           uint64      `json:"timeUnixNano,string"`
+	Name                   string      `json:"name"`
+	Attributes             []*KeyValue `json:"attributes"`
+	DroppedAttributesCount uint32      `json:"droppedAttributesCount"`
 }
 
 func (se *SpanEvent) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -527,12 +527,12 @@ func (se *SpanEvent) unmarshalProtobuf(src []byte) (err error) {
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L251
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L693
 type SpanLink struct {
-	TraceID                string
-	SpanID                 string
-	TraceState             string
-	Attributes             []*KeyValue
-	DroppedAttributesCount uint32
-	Flags                  uint32
+	TraceID                string      `json:"traceId"`
+	SpanID                 string      `json:"spanId"`
+	TraceState             string      `json:"traceState"`
+	Attributes             []*KeyValue `json:"attributes"`
+	DroppedAttributesCount uint32      `json:"droppedAttributesCount"`
+	Flags                  uint32      `json:"flags"`
 }
 
 func (sl *SpanLink) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -624,8 +624,8 @@ func (sl *SpanLink) unmarshalProtobuf(src []byte) (err error) {
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L306
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L791
 type Status struct {
-	Message string
-	Code    StatusCode
+	Message string     `json:"message"`
+	Code    StatusCode `json:"code"`
 }
 
 func (s *Status) marshalProtobuf(mm *easyproto.MessageMarshaler) {
