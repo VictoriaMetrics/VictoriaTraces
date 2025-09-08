@@ -38,6 +38,7 @@ Additionally, the following Jaeger HTTP endpoints are available:
 - `/select/jaeger/api/services/{service_name}/operations` for querying all the span names of a service.
 - [`/select/jaeger/api/traces`](#querying-traces) for querying traces.
 - `/select/jaeger/api/traces/{trace_id}` for querying a trace.
+- `/select/jaeger/api/dependencies` for querying dependencies graph for services.
 
 ### Querying traces
 

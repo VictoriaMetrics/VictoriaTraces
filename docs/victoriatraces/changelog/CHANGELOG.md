@@ -17,6 +17,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 * FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): Upgrade VictoriaLogs dependency from [v1.27.0 to v1.33.1](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.27.0...v1.33.1).
 * FEATURE: [docker compose](https://github.com/VictoriaMetrics/VictoriaTraces/tree/master/deployment/docker): add cluster docker compose environment.
 * FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/dashboards): update dashboard for VictoriaTraces single-node and cluster to provide more charts.
+* FEATURE: implemented jaeger dependencies graph API (`/select/jaeger/api/dependencies`).
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtinsert in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): Rename various [HTTP headers](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers) prefix from `VL-` to `VT-`. These headers help with debugging and customizing stream fields. Thank @JayiceZ for [the pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/56). 
 * BUGFIX: all components: properly expose metadata for summaries and histograms in VictoriaMetrics components with enabled `-metrics.exposeMetadata` cmd-line flag. See [metrics#98](https://github.com/VictoriaMetrics/metrics/issues/98) for details.

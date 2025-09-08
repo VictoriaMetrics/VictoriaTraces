@@ -513,6 +513,8 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	The maximum number of service name can return in a get service name request. This limit affects Jaeger's /api/services API. (default 1000)
   -search.traceMaxSpanNameList uint
     	The maximum number of span name can return in a get span name request. This limit affects Jaeger's /api/services/*/operations API. (default 1000)
+  -search.traceMaxDependencyList uint
+        The maximum number of dependency links can return in a get dependencies request. This limit affects Jaeger's /api/dependencies API. Not limited by default. (default 0)
   -search.traceSearchStep duration
     	Splits the [0, now] time range into many small time ranges by -search.traceSearchStep when searching for spans by trace_id. Once it finds spans in a time range, it performs an additional search according to -search.traceMaxDurationWindow and then stops. It affects Jaeger's /api/traces/<trace_id> API. (default 24h0m0s)
   -search.traceServiceAndSpanNameLookbehind duration

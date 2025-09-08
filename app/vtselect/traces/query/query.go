@@ -31,6 +31,8 @@ var (
 		"This limit affects Jaeger's /api/services API.")
 	traceMaxSpanNameList = flag.Uint64("search.traceMaxSpanNameList", 1000, "The maximum number of span name can return in a get span name request. "+
 		"This limit affects Jaeger's /api/services/*/operations API.")
+	traceMaxDependencyList = flag.Uint64("search.traceMaxDependencyList", 0, "The maximum number of dependency links can return in a get dependencies request. "+
+		"This limit affects Jaeger's /api/dependencies API. Not limited by default.")
 )
 
 var (
@@ -565,4 +567,91 @@ func checkTraceIDList(traceIDList []string) []string {
 		}
 	}
 	return result
+}
+
+type DependenciesQueryParameters struct {
+	EndTs    time.Time
+	Lookback time.Duration
+}
+
+// GetDependencyList returns service dependencies graph edges (parent, child, callCount) in []*Row format.
+func GetDependencyList(ctx context.Context, cp *CommonParams, param *DependenciesQueryParameters) ([]*Row, error) {
+	qStrParentSpans := fmt.Sprintf(
+		`NOT %s:"" | fields %s, %s | rename %s as %s, %s as child`,
+		otelpb.ParentSpanIDField,
+		otelpb.ParentSpanIDField,
+		otelpb.ResourceAttrServiceName,
+		otelpb.ParentSpanIDField,
+		otelpb.SpanIDField,
+		otelpb.ResourceAttrServiceName,
+	)
+	qStrChildSpans := fmt.Sprintf(
+		`NOT %s:"" | fields %s, %s | rename %s as parent`,
+		otelpb.SpanIDField,
+		otelpb.SpanIDField,
+		otelpb.ResourceAttrServiceName,
+		otelpb.ResourceAttrServiceName,
+	)
+	qStr := fmt.Sprintf(
+		`%s | join by (%s) (%s) inner | NOT parent:eq_field(child) | stats by (parent, child) count() callCount`,
+		qStrParentSpans,
+		otelpb.SpanIDField,
+		qStrChildSpans,
+	)
+
+	startTime := param.EndTs.Add(-param.Lookback).UnixNano()
+	endTime := param.EndTs.UnixNano()
+
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, endTime)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
+	}
+	q.AddTimeFilter(startTime, endTime)
+	if *traceMaxDependencyList > 0 {
+		q.AddPipeLimit(*traceMaxDependencyList)
+	}
+
+	var rowsLock sync.Mutex
+	var rows []*Row
+	//var missingTimeColumn atomic.Bool
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		columns := db.Columns
+		if len(columns) == 0 {
+			return
+		}
+		clonedColumnNames := make([]string, len(columns))
+		valuesCount := 0
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+			if len(c.Values) > valuesCount {
+				valuesCount = len(c.Values)
+			}
+		}
+		if valuesCount == 0 {
+			return
+		}
+		for i := 0; i < valuesCount; i++ {
+			fields := make([]logstorage.Field, 0, len(columns))
+			for j := range columns {
+				fields = append(
+					fields,
+					logstorage.Field{
+						Name:  clonedColumnNames[j],
+						Value: strings.Clone(columns[j].Values[i]),
+					},
+				)
+			}
+			rowsLock.Lock()
+			rows = append(rows, &Row{
+				Fields: fields,
+			})
+			rowsLock.Unlock()
+		}
+	}
+
+	if err = vtstorage.RunQuery(ctx, cp.TenantIDs, q, writeBlock); err != nil {
+		return nil, err
+	}
+
+	return rows, nil
 }
