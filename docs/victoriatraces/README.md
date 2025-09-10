@@ -304,7 +304,7 @@ since single-node VictoriaTraces instances can be a part of cluster.
 VictoriaTraces was initially built on top of [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/), a log database.
 It receives trace spans in OTLP format, transforms them into structured logs, and provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json) for querying.
 
-For detailed data model and example, see: [Key Concepts](https://docs.victoriametrics.com/victoriatraces/keyConcepts).
+For detailed data model and example, see: [Key Concepts](https://docs.victoriametrics.com/victoriatraces/keyconcepts/).
 
 ![How does VictoriaTraces work](how-does-it-work.webp)
 

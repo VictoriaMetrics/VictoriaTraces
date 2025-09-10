@@ -82,7 +82,7 @@ Communication between `vtinsert` / `vtselect` and `vtstorage` is done via HTTP o
 
 This HTTP-based communication model allows you to use reverse proxies for authorization, routing, and encryption between components.  
 Use of [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) is recommended for managing access control.
-See [Security docs](https://docs.victoriametrics.com/victoriatraces#security) for details.
+See [Security docs](https://docs.victoriametrics.com/victoriatraces/#security) for details.
 
 For advanced setups, refer to the [multi-level cluster setup](#multi-level-cluster-setup) documentation.
 
@@ -182,7 +182,7 @@ See [security docs](#security) on how to protect communications between multiple
 All the VictoriaTraces cluster components must run in protected internal network without direct access from the internet.
 `vtstorage` must have no access from the internet. HTTP authorization proxies such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
 must be used in front of `vtinsert` and `vtselect` for authorizing access to these components from the internet.
-See [Security docs](https://docs.victoriametrics.com/victoriatraces#security).
+See [Security docs](https://docs.victoriametrics.com/victoriatraces/#security).
 
 It is possible to disallow access to `/internal/insert` and `/internal/select/*` endpoints at single-node VictoriaTraces instance
 by running it with `-internalinsert.disable` and `-internalselect.disable` command-line flags.
