@@ -19,11 +19,11 @@ work together as a system.
 The package provides a collection of helpers to start applications and make
 queries to them:
 
--   `app.go` - contains the generic code for staring an application and should
+- `app.go` - contains the generic code for staring an application and should
     not be used by integration tests directly.
--   `{vtsingle,etc}.go` - build on top of `app.go` and provide the
+- `{vtsingle,etc}.go` - build on top of `app.go` and provide the
     code for staring a specific application.
--   `client.go` - provides helper functions for sending HTTP requests to
+- `client.go` - provides helper functions for sending HTTP requests to
     applications.
 
 The integration tests themselves reside in `tests/*_test.go` files. Apart from having
