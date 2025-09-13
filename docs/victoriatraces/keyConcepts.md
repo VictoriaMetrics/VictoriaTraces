@@ -158,8 +158,9 @@ And here's how this trace span looks like in VictoriaTraces:
 ### Special mappings
 
 There are some special mappings when transforming a trace span into VictoriaTraces data model:
+
 1. Empty attribute values in trace spans are replaced with `-`.
-2. Resource, scope and span attributes are stored with corresponding prefixes `resource_attr`, `scope_attr` and `span_attr:` accordingly. 
+2. Resource, scope and span attributes are stored with corresponding prefixes `resource_attr`, `scope_attr` and `span_attr:` accordingly.
 3. For some attributes within a list (event list, link list in span), a corresponding prefix and index (such as `event:0:` and `event:0:event_attr:`) is added.
 4. The `duration` field does not exist in the OTLP request, but for query efficiency, it's calculated during ingestion and stored as a separated field.
 
@@ -186,21 +187,24 @@ as the stream fields.
 
 VictoriaTraces optimizes storing and [querying](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter) of individual trace span streams.
 This provides the following benefits:
-- Reduced disk space usage, since a trace span stream from a single application instance is usually compressed better
+
+* Reduced disk space usage, since a trace span stream from a single application instance is usually compressed better
   than a mixed trace span stream from multiple distinct applications.
 
-- Increased query performance, since VictoriaTraces needs to scan lower amounts of data
+* Increased query performance, since VictoriaTraces needs to scan lower amounts of data
   when [searching by stream fields](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter).
 
 Every ingested trace span is associated with a trace span stream. Every trace span stream consists of the following special fields:
 
-- `_stream_id` - this is an unique identifier for the trace span stream. All the trace spans for the particular stream can be selected
+* `_stream_id` - this is an unique identifier for the trace span stream. All the trace spans for the particular stream can be selected
   via [`_stream_id:...` filter](https://docs.victoriametrics.com/victorialogs/logsql/#_stream_id-filter).
 
-- `_stream` - this field contains stream labels in the format similar to [labels in Prometheus metrics](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels):
+* `_stream` - this field contains stream labels in the format similar to [labels in Prometheus metrics](https://docs.victoriametrics.com/victoriametrics/keyconcepts/#labels):
+
   ```
   {resource_attr:service_name="svc name", name="span name"}
   ```
+
   The `_stream` field can be searched with [stream filters](https://docs.victoriametrics.com/victorialogs/logsql/#stream-filter).
 
 #### High cardinality
@@ -211,12 +215,12 @@ VictoriaTraces works perfectly with such fields unless they are associated with 
 
 **Never** associate high-cardinality fields with [trace span streams](#stream-fields), since this may lead to the following issues:
 
-- Performance degradation during [data ingestion](https://docs.victoriametrics.com/victoriatraces/data-ingestion/)
+* Performance degradation during [data ingestion](https://docs.victoriametrics.com/victoriatraces/data-ingestion/)
   and [querying](https://docs.victoriametrics.com/victoriatraces/querying/)
-- Increased memory usage
-- Increased CPU usage
-- Increased disk space usage
-- Increased disk read / write IO
+* Increased memory usage
+* Increased CPU usage
+* Increased disk space usage
+* Increased disk read / write IO
 
 VictoriaTraces exposes `vt_streams_created_total` [metric](https://docs.victoriametrics.com/victorialogs/#monitoring),
 which shows the number of created streams since the last VictoriaTraces restart. If this metric grows at a rapid rate

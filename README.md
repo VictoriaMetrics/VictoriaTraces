@@ -1,4 +1,5 @@
 🚧 This project is currently a work in progress. Therefore, the following issues may exist:
+
 - On-disk data structures and API endpoints may change and may not be backward compatible.
 - Some links point to incorrect locations.
 - Some static files are unavailable.
@@ -33,12 +34,12 @@ Both the single-node and the cluster versions of VictoriaTraces are open source 
 
 Feel free asking any questions regarding VictoriaTraces:
 
-* [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
-* [X (Twitter)](https://x.com/VictoriaMetrics/)
-* [Linkedin](https://www.linkedin.com/company/victoriametrics/)
-* [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
-* [Telegram](https://t.me/VictoriaTraces)
-* [Mastodon](https://mastodon.social/@victoriametrics/)
+- [Slack Inviter](https://slack.victoriametrics.com/) and [Slack channel](https://victoriametrics.slack.com/)
+- [X (Twitter)](https://x.com/VictoriaMetrics/)
+- [Linkedin](https://www.linkedin.com/company/victoriametrics/)
+- [Reddit](https://www.reddit.com/r/VictoriaMetrics/)
+- [Telegram](https://t.me/VictoriaTraces)
+- [Mastodon](https://mastodon.social/@victoriametrics/)
 
 If you like VictoriaTraces and want to contribute, then please [read these docs](https://docs.victoriametrics.com/victoriametrics/contributing/).
 

@@ -18,6 +18,7 @@ VictoriaTraces supports both client open-telemetry [SDK](https://opentelemetry.i
 ## Client SDK
 
 The OpenTelemetry provides detailed document and examples for various programming languages:
+
 - [C++](https://opentelemetry.io/docs/languages/cpp/)
 - [C#/.NET](https://opentelemetry.io/docs/languages/dotnet/)
 - [Erlang/Elixir](https://opentelemetry.io/docs/languages/erlang/)
@@ -36,14 +37,14 @@ Consider the following example for Go SDK:
 
 ```go
 traceExporter, err := otlptracehttp.New(ctx,
-	otlptracehttp.WithEndpointURL("http://<victoria-traces>:10428/insert/opentelemetry/v1/traces"),
+  otlptracehttp.WithEndpointURL("http://<victoria-traces>:10428/insert/opentelemetry/v1/traces"),
 )
 ```
 
 VictoriaTraces automatically use `service.name` in **resource attributes** and `name` in **span** as [stream fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields).
 While the remaining data (including [resource](https://opentelemetry.io/docs/specs/otel/overview/#resources), [instrumentation scope](https://opentelemetry.io/docs/specs/otel/common/instrumentation-scope/), and fields in [span](https://opentelemetry.io/docs/specs/otel/trace/api/#span), like `trace_id`, `span_id`, span `attributes` and more) are stored as [regular fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model):
 
-VictoriaTraces supports other HTTP headers - see the list [here](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers).
+VictoriaTraces supports other [HTTP headers](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers).
 
 The ingested trace spans can be queried according to [these docs](https://docs.victoriametrics.com/victoriatraces/querying/).
 
@@ -51,7 +52,7 @@ The ingested trace spans can be queried according to [these docs](https://docs.v
 
 VictoriaTraces supports receiving traces from the following OpenTelemetry collector:
 
-* [OpenTelemetry](#opentelemetry)
+- [OpenTelemetry](#opentelemetry)
 
 ### OpenTelemetry
 
@@ -63,7 +64,7 @@ exporters:
     traces_endpoint: http://<victoria-traces>:10428/insert/opentelemetry/v1/traces
 ```
 
-VictoriaTraces supports various HTTP headers, which can be used during data ingestion - see the list [here](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers).
+VictoriaTraces supports various HTTP headers, which can be used during data ingestion - see the list of [HTTP headers](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers).
 These headers can be passed to OpenTelemetry exporter config via `headers` options. For example, the following configs add (or overwrites) `foo: bar` field to each trace span during data ingestion:
 
 ```yaml
@@ -76,6 +77,6 @@ exporters:
 
 See also:
 
-* [Data ingestion troubleshooting](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#troubleshooting).
-* [How to query VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/querying/).
-* [Docker-compose demo for HotROD application integration with VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/compose-vt-single.yml).
+- [Data ingestion troubleshooting](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#troubleshooting).
+- [How to query VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/querying/).
+- [Docker-compose demo for HotROD application integration with VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/compose-vt-single.yml).

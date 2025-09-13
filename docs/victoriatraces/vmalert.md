@@ -19,7 +19,7 @@ and [`/select/logsql/stats_query_range`](https://docs.victoriametrics.com/victor
 These endpoints return the trace spans stats in a format compatible with [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries).
 It allows using VictoriaTraces as the datasource in vmalert, creating alerting and recording rules via [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
 
-_Note: This page provides only integration instructions for vmalert and VictoriaTraces. See the full textbook for vmalert [here](https://docs.victoriametrics.com/victoriametrics/vmalert/).
+_Note: This page provides only integration instructions for vmalert and VictoriaTraces. See the full textbook for [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/).
 
 ## Quick Start
 
@@ -91,11 +91,11 @@ The following are key flags related to integration with VictoriaTraces:
    Since there is no intentional search delay in VictoriaTraces, `-rule.evalDelay` can be reduced to a few seconds to accommodate network and ingestion time.
 ```
 
-See full list of configuration options [here](https://docs.victoriametrics.com/victoriametrics/vmalert/#configuration).
+See full list of [configuration options](https://docs.victoriametrics.com/victoriametrics/vmalert/#configuration).
 
 ### Groups
 
-Check the complete group attributes [here](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups).
+Check the complete [group attributes](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups).
 
 #### Alerting rules
 
@@ -177,7 +177,7 @@ vmalert supports alerting and recording rules backfilling (aka replay) against V
     -replay.timeTo=2021-05-29T18:40:43Z         # to finish replay by, optional. By default, set to the current time
 ```
 
-See more details about backfilling [here](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling).
+See more details about [backfilling](https://docs.victoriametrics.com/victoriametrics/vmalert/#rules-backfilling).
 
 ## Performance tip
 
@@ -242,13 +242,13 @@ To persist different rule results to different tenants in VictoriaMetrics, there
 
     For example, run vmalert with:
 
-    ```
+    ```sh
     ./bin/vmalert -datasource.url=http://localhost:9428 -remoteWrite.url=http://vminsert:8480/insert/multitenant/prometheus ...
     ```
 
     With the rules below, `recordingTenant123` will be queried from VictoriaTraces tenant `123` and persisted to tenant `123` in VictoriaMetrics, while `recordingTenant123-456:789` will be queried from VictoriaTraces tenant `124` and persisted to tenant `456:789` in VictoriaMetrics.
 
-    ```
+    ```yaml
     groups:
       - name: recordingTenant123
         type: vlogs
@@ -275,13 +275,13 @@ To persist different rule results to different tenants in VictoriaMetrics, there
 
     For example, run vmalert with:
 
-    ```
+    ```sh
     ./bin/vmalert -datasource.url=http://localhost:9428 -clusterMode=true -remoteWrite.url=http://vminsert:8480/ ...
     ```
 
     With the rules below, `recordingTenant123` will be queried from VictoriaTraces tenant `123` and persisted to tenant `123` in VictoriaMetrics, while `recordingTenant123-456:789` will be queried from VictoriaTraces tenant `124` and persisted to tenant `456:789` in VictoriaMetrics.
 
-    ```
+    ```yaml
     groups:
       - name: recordingTenant123
         type: vlogs

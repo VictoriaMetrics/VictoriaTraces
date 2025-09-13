@@ -17,17 +17,19 @@ and visualizes the response trace data.
 
 ## Deploy Jaeger UI
 
-You can get Jaeger UI from [release page](https://github.com/jaegertracing/jaeger-ui/releases/tag/v1.70.0). 
+You can get Jaeger UI from [release page](https://github.com/jaegertracing/jaeger-ui/releases/tag/v1.70.0).
 
-As it provides only assets and source code, an HTTP server is needed for serving requests. 
+As it provides only assets and source code, an HTTP server is needed for serving requests.
 
 ### Nginx Example
 
 Here's an example where we use Nginx to:
+
 - Serve static content of Jaeger UI.
 - Forward query requests to VictoriaTraces.
 
 Assume you already have:
+
 1. VictoriaTraces running locally and listening on port `:10428`.
 2. Jaeger UI assets (`index.html` and `/static`) located under `/path/to/jaeger-ui/build/`.
 3. Nginx Installed.
@@ -52,6 +54,7 @@ server {
 ```
 
 Here are some common paths of Nginx config folder:
+
 ```sh
 # Ubuntu & Install with apt
 cd /etc/nginx/sites-available/

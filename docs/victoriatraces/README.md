@@ -7,17 +7,18 @@ sitemap:
   disable: true
 ---
 
-VictoriaTraces is an open-source, user-friendly database designed for storing and querying distributed [tracing data](https://en.wikipedia.org/wiki/Tracing_(software)), 
+VictoriaTraces is an open-source, user-friendly database designed for storing and querying distributed [tracing data](https://en.wikipedia.org/wiki/Tracing_(software)),
 built by the [VictoriaMetrics](https://github.com/VictoriaMetrics) team.
 
 ## Prominent features
 
 VictoriaTraces provides the following prominent features:
+
 - It is resource-efficient and fast. It uses up to [**3.7x less RAM and up to 2.6x less CPU**](https://victoriametrics.com/blog/dev-note-distributed-tracing-with-victorialogs/) than other solutions such as Grafana Tempo.
 - VictoriaTraces' capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space). Also, it can scale horizontally to many nodes in [cluster mode](https://docs.victoriametrics.com/victoriatraces/cluster/).
 - It has no additional storage dependencies (such as object storage or external databases like ClickHouse and Elasticsearch) for production readiness.
 - It accepts trace spans in the popular [OpenTelemetry protocol](https://opentelemetry.io/docs/specs/otel/protocol/)(OTLP).
-- It provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json) 
+- It provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json)
   to integrate with [Grafana](https://grafana.com/docs/grafana/latest/datasources/jaeger/) or [Jaeger Frontend](https://www.jaegertracing.io/docs/2.6/frontend-ui/).
 - It supports alerting - see [these docs](https://docs.victoriametrics.com/victoriatraces/vmalert/).
 
@@ -33,8 +34,9 @@ Building from sources is reasonable when developing additional features specific
 
 {{% collapse name="How to build from sources" %}}
 
-Clone VictoriaTraces repository: 
-```bash 
+Clone VictoriaTraces repository:
+
+```bash
 git clone https://github.com/VictoriaMetrics/VictoriaTraces.git;
 cd  VictoriaTraces;
 ```
@@ -42,13 +44,13 @@ cd  VictoriaTraces;
 #### Build binary with go build
 
 1. [Install Go](https://golang.org/doc/install).
-2. Run `make victoria-traces` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaTraces). 
+2. Run `make victoria-traces` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaTraces).
    It builds `victoria-traces` binary and puts it into the `bin` folder.
 
 #### Build binary with Docker
 
 1. [Install docker](https://docs.docker.com/install/).
-2. Run `make victoria-traces-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaTraces). 
+2. Run `make victoria-traces-prod` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaTraces).
    It builds `victoria-traces-prod` binary and puts it into the `bin` folder.
 
 #### Building docker images
@@ -69,8 +71,8 @@ ROOT_IMAGE=scratch make package-victoria-traces
 
 ### Configure VictoriaTraces
 
-VictoriaTraces is configured via command-line flags. 
-All the command-line flags have sane defaults, so there is no need in tuning them in general case.  
+VictoriaTraces is configured via command-line flags.
+All the command-line flags have sane defaults, so there is no need in tuning them in general case.
 VictoriaTraces runs smoothly in most environments without additional configuration.
 
 Pass `-help` to VictoriaTraces in order to see the list of supported command-line flags with their description and default values:
@@ -81,10 +83,10 @@ Pass `-help` to VictoriaTraces in order to see the list of supported command-lin
 
 The following command-line flags are used the most:
 
-* `-storageDataPath` - VictoriaTraces stores all the data in this directory. The default path is `victoria-traces-data` in the current working directory.
-* `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 7 days.
+- `-storageDataPath` - VictoriaTraces stores all the data in this directory. The default path is `victoria-traces-data` in the current working directory.
+- `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 7 days.
 
-You can find the list of the command-line flags can be found [here](#list-of-command-line-flags).
+You can find the list of the [command-line flags](#list-of-command-line-flags).
 
 ## High Availability
 
@@ -255,7 +257,7 @@ For example, the following command starts VictoriaTraces, which stores the data 
 ```
 
 VictoriaTraces automatically creates the `-storageDataPath` directory on the first run if it is missing. VictoriaTraces stores trace spans
-per every day into a seperated subdirectory (aka per-day partition). See [partitions lifecycle](#partitions-lifecycle) for details.
+per every day into a separated subdirectory (aka per-day partition). See [partitions lifecycle](#partitions-lifecycle) for details.
 
 VictoriaTraces switches to cluster mode if `-storageNode` command-line flag is specified:
 
@@ -287,7 +289,7 @@ These endpoints can be protected from unauthorized access via `-partitionManageA
 These endpoints can be used for building a flexible per-partition backup / restore schemes as described [in these docs](#backup-and-restore).
 
 These endpoints can be used also for setting up automated multi-tier storage schemes where recently ingested data is stored to VictoriaTraces instances
-with fast NVMe (SSD) disks, while historical data is gradully migrated to VictoriaTraces instances with slower, but bigger and less expensive HDD disks.
+with fast NVMe (SSD) disks, while historical data is gradually migrated to VictoriaTraces instances with slower, but bigger and less expensive HDD disks.
 This scheme can be implemented with the following simple cron job, which must run once per day:
 
 1. To copy per-day partition for the older day stored at NVMe from NVMe to HDD, with the help of [`rsync`](https://en.wikipedia.org/wiki/Rsync).

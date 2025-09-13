@@ -58,7 +58,7 @@ func (cp *CommonParams) UpdatePerQueryStatsMetrics() {
 func GetCommonParams(r *http.Request) (*CommonParams, error) {
 	tenantID, err := logstorage.GetTenantIDFromRequest(r)
 	if err != nil {
-		return nil, fmt.Errorf("cannot obtain tenanID: %w", err)
+		return nil, fmt.Errorf("cannot obtain tenantID: %w", err)
 	}
 	tenantIDs := []logstorage.TenantID{tenantID}
 	cp := &CommonParams{
