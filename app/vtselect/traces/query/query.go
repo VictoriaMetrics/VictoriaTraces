@@ -608,8 +608,10 @@ func GetDependencyList(ctx context.Context, cp *CommonParams, param *Dependencie
 	}
 	q.AddTimeFilter(startTime, endTime)
 	if *traceMaxDependencyList > 0 {
-		q.AddPipeLimit(*traceMaxDependencyList)
+		q.AddPipeOffsetLimit(0, *traceMaxDependencyList)
 	}
+	cp.Query = q
+	qctx := cp.NewQueryContext(ctx)
 
 	var rowsLock sync.Mutex
 	var rows []*Row
@@ -649,7 +651,7 @@ func GetDependencyList(ctx context.Context, cp *CommonParams, param *Dependencie
 		}
 	}
 
-	if err = vtstorage.RunQuery(ctx, cp.TenantIDs, q, writeBlock); err != nil {
+	if err = vtstorage.RunQuery(qctx, writeBlock); err != nil {
 		return nil, err
 	}
 
