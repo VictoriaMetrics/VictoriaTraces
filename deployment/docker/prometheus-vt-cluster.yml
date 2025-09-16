@@ -6,27 +6,18 @@ scrape_configs:
     static_configs:
       - targets:
           - victoriametrics:8428
-  - job_name: vtselect-1
+  - job_name: vtselect
     static_configs:
       - targets:
           - vtselect-1:10428
-  - job_name: vtselect-2
-    static_configs:
-      - targets:
           - vtselect-2:10428
-  - job_name: vtinsert-1
+  - job_name: vtinsert
     static_configs:
       - targets:
           - vtinsert-1:10428
-  - job_name: vtinsert-2
-    static_configs:
-      - targets:
           - vtinsert-2:10428
-  - job_name: vtstorage-1
+  - job_name: vtstorage
     static_configs:
       - targets:
           - vtstorage-1:10428
-  - job_name: vtstorage-2
-    static_configs:
-      - targets:
           - vtstorage-2:10428

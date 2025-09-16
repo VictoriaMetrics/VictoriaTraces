@@ -73,7 +73,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 8,
+  "id": 1,
   "links": [],
   "panels": [
     {
@@ -105,8 +105,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               }
             ]
           },
@@ -140,7 +139,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -177,8 +176,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               }
             ]
           },
@@ -212,7 +210,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -249,8 +247,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               }
             ]
           },
@@ -284,7 +281,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -321,8 +318,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               }
             ]
           },
@@ -356,7 +352,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -393,8 +389,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               }
             ]
           },
@@ -428,7 +423,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -471,7 +466,7 @@
         "content": "<div style=\"text-align: center;\">$version</div>",
         "mode": "markdown"
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "title": "Version",
       "type": "text"
     },
@@ -491,8 +486,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               }
             ]
           },
@@ -526,7 +520,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -563,8 +557,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               }
             ]
           },
@@ -598,7 +591,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -635,8 +628,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               }
             ]
           },
@@ -670,7 +662,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -707,8 +699,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               }
             ]
           },
@@ -742,7 +733,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -826,8 +817,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -881,7 +871,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -966,8 +956,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1005,7 +994,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -1076,8 +1065,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1112,7 +1100,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -1201,8 +1189,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1240,7 +1227,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -1312,8 +1299,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1351,7 +1337,7 @@
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -1421,8 +1407,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
+                "color": "green"
               },
               {
                 "color": "red",
@@ -1490,7 +1475,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.1.0",
+      "pluginVersion": "12.0.2",
       "targets": [
         {
           "datasource": {
@@ -1509,480 +1494,12 @@
       "type": "timeseries"
     },
     {
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 34
-      },
-      "id": 68,
-      "panels": [],
-      "title": "Troubleshooting",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$ds"
-      },
-      "description": "Number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. \n\nNormally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "axisSoftMin": 0,
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "stepAfter",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 0,
-          "links": [],
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 35
-      },
-      "id": 62,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.1.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
-          "format": "time_series",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{instance}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Restarts",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$ds"
-      },
-      "description": "The number of new [streams](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields) created over the last 24 hours. Lower rate is better.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic-by-name"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineStyle": {
-              "fill": "solid"
-            },
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 35
-      },
-      "id": 26,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.1.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(vt_streams_created_total{job=~\"$job\", instance=~\"$instance\"}[1d])) by (instance)",
-          "format": "time_series",
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "{{instance}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Streams churn rate 24h ($instance)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$ds"
-      },
-      "description": "Flags explicitly set to non-default values",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "custom": {
-            "align": "auto",
-            "cellOptions": {
-              "type": "auto"
-            },
-            "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Time"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Value"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "job"
-            },
-            "properties": [
-              {
-                "id": "custom.hidden",
-                "value": true
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 43
-      },
-      "id": 70,
-      "options": {
-        "cellHeight": "sm",
-        "footer": {
-          "countRows": false,
-          "fields": "",
-          "reducer": [
-            "sum"
-          ],
-          "show": false
-        },
-        "showHeader": true
-      },
-      "pluginVersion": "12.1.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(flag{is_set=\"true\", job=~\"$job\", instance=~\"$instance\"}) by(job, instance, name, value)",
-          "format": "table",
-          "instant": true,
-          "legendFormat": "{{name}}={{value}}",
-          "range": false,
-          "refId": "A"
-        }
-      ],
-      "title": "Non-default flags",
-      "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "$ds"
-      },
-      "description": "Number of trace spans ignored or dropped on insertion due to the following reasons:\n* Timestamp out of the retention period or in the future\n* Number of fields per entry exceeded\n* Line too long\n\nIf this occurs, check the VictoriaTraces log for details.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 43
-      },
-      "id": 71,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.1.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "exemplar": true,
-          "expr": "sum(increase(vt_rows_dropped_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (reason) ",
-          "hide": false,
-          "interval": "",
-          "legendFormat": "{{reason}}",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(increase(vt_too_long_lines_skipped_total{job=~\"$job\", instance=~\"$instance\"}[1h]))",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "line_too_long",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "Trace spans dropped for last 1h",
-      "type": "timeseries"
-    },
-    {
       "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 51
+        "y": 34
       },
       "id": 28,
       "panels": [
@@ -2002,8 +1519,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "yellow",
@@ -2023,7 +1539,7 @@
             "h": 5,
             "w": 7,
             "x": 0,
-            "y": 52
+            "y": 157
           },
           "id": 79,
           "maxDataPoints": 100,
@@ -2045,7 +1561,7 @@
             "textMode": "auto",
             "wideLayout": true
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2118,8 +1634,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2135,7 +1650,7 @@
             "h": 10,
             "w": 17,
             "x": 7,
-            "y": 52
+            "y": 157
           },
           "id": 38,
           "options": {
@@ -2157,7 +1672,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2192,8 +1707,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   }
                 ]
               },
@@ -2205,7 +1719,7 @@
             "h": 5,
             "w": 7,
             "x": 0,
-            "y": 57
+            "y": 202
           },
           "id": 78,
           "maxDataPoints": 100,
@@ -2227,7 +1741,7 @@
             "textMode": "auto",
             "wideLayout": true
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2299,8 +1813,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2316,7 +1829,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 62
+            "y": 207
           },
           "id": 40,
           "options": {
@@ -2338,7 +1851,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2437,8 +1950,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2454,7 +1966,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 62
+            "y": 207
           },
           "id": 118,
           "options": {
@@ -2476,7 +1988,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2568,7 +2080,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 70
+            "y": 215
           },
           "id": 73,
           "options": {
@@ -2694,7 +2206,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 70
+            "y": 215
           },
           "id": 72,
           "options": {
@@ -2831,7 +2343,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 78
+            "y": 223
           },
           "id": 56,
           "options": {
@@ -2974,7 +2486,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 78
+            "y": 223
           },
           "id": 46,
           "options": {
@@ -3097,7 +2609,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 86
+            "y": 231
           },
           "id": 52,
           "options": {
@@ -3221,7 +2733,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 86
+            "y": 231
           },
           "id": 74,
           "options": {
@@ -3346,7 +2858,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 94
+            "y": 239
           },
           "id": 60,
           "options": {
@@ -3456,7 +2968,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 94
+            "y": 239
           },
           "id": 50,
           "options": {
@@ -3565,7 +3077,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 102
+            "y": 247
           },
           "id": 58,
           "options": {
@@ -3675,7 +3187,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 102
+            "y": 247
           },
           "id": 54,
           "options": {
@@ -3785,7 +3297,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 110
+            "y": 255
           },
           "id": 119,
           "options": {
@@ -3894,7 +3406,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 110
+            "y": 255
           },
           "id": 61,
           "options": {
@@ -3944,7 +3456,487 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 52
+        "y": 35
+      },
+      "id": 68,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Number of restarts per job. The chart can be useful to identify periodic process restarts and correlate them with potential issues or anomalies. \n\nNormally, processes shouldn't restart unless restart was inited by user. The reason of restarts should be figured out by checking the logs of each specific service. ",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "stepAfter",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "decimals": 0,
+              "links": [],
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "none"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 158
+          },
+          "id": 62,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(changes(vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
+              "format": "time_series",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Restarts",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "The number of new [streams](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields) created over the last 24 hours. Lower rate is better.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic-by-name"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineStyle": {
+                  "fill": "solid"
+                },
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 158
+          },
+          "id": 26,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(increase(vt_streams_created_total{job=~\"$job\", instance=~\"$instance\"}[1d])) by (instance)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Streams churn rate 24h ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Flags explicitly set to non-default values",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "custom": {
+                "align": "auto",
+                "cellOptions": {
+                  "type": "auto"
+                },
+                "inspect": false
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Time"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "Value"
+                },
+                "properties": [
+                  {
+                    "id": "custom.hidden",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 166
+          },
+          "id": 70,
+          "options": {
+            "cellHeight": "sm",
+            "footer": {
+              "countRows": false,
+              "fields": "",
+              "reducer": [
+                "sum"
+              ],
+              "show": false
+            },
+            "showHeader": true
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(flag{is_set=\"true\", job=~\"$job\", instance=~\"$instance\"}) by(job, instance, name, value)",
+              "format": "table",
+              "instant": true,
+              "legendFormat": "{{name}}={{value}}",
+              "range": false,
+              "refId": "A"
+            }
+          ],
+          "title": "Non-default flags",
+          "transformations": [
+            {
+              "id": "groupBy",
+              "options": {
+                "fields": {
+                  "instance": {
+                    "aggregations": [
+                      "uniqueValues"
+                    ],
+                    "operation": "aggregate"
+                  },
+                  "job": {
+                    "aggregations": [],
+                    "operation": "groupby"
+                  },
+                  "name": {
+                    "aggregations": [],
+                    "operation": "groupby"
+                  },
+                  "value": {
+                    "aggregations": [],
+                    "operation": "groupby"
+                  }
+                }
+              }
+            }
+          ],
+          "type": "table"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Number of trace spans ignored or dropped on insertion due to the following reasons:\n* Timestamp out of the retention period or in the future\n* Number of fields per entry exceeded\n* Line too long\n\nIf this occurs, check the VictoriaTraces log for details.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 166
+          },
+          "id": 71,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": true,
+              "expr": "sum(increase(vt_rows_dropped_total{job=~\"$job\", instance=~\"$instance\"}[1h])) by (reason) ",
+              "hide": false,
+              "interval": "",
+              "legendFormat": "{{reason}}",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(increase(vt_too_long_lines_skipped_total{job=~\"$job\", instance=~\"$instance\"}[1h]))",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "line_too_long",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Trace spans dropped for last 1h",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Troubleshooting",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 36
       },
       "id": 82,
       "panels": [
@@ -3964,8 +3956,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   }
                 ]
               },
@@ -3977,7 +3968,7 @@
             "h": 8,
             "w": 3,
             "x": 0,
-            "y": 53
+            "y": 345
           },
           "id": 88,
           "maxDataPoints": 100,
@@ -3999,7 +3990,7 @@
             "textMode": "auto",
             "wideLayout": true
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -4069,8 +4060,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4086,7 +4076,7 @@
             "h": 8,
             "w": 9,
             "x": 3,
-            "y": 53
+            "y": 345
           },
           "id": 84,
           "options": {
@@ -4108,7 +4098,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -4179,8 +4169,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4216,7 +4205,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 53
+            "y": 345
           },
           "id": 110,
           "options": {
@@ -4238,7 +4227,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -4323,8 +4312,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4340,7 +4328,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 61
+            "y": 353
           },
           "id": 112,
           "options": {
@@ -4362,7 +4350,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -4432,8 +4420,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4449,7 +4436,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 61
+            "y": 353
           },
           "id": 86,
           "options": {
@@ -4471,7 +4458,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -4542,8 +4529,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4559,7 +4545,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 69
+            "y": 361
           },
           "id": 109,
           "options": {
@@ -4581,7 +4567,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -4611,7 +4597,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 37
       },
       "id": 83,
       "panels": [
@@ -4666,8 +4652,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4700,7 +4685,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 54
+            "y": 2682
           },
           "id": 113,
           "options": {
@@ -4721,7 +4706,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -4806,8 +4791,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4823,7 +4807,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 54
+            "y": 2682
           },
           "id": 117,
           "options": {
@@ -4845,7 +4829,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -4916,8 +4900,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -4933,7 +4916,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 62
+            "y": 2690
           },
           "id": 103,
           "options": {
@@ -4955,7 +4938,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -5026,8 +5009,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5043,7 +5025,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 62
+            "y": 2690
           },
           "id": 116,
           "options": {
@@ -5065,7 +5047,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -5137,8 +5119,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5154,7 +5135,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 70
+            "y": 2698
           },
           "id": 97,
           "options": {
@@ -5176,7 +5157,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -5260,8 +5241,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5277,7 +5257,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 70
+            "y": 2698
           },
           "id": 104,
           "options": {
@@ -5299,7 +5279,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -5370,8 +5350,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5403,7 +5382,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 78
+            "y": 2706
           },
           "id": 143,
           "options": {
@@ -5425,7 +5404,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -5495,8 +5474,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5512,7 +5490,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 78
+            "y": 2706
           },
           "id": 131,
           "options": {
@@ -5532,7 +5510,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -5601,8 +5579,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5618,7 +5595,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 86
+            "y": 2714
           },
           "id": 115,
           "options": {
@@ -5640,7 +5617,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -5669,7 +5646,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 38
       },
       "id": 81,
       "panels": [
@@ -5725,8 +5702,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5742,7 +5718,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 55
+            "y": 2683
           },
           "id": 102,
           "options": {
@@ -5764,7 +5740,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -5836,8 +5812,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5853,7 +5828,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 55
+            "y": 2683
           },
           "id": 108,
           "options": {
@@ -5875,7 +5850,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -5945,8 +5920,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -5978,7 +5952,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 63
+            "y": 2691
           },
           "id": 107,
           "options": {
@@ -6000,7 +5974,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -6085,8 +6059,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6102,7 +6075,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 63
+            "y": 2691
           },
           "id": 132,
           "options": {
@@ -6118,7 +6091,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -6146,7 +6119,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 55
+        "y": 39
       },
       "id": 126,
       "panels": [
@@ -6201,8 +6174,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6218,7 +6190,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 56
+            "y": 2684
           },
           "id": 130,
           "options": {
@@ -6240,7 +6212,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -6311,8 +6283,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6328,7 +6299,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 56
+            "y": 2684
           },
           "id": 121,
           "options": {
@@ -6350,7 +6321,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -6421,8 +6392,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6438,7 +6408,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 64
+            "y": 2692
           },
           "id": 124,
           "options": {
@@ -6460,7 +6430,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -6531,8 +6501,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6548,7 +6517,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 64
+            "y": 2692
           },
           "id": 129,
           "options": {
@@ -6568,7 +6537,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -6639,8 +6608,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6656,7 +6624,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 72
+            "y": 2700
           },
           "id": 122,
           "options": {
@@ -6678,7 +6646,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -6749,8 +6717,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6766,7 +6733,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 72
+            "y": 2700
           },
           "id": 127,
           "options": {
@@ -6788,7 +6755,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -6859,8 +6826,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6876,7 +6842,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 80
+            "y": 2708
           },
           "id": 128,
           "options": {
@@ -6898,7 +6864,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -6969,8 +6935,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -6986,7 +6951,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 80
+            "y": 2708
           },
           "id": 123,
           "options": {
@@ -7008,7 +6973,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -7044,8 +7009,8 @@
     "list": [
       {
         "current": {
-          "text": "default",
-          "value": "default"
+          "text": "VictoriaMetrics",
+          "value": "P4169E866C3094E38"
         },
         "includeAll": false,
         "name": "ds",
@@ -7057,8 +7022,8 @@
       },
       {
         "current": {
-          "text": "kubernetes-pods",
-          "value": "kubernetes-pods"
+          "text": "victoriatraces",
+          "value": "victoriatraces"
         },
         "datasource": {
           "type": "prometheus",
@@ -7102,8 +7067,8 @@
       },
       {
         "current": {
-          "text": "",
-          "value": ""
+          "text": "v0.1.0",
+          "value": "v0.1.0"
         },
         "datasource": {
           "type": "prometheus",
@@ -7142,6 +7107,5 @@
   "timezone": "",
   "title": "VictoriaTraces - single-node",
   "uid": "OqPIZTX5z",
-  "version": 1,
-  "weekStart": ""
+  "version": 1
 }

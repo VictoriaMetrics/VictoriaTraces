@@ -22,9 +22,12 @@ var maxRequestSize = flagutil.NewBytes("opentelemetry.traces.maxRequestSize", 64
 
 var (
 	requestsProtobufTotal = metrics.NewCounter(`vt_http_requests_total{path="/insert/opentelemetry/v1/traces",format="protobuf"}`)
-	errorsTotal           = metrics.NewCounter(`vt_http_errors_total{path="/insert/opentelemetry/v1/traces",format="protobuf"}`)
+	errorsProtobufTotal   = metrics.NewCounter(`vt_http_errors_total{path="/insert/opentelemetry/v1/traces",format="protobuf"}`)
+	requestsJSONTotal     = metrics.NewCounter(`vt_http_requests_total{path="/insert/opentelemetry/v1/traces",format="json"}`)
+	errorsJSONTotal       = metrics.NewCounter(`vt_http_errors_total{path="/insert/opentelemetry/v1/traces",format="json"}`)
 
 	requestProtobufDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/insert/opentelemetry/v1/traces",format="protobuf"}`)
+	requestJSONDuration     = metrics.NewSummary(`vt_http_request_duration_seconds{path="/insert/opentelemetry/v1/traces",format="json"}`)
 )
 
 var (
@@ -37,25 +40,37 @@ var (
 	traceIDCache = fastcache.New(32 * 1024 * 1024)
 )
 
+const (
+	contentTypeProtobuf = "application/x-protobuf"
+	contentTypeJSON     = "application/json"
+)
+
 // RequestHandler processes Opentelemetry insert requests
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	switch path {
 	// use the same path as opentelemetry collector
 	// https://opentelemetry.io/docs/specs/otlp/#otlphttp-request
 	case "/insert/opentelemetry/v1/traces":
-		if r.Header.Get("Content-Type") == "application/json" {
-			httpserver.Errorf(w, r, "json encoding isn't supported for opentelemetry format. Use protobuf encoding")
-			return true
-		}
-		handleProtobuf(r, w)
-		return true
+		return handleTracesRequest(r, w)
 	default:
 		return false
 	}
 }
 
-// handleProtobuf handles the trace ingestion request.
-func handleProtobuf(r *http.Request, w http.ResponseWriter) {
+func handleTracesRequest(r *http.Request, w http.ResponseWriter) bool {
+	switch contentType := r.Header.Get("Content-Type"); contentType {
+	case contentTypeProtobuf:
+		handleProtobufRequest(r, w)
+	case contentTypeJSON:
+		handleJSONRequest(r, w)
+	default:
+		httpserver.Errorf(w, r, "Content-Type %s isn't supported for opentelemetry format. Use protobuf or JSON encoding", contentType)
+		return false
+	}
+	return true
+}
+
+func handleProtobufRequest(r *http.Request, w http.ResponseWriter) {
 	startTime := time.Now()
 	requestsProtobufTotal.Inc()
 
@@ -69,36 +84,81 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) {
 	// for potentially better efficiency.
 	cp.StreamFields = append(mandatoryStreamFields, cp.StreamFields...)
 
-	if err := insertutil.CanWriteData(); err != nil {
+	if err = insertutil.CanWriteData(); err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
 
 	encoding := r.Header.Get("Content-Encoding")
 	err = protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
-		lmp := cp.NewLogMessageProcessor("opentelemetry_traces_protobuf", false)
-		err := pushProtobufRequest(data, lmp)
+		var (
+			req         otelpb.ExportTraceServiceRequest
+			callbackErr error
+		)
+		lmp := cp.NewLogMessageProcessor("opentelemetry_traces", false)
+		if callbackErr = req.UnmarshalProtobuf(data); callbackErr != nil {
+			errorsProtobufTotal.Inc()
+			return fmt.Errorf("cannot unmarshal request from %d protobuf bytes: %w", len(data), callbackErr)
+		}
+		callbackErr = pushExportTraceServiceRequest(&req, lmp)
 		lmp.MustClose()
-		return err
+		return callbackErr
 	})
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot read OpenTelemetry protocol data: %s", err)
 		return
 	}
-
 	// update requestProtobufDuration only for successfully parsed requests
 	// There is no need in updating requestProtobufDuration for request errors,
 	// since their timings are usually much smaller than the timing for successful request parsing.
 	requestProtobufDuration.UpdateDuration(startTime)
 }
 
-func pushProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor) error {
-	var req otelpb.ExportTraceServiceRequest
-	if err := req.UnmarshalProtobuf(data); err != nil {
-		errorsTotal.Inc()
-		return fmt.Errorf("cannot unmarshal request from %d bytes: %w", len(data), err)
+func handleJSONRequest(r *http.Request, w http.ResponseWriter) {
+	startTime := time.Now()
+	requestsJSONTotal.Inc()
+
+	cp, err := insertutil.GetCommonParams(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
+		return
+	}
+	// stream fields must contain the service name and span name.
+	// by using arguments and headers, users can also add other fields as stream fields
+	// for potentially better efficiency.
+	cp.StreamFields = append(mandatoryStreamFields, cp.StreamFields...)
+
+	if err = insertutil.CanWriteData(); err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return
 	}
 
+	encoding := r.Header.Get("Content-Encoding")
+	err = protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
+		var (
+			req         otelpb.ExportTraceServiceRequest
+			callbackErr error
+		)
+		lmp := cp.NewLogMessageProcessor("opentelemetry_traces", false)
+		if callbackErr = req.UnmarshalJSONCustom(data); callbackErr != nil {
+			errorsJSONTotal.Inc()
+			return fmt.Errorf("cannot unmarshal request from %d protobuf bytes: %w", len(data), callbackErr)
+		}
+		callbackErr = pushExportTraceServiceRequest(&req, lmp)
+		lmp.MustClose()
+		return callbackErr
+	})
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot read OpenTelemetry protocol data: %s", err)
+		return
+	}
+	// update requestJSONDuration only for successfully parsed requests
+	// There is no need in updating requestJSONDuration for request errors,
+	// since their timings are usually much smaller than the timing for successful request parsing.
+	requestJSONDuration.UpdateDuration(startTime)
+}
+
+func pushExportTraceServiceRequest(req *otelpb.ExportTraceServiceRequest, lmp insertutil.LogMessageProcessor) error {
 	var commonFields []logstorage.Field
 	for _, rs := range req.ResourceSpans {
 		commonFields = commonFields[:0]

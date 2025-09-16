@@ -90,6 +90,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		})
 		return true
 	}
+
 	if vtinsert.RequestHandler(w, r) {
 		return true
 	}
