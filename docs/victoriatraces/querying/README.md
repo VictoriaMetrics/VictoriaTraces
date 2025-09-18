@@ -122,6 +122,7 @@ Here's a response example:
 ### Querying dependencies
 
 The dependency graph is available at the `/select/jaeger/api/dependencies` HTTP endpoint.
+
 This endpoint provides the following params:
 - `endTs`: the end timestamp in unix milliseconds. Current timestamp will be used if empty.
 - `lookback`: the lookbehind window duration in milliseconds. Default to `1m` if empty (not controlled by `-search.traceMaxDependencyLookbehind` flag).
