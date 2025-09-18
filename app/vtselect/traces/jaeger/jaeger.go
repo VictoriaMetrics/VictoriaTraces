@@ -462,7 +462,7 @@ func parseJaegerDependenciesQueryParam(_ context.Context, r *http.Request) (*que
 	// default params
 	p := &query.DependenciesQueryParameters{
 		EndTs:    time.Now(),
-		Lookback: time.Hour * 24,
+		Lookback: time.Minute * 1,
 	}
 	q := r.URL.Query()
 

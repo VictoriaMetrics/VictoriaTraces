@@ -31,8 +31,10 @@ var (
 		"This limit affects Jaeger's /api/services API.")
 	traceMaxSpanNameList = flag.Uint64("search.traceMaxSpanNameList", 1000, "The maximum number of span name can return in a get span name request. "+
 		"This limit affects Jaeger's /api/services/*/operations API.")
-	traceMaxDependencyList = flag.Uint64("search.traceMaxDependencyList", 0, "The maximum number of dependency links can return in a get dependencies request. "+
-		"This limit affects Jaeger's /api/dependencies API. Not limited by default.")
+	traceMaxDependencyList = flag.Uint64("search.traceMaxDependencyList", 1000, "The maximum number of dependency links can return in a get dependencies request. "+
+		"This limit affects Jaeger's /api/dependencies API.")
+	traceMaxDependencyLookBehind = flag.Duration("search.traceMaxDependencyLookbehind", 1*time.Minute, "The maximum window for dependency analysis in real-time. "+
+		"Increasing this duration will allow analysis across a longer time range, but it will increase the risk of performance degradation and higher resource usage.")
 )
 
 var (
@@ -599,6 +601,9 @@ func GetDependencyList(ctx context.Context, cp *CommonParams, param *Dependencie
 		qStrChildSpans,
 	)
 
+	if *traceMaxDependencyLookBehind > 0 && param.Lookback > *traceMaxDependencyLookBehind {
+		param.Lookback = *traceMaxDependencyLookBehind
+	}
 	startTime := param.EndTs.Add(-param.Lookback).UnixNano()
 	endTime := param.EndTs.UnixNano()
 
