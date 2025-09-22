@@ -46,7 +46,7 @@
       }
     ]
   },
-  "description": "Overview for cluster version of VictoriaTraces v0.3.0 or higher",
+  "description": "Overview for single-node version of VictoriaTraces v0.3.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -11464,7 +11464,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "VictoriaTraces - cluster",
+  "title": "VictoriaTraces - single-node",
   "uid": "XqCOFEX6z",
   "version": 1
 }
