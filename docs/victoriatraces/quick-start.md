@@ -29,7 +29,7 @@ VictoriaMetrics is available as:
 Run the newest available [VictoriaTraces release](https://docs.victoriametrics.com/victoriatraces/changelog/) from [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-traces) or [Quay](https://quay.io/repository/victoriametrics/victoria-traces):
 ```shell
 docker run --rm -it -p 10428:10428 -v ./victoria-traces-data:/victoria-traces-data \
-  docker.io/victoriametrics/victoria-traces:v0.2.0
+  docker.io/victoriametrics/victoria-traces:latest
 ```
 
 This command will make VictoriaTraces run in the foreground, and store the ingested data to the `victoria-traces-data` directory. You should see the following logs:

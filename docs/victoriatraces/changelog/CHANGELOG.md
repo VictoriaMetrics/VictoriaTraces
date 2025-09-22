@@ -12,13 +12,18 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support Jaeger [service dependencies graph API](https://www.jaegertracing.io/docs/2.10/architecture/apis/#service-dependencies-graph). See [this pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/52) for details.
+
+## [v0.3.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.3.0)
+
+Released at 2025-09-19
+
 * FEATURE: improve the scalability of data ingestion on systems with big number of CPU cores. Previously only up to 40 CPU cores were used during logs' ingestion into VictoriaLogs on AMD64 and ARM64 architectures, while the remaining CPU cores were idle. Remove the scalability bottleneck by switching from [musl-based](https://wiki.musl-libc.org/) to [glibc-based](https://en.wikipedia.org/wiki/Glibc) cross-compiler. This improved the data ingestion speed on a host with hundreds of CPU cores by more than 4x. See [#517](https://github.com/VictoriaMetrics/VictoriaLogs/issues/517#issuecomment-3167039079).
 * FEATURE: upgrade Go builder from Go1.24.6 to Go1.25.0. See [Go1.25.0 release notes](https://go.dev/doc/go1.25).
 * FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): Upgrade VictoriaLogs dependency from [v1.27.0 to v1.33.1](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.27.0...v1.33.1).
 * FEATURE: [docker compose](https://github.com/VictoriaMetrics/VictoriaTraces/tree/master/deployment/docker): add cluster docker compose environment.
 * FEATURE: [dashboards](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/dashboards): update dashboard for VictoriaTraces single-node and cluster to provide more charts.
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtinsert in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support [JSON protobuf encoding](https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding) in the OpenTelemetry protocol (OTLP) for data ingestion. See [this issue](https://github.com/VictoriaMetrics/VictoriaTraces/issues/41) for details. Thanks to @JayiceZ for the [pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/51).
-* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support Jaeger [service dependencies graph API](https://www.jaegertracing.io/docs/2.10/architecture/apis/#service-dependencies-graph). See [this pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/52) for details.
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtinsert in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): Rename various [HTTP headers](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers) prefix from `VL-` to `VT-`. These headers help with debugging and customizing stream fields. Thank @JayiceZ for [the pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/56). 
 * BUGFIX: all components: properly expose metadata for summaries and histograms in VictoriaMetrics components with enabled `-metrics.exposeMetadata` cmd-line flag. See [metrics#98](https://github.com/VictoriaMetrics/metrics/issues/98) for details.
