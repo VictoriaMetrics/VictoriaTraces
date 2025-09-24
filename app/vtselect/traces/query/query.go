@@ -578,43 +578,15 @@ type DependenciesQueryParameters struct {
 
 // GetDependencyList returns service dependencies graph edges (parent, child, callCount) in []*Row format.
 func GetDependencyList(ctx context.Context, cp *CommonParams, param *DependenciesQueryParameters) ([]*Row, error) {
-	qStrParentSpans := fmt.Sprintf(
-		`NOT %s:"" | fields %s, %s | rename %s as %s, %s as child`,
-		otelpb.ParentSpanIDField,
-		otelpb.ParentSpanIDField,
-		otelpb.ResourceAttrServiceName,
-		otelpb.ParentSpanIDField,
-		otelpb.SpanIDField,
-		otelpb.ResourceAttrServiceName,
-	)
-	qStrChildSpans := fmt.Sprintf(
-		`NOT %s:"" | fields %s, %s | rename %s as parent`,
-		otelpb.SpanIDField,
-		otelpb.SpanIDField,
-		otelpb.ResourceAttrServiceName,
-		otelpb.ResourceAttrServiceName,
-	)
-	qStr := fmt.Sprintf(
-		`%s | join by (%s) (%s) inner | NOT parent:eq_field(child) | stats by (parent, child) count() callCount`,
-		qStrParentSpans,
-		otelpb.SpanIDField,
-		qStrChildSpans,
-	)
-
-	if *traceMaxDependencyLookBehind > 0 && param.Lookback > *traceMaxDependencyLookBehind {
-		param.Lookback = *traceMaxDependencyLookBehind
-	}
+	qStr := `{service_graph_stream="-"} | fields parent, child, callCount | stats by (parent, child) sum(callCount) as callCount`
 	startTime := param.EndTs.Add(-param.Lookback).UnixNano()
 	endTime := param.EndTs.UnixNano()
-
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, endTime)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
 	q.AddTimeFilter(startTime, endTime)
-	if *traceMaxDependencyList > 0 {
-		q.AddPipeOffsetLimit(0, *traceMaxDependencyList)
-	}
+
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctx)
 

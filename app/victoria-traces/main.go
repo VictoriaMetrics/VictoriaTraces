@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtbackground"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect"
@@ -48,6 +49,7 @@ func main() {
 
 	insertutil.SetLogRowsStorage(&vtstorage.Storage{})
 	vtinsert.Init()
+	vtbackground.InitServiceGraph()
 
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
