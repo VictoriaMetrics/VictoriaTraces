@@ -21,7 +21,7 @@ These APIs can be used with:
 It's also worthy to mention that VictoriaTraces provide enhanced tag filter in the `/select/jaeger/api/traces` API, allowing users
 to filter traces not only by span attributes (also known as tags in Jaeger), but also by:
 - Resource attributes
-- Scope attributes
+- Instrumentation scope attributes
 
 See more details in [tag filter examples](#tags-filter-examples).
 
