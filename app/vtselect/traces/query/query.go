@@ -31,10 +31,6 @@ var (
 		"This limit affects Jaeger's /api/services API.")
 	traceMaxSpanNameList = flag.Uint64("search.traceMaxSpanNameList", 1000, "The maximum number of span name can return in a get span name request. "+
 		"This limit affects Jaeger's /api/services/*/operations API.")
-	traceMaxDependencyList = flag.Uint64("search.traceMaxDependencyList", 1000, "The maximum number of dependency links can return in a get dependencies request. "+
-		"This limit affects Jaeger's /api/dependencies API.")
-	traceMaxDependencyLookBehind = flag.Duration("search.traceMaxDependencyLookbehind", 1*time.Minute, "The maximum window for dependency analysis in real-time. "+
-		"Increasing this duration will allow analysis across a longer time range, but it will increase the risk of performance degradation and higher resource usage.")
 )
 
 var (
@@ -630,6 +626,94 @@ func GetDependencyList(ctx context.Context, cp *CommonParams, param *Dependencie
 
 	if err = vtstorage.RunQuery(qctx, writeBlock); err != nil {
 		return nil, err
+	}
+
+	return rows, nil
+}
+
+func GetServiceGraphTimeRange(ctx context.Context, r *http.Request, startTime, endTime time.Time) ([][]logstorage.Field, error) {
+	cp, err := GetCommonParams(r)
+	if err != nil {
+		return nil, err
+	}
+	qStrChildSpans := fmt.Sprintf(
+		`(NOT %s:"") AND (%s:~"%d|%d")  | fields %s, %s | rename %s as %s, %s as child`,
+		otelpb.ParentSpanIDField,
+		otelpb.KindField,
+		otelpb.SpanKind(2),
+		otelpb.SpanKind(5),
+		otelpb.ParentSpanIDField,
+		otelpb.ResourceAttrServiceName,
+		otelpb.ParentSpanIDField,
+		otelpb.SpanIDField,
+		otelpb.ResourceAttrServiceName,
+	)
+	qStrParentSpans := fmt.Sprintf(
+		`(NOT %s:"") AND (%s:~"%d|%d") | fields %s, %s | rename %s as parent`,
+		otelpb.SpanIDField,
+		otelpb.KindField,
+		otelpb.SpanKind(3),
+		otelpb.SpanKind(4),
+		otelpb.SpanIDField,
+		otelpb.ResourceAttrServiceName,
+		otelpb.ResourceAttrServiceName,
+	)
+	qStr := fmt.Sprintf(
+		`%s | join by (%s) (%s) inner | NOT parent:eq_field(child) | stats by (parent, child) count() callCount`,
+		qStrChildSpans,
+		otelpb.SpanIDField,
+		qStrParentSpans,
+	)
+
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, endTime.UnixNano())
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
+	}
+	q.AddTimeFilter(startTime.UnixNano(), endTime.UnixNano())
+	q.AddPipeOffsetLimit(0, 1000)
+
+	cp.Query = q
+	qctx := cp.NewQueryContext(ctx)
+	defer cp.UpdatePerQueryStatsMetrics()
+
+	var rowsLock sync.Mutex
+	var rows [][]logstorage.Field
+	//var missingTimeColumn atomic.Bool
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		columns := db.Columns
+		if len(columns) == 0 {
+			return
+		}
+		clonedColumnNames := make([]string, len(columns))
+		valuesCount := 0
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+			if len(c.Values) > valuesCount {
+				valuesCount = len(c.Values)
+			}
+		}
+		if valuesCount == 0 {
+			return
+		}
+		for i := 0; i < valuesCount; i++ {
+			fields := make([]logstorage.Field, 0, len(columns))
+			for j := range columns {
+				fields = append(
+					fields,
+					logstorage.Field{
+						Name:  clonedColumnNames[j],
+						Value: strings.Clone(columns[j].Values[i]),
+					},
+				)
+			}
+			rowsLock.Lock()
+			rows = append(rows, fields)
+			rowsLock.Unlock()
+		}
+	}
+
+	if err = vtstorage.RunQuery(qctx, writeBlock); err != nil {
+		return nil, fmt.Errorf("cannot execute query [%s]: %s", qStr, err)
 	}
 
 	return rows, nil

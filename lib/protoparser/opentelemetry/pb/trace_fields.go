@@ -7,6 +7,8 @@ const (
 	TraceIDIndexStreamName     = "trace_id_idx_stream"
 	TraceIDIndexFieldName      = "trace_id_idx"
 	TraceIDIndexPartitionCount = uint64(1024)
+
+	TraceServiceGraphStreamName = "trace_service_graph_stream"
 )
 
 // Resource
