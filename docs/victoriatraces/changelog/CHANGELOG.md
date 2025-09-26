@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.25.0 to Go1.25.1. See [the list of issues addressed in Go1.25.1](https://github.com/golang/go/issues?q=milestone%3AGo1.25.1%20label%3ACherryPickApproved).
+
 ## [v0.3.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.3.0)
 
 Released at 2025-09-19
