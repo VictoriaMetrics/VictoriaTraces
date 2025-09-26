@@ -265,8 +265,8 @@ The following guide covers the following topics for Linux host:
 Download and unpack the latest VictoriaTraces release:
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaTraces/releases/download/v0.2.0/victoria-traces-linux-amd64-v0.2.0.tar.gz
-tar xzf victoria-traces-linux-amd64-v0.2.0.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaTraces/releases/download/v0.3.0/victoria-traces-linux-amd64-v0.3.0.tar.gz
+tar xzf victoria-traces-linux-amd64-v0.3.0.tar.gz
 ```
 
 Start the first [`vtstorage` node](#architecture), which accepts incoming requests at the port `10491` and stores the ingested spans at `victoria-traces-data-1` directory:

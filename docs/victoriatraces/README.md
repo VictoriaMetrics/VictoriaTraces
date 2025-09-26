@@ -102,7 +102,7 @@ This schema outlines how to configure a High Availability (HA) setup using Victo
 
 ## Monitoring
 
-VictoriaTraces exposes internal metrics in Prometheus exposition format at `http://localhost:10428/metrics` page.
+VictoriaTraces exposes internal metrics in Prometheus exposition format at `http://<victoria-traces>:10428/metrics` page.
 It is recommended to set up monitoring of these metrics via VictoriaMetrics
 (see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
 vmagent (see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
