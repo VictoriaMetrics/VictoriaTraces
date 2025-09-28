@@ -1113,7 +1113,7 @@ type commonArgs struct {
 }
 
 func (ca *commonArgs) newQueryContext(ctx context.Context) *logstorage.QueryContext {
-	return logstorage.NewQueryContext(ctx, &ca.qs, ca.tenantIDs, ca.q)
+	return logstorage.NewQueryContext(ctx, &ca.qs, ca.tenantIDs, ca.q, false)
 }
 
 func (ca *commonArgs) updatePerQueryStatsMetrics() {

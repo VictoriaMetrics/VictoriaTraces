@@ -284,7 +284,7 @@ type commonParams struct {
 }
 
 func (cp *commonParams) NewQueryContext(ctx context.Context) *logstorage.QueryContext {
-	return logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query)
+	return logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query, false)
 }
 
 func (cp *commonParams) UpdatePerQueryStatsMetrics() {

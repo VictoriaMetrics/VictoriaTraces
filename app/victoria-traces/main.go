@@ -15,7 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vtbackground"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/victoria-traces/backgroundtask"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect"
@@ -49,7 +49,7 @@ func main() {
 
 	insertutil.SetLogRowsStorage(&vtstorage.Storage{})
 	vtinsert.Init()
-	vtbackground.InitServiceGraph()
+	backgroundtask.Init()
 
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
@@ -68,6 +68,7 @@ func main() {
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 
+	backgroundtask.Stop()
 	vtinsert.Stop()
 	vtselect.Stop()
 	vtstorage.Stop()

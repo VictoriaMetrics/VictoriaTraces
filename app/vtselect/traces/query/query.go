@@ -47,7 +47,7 @@ type CommonParams struct {
 }
 
 func (cp *CommonParams) NewQueryContext(ctx context.Context) *logstorage.QueryContext {
-	return logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query)
+	return logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query, false)
 }
 
 func (cp *CommonParams) UpdatePerQueryStatsMetrics() {
@@ -574,7 +574,7 @@ type DependenciesQueryParameters struct {
 
 // GetDependencyList returns service dependencies graph edges (parent, child, callCount) in []*Row format.
 func GetDependencyList(ctx context.Context, cp *CommonParams, param *DependenciesQueryParameters) ([]*Row, error) {
-	qStr := `{service_graph_stream="-"} | fields parent, child, callCount | stats by (parent, child) sum(callCount) as callCount`
+	qStr := `{trace_service_graph_stream="-"} | fields parent, child, callCount | stats by (parent, child) sum(callCount) as callCount`
 	startTime := param.EndTs.Add(-param.Lookback).UnixNano()
 	endTime := param.EndTs.UnixNano()
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, endTime)

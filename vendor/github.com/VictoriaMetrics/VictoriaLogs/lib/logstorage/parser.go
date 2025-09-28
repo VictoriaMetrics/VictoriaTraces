@@ -122,6 +122,10 @@ func (lex *lexer) nextCompoundTokenExt(stopTokens []string) (string, error) {
 		return s, nil
 	}
 
+	if !lex.isSkippedSpace && lex.isKeywordAny(deniedFirstCompoundTokens) && isWord(lex.prevRawToken) {
+		return "", fmt.Errorf("missing whitespace between %q and %q", lex.prevRawToken, lex.token)
+	}
+
 	if !lex.isAllowedCompoundToken(stopTokens) {
 		return "", fmt.Errorf("compound token cannot start with %q; put it into quotes if needed", lex.token)
 	}
@@ -165,12 +169,26 @@ func (lex *lexer) isAllowedCompoundToken(stopTokens []string) bool {
 	}
 
 	// Regular word token is allowed to be a part of compound token.
-	for _, r := range lex.token {
+	return isWord(lex.token)
+}
+
+func isWord(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
 		if !isTokenRune(r) {
 			return false
 		}
 	}
 	return true
+}
+
+// deniedFirstCompoundTokens contains disallowed starting tokens for compound tokens without the whitespace in front of these tokens.
+var deniedFirstCompoundTokens = []string{
+	"/",
+	".",
+	"$",
 }
 
 // glueCompoundTokens contains tokens allowed inside unquoted compound tokens.
@@ -190,7 +208,7 @@ var mathStopCompoundTokens = []string{
 	"/",
 }
 
-func (lex *lexer) isPrevRawToken(tokens ...string) bool {
+func (lex *lexer) isPrevRawToken(tokens []string) bool {
 	prevTokenLower := strings.ToLower(lex.prevRawToken)
 	for _, token := range tokens {
 		if token == prevTokenLower {
@@ -205,7 +223,7 @@ func (lex *lexer) checkPrevAdjacentToken(tokens ...string) error {
 		return nil
 	}
 
-	if !lex.isPrevRawToken(tokens...) {
+	if !lex.isPrevRawToken(tokens) {
 		return fmt.Errorf("missing whitespace or ':' between %q and %q; probably, the whole string must be put into quotes", lex.prevRawToken, lex.token)
 	}
 
@@ -360,13 +378,21 @@ type queryOptions struct {
 	// needPrint is set to true if the queryOptions must be printed in the queryOptions.String().
 	needPrint bool
 
-	// concurrency is the number of concurrent workers to use for query execution on every.
+	// concurrency is the number of concurrent CPU-bound workers to use for a single query execution.
 	//
 	// By default the number of concurrent workers equals to the number of available CPU cores.
 	concurrency uint
 
+	// parallelReaders is the number of concurrent IO-bound data readers to use for a single query execution.
+	//
+	// By default the number of parallel readers equals to concurrency.
+	parallelReaders uint
+
 	// if ignoreGlobalTimeFilter is set, then Query.AddTimeFilter doesn't add the time filter to the query and to all its subqueries.
 	ignoreGlobalTimeFilter *bool
+
+	// allowPartialResponse allows returning partial responses in VictoriaLogs cluster setup when some of vlstorage nodes are temporarily unavailable.
+	allowPartialResponse *bool
 
 	// timeOffset is the number of nanoseconds to subtracts from all time filters in the query.
 	//
@@ -387,6 +413,9 @@ func (opts *queryOptions) String() string {
 	}
 	if opts.ignoreGlobalTimeFilter != nil {
 		a = append(a, fmt.Sprintf("ignore_global_time_filter=%v", *opts.ignoreGlobalTimeFilter))
+	}
+	if opts.allowPartialResponse != nil {
+		a = append(a, fmt.Sprintf("allow_partial_response=%v", *opts.allowPartialResponse))
 	}
 	if opts.timeOffsetStr != "" {
 		a = append(a, fmt.Sprintf("time_offset=%s", opts.timeOffsetStr))
@@ -411,6 +440,24 @@ func (q *Query) String() string {
 	}
 
 	return s
+}
+
+// GetParallelReaders returns the number of parallel readers to use for executing the given query.
+func (q *Query) GetParallelReaders(defaultParallelReaders int) int {
+	n := int(q.opts.parallelReaders)
+	if n <= 0 {
+		n = int(q.opts.concurrency)
+	}
+	if n <= 0 {
+		n = defaultParallelReaders
+	}
+	if n <= 0 {
+		n = 2 * cgroup.AvailableCPUs()
+	}
+	if n > maxParallelReaders {
+		n = maxParallelReaders
+	}
+	return n
 }
 
 // GetConcurrency returns concurrency for the q.
@@ -599,6 +646,12 @@ func (q *Query) CloneWithTimeFilter(timestamp, start, end int64) *Query {
 //
 // The returned query is nil if q cannot be used for optimized querying of the last N results.
 func (q *Query) GetLastNResultsQuery() (qOpt *Query, offset uint64, limit uint64) {
+	start, end := q.GetFilterTimeRange()
+	if !CanApplyLastNResultsOptimization(start, end) {
+		// It is faster to execute the query as is on such a small time range.
+		return nil, 0, 0
+	}
+
 	pipes := q.pipes
 
 	// Remember the trailing 'fields' and 'delete' pipes - they are moved in front of `sort` pipe below.
@@ -642,6 +695,11 @@ func (q *Query) GetLastNResultsQuery() (qOpt *Query, offset uint64, limit uint64
 
 	// The query is eligible for last N results optimization.
 	return qCopy, offset, limit
+}
+
+// CanApplyLastNResultsOptimization returns true if there is sense for applying 'last N' optimization for the query on the time range [start, end]
+func CanApplyLastNResultsOptimization(start, end int64) bool {
+	return end/2-start/2 > nsecsPerSecond
 }
 
 func getOffsetLimitFromPipe(p pipe) (uint64, uint64, bool) {
@@ -734,14 +792,22 @@ func (q *Query) addTimeFilterNoSubqueries(start, end int64) {
 
 	timeOffset := q.opts.timeOffset
 
+	// use nanosecond precision for [start, end] time range in order to avoid
+	// automatic adjustement of timestamps for its' string representation.
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/587
+	//
+	// Do not use numeric representation of timestamps, since they are improperly parsed
+	// for negative timestamps (they are parsed as relative to the current time)
+	// and for timestamps with less than 15 decimal digits (they are parsed as microsends,
+	// milliseconds or seconds depending on the number of decimal digit).
+	startStr := marshalTimestampRFC3339NanoPreciseString(nil, start)
+	endStr := marshalTimestampRFC3339NanoPreciseString(nil, end)
+
 	ft := &filterTime{
 		minTimestamp: subNoOverflowInt64(start, timeOffset),
 		maxTimestamp: subNoOverflowInt64(end, timeOffset),
 
-		// use nanosecond representation in the query here in order to avoid
-		// automatic adjustement of the end timestamp for its' string representation.
-		// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/587
-		stringRepr: fmt.Sprintf("[%d,%d]", start, end),
+		stringRepr: fmt.Sprintf("[%s,%s]", startStr, endStr),
 	}
 
 	fa, ok := q.f.(*filterAnd)
@@ -976,15 +1042,19 @@ func (q *Query) GetStatsByFieldsAddGroupingByTime(step int64) ([]string, error) 
 	}
 	ps := pipes[idx].(*pipeStats)
 
-	// verify that pipes in front of the last `pipe` do not modify or delete `_time` field
-	for i := 0; i < idx; i++ {
-		p := pipes[i]
-		if _, ok := p.(*pipeStats); ok {
-			// Skip `stats` pipe, since it is updated with the grouping by `_time` in the addByTimeFieldToStatsPipes() below.
-			continue
-		}
-		if !p.canReturnLastNResults() {
-			return nil, fmt.Errorf("the pipe `| %q` cannot be put in front of `| %q`, since it modifies or deletes `_time` field", p, ps)
+	// For range stats (step > 0), verify that pipes in front of the last `stats` pipe
+	// do not modify or delete the `_time` field, since it is required for bucketing by step.
+	// For instant stats (step == 0), allow such pipes for broader query flexibility.
+	if step > 0 {
+		for i := 0; i < idx; i++ {
+			p := pipes[i]
+			if _, ok := p.(*pipeStats); ok {
+				// Skip `stats` pipe, since it is updated with the grouping by `_time` in the addByTimeFieldToStatsPipes() below.
+				continue
+			}
+			if !p.canReturnLastNResults() {
+				return nil, fmt.Errorf("the pipe `| %q` cannot be put in front of `| %q`, since it modifies or deletes `_time` field", p, ps)
+			}
 		}
 	}
 
@@ -1673,7 +1743,7 @@ func parseQuery(lex *lexer) (*Query, error) {
 	lex.pushQueryOptions(&q.opts)
 	defer lex.popQueryOptions()
 
-	f, err := parseFilter(lex)
+	f, err := parseFilter(lex, true)
 	if err != nil {
 		return nil, fmt.Errorf("%w; context: [%s]", err, lex.context())
 	}
@@ -1759,11 +1829,14 @@ func parseQueryOptions(dstOpts *queryOptions, lex *lexer) error {
 			if !ok {
 				return fmt.Errorf("cannot parse 'concurrency=%q' option as unsigned integer", v)
 			}
-			if n > 1024 {
-				// There is zero sense in running too many workers.
-				n = 1024
-			}
 			dstOpts.concurrency = uint(n)
+			dstOpts.needPrint = true
+		case "parallel_readers":
+			n, ok := tryParseUint64(v)
+			if !ok {
+				return fmt.Errorf("cannot parse 'parallel_readers=%q' option as unsigned integer", v)
+			}
+			dstOpts.parallelReaders = uint(n)
 			dstOpts.needPrint = true
 		case "ignore_global_time_filter":
 			ignoreGlobalTimeFilter, err := strconv.ParseBool(v)
@@ -1771,6 +1844,13 @@ func parseQueryOptions(dstOpts *queryOptions, lex *lexer) error {
 				return fmt.Errorf("cannot parse 'ignore_global_time_filter=%q' option as boolean: %w", v, err)
 			}
 			dstOpts.ignoreGlobalTimeFilter = &ignoreGlobalTimeFilter
+			dstOpts.needPrint = true
+		case "allow_partial_response":
+			allowPartialResponse, err := strconv.ParseBool(v)
+			if err != nil {
+				return fmt.Errorf("cannot parse 'allow_partial_response=%q' option as boolean: %w", v, err)
+			}
+			dstOpts.allowPartialResponse = &allowPartialResponse
 			dstOpts.needPrint = true
 		case "time_offset":
 			timeOffset, ok := tryParseDuration(v)
@@ -1814,16 +1894,18 @@ func parseKeyValuePair(lex *lexer) (string, string, error) {
 	return k, v, nil
 }
 
-func parseFilter(lex *lexer) (filter, error) {
+func parseFilter(lex *lexer, allowPipeKeywords bool) (filter, error) {
 	if lex.isKeyword("|", ")", "") {
 		return nil, fmt.Errorf("missing query")
 	}
 
-	// Verify the first token in the filter doesn't match pipe names.
-	firstToken := strings.ToLower(lex.rawToken)
-	if firstToken == "by" || isPipeName(firstToken) || isStatsFuncName(firstToken) {
-		return nil, fmt.Errorf("query filter cannot start with pipe keyword %q; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
-			"please put the first word of the filter into quotes", firstToken)
+	if !allowPipeKeywords {
+		// Verify the first token in the filter doesn't match pipe names.
+		firstToken := strings.ToLower(lex.rawToken)
+		if firstToken == "by" || isPipeName(firstToken) || isStatsFuncName(firstToken) {
+			return nil, fmt.Errorf("query filter cannot start with pipe keyword %q; see https://docs.victoriametrics.com/victorialogs/logsql/#query-syntax; "+
+				"please put the first word of the filter into quotes", firstToken)
+		}
 	}
 
 	fo, err := parseFilterOr(lex, "")
@@ -1917,8 +1999,12 @@ func parseFilterGeneric(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterContainsAll(lex, fieldName)
 	case lex.isKeyword("contains_any"):
 		return parseFilterContainsAny(lex, fieldName)
+	case lex.isKeyword("contains_common_case"):
+		return parseFilterContainsCommonCase(lex, fieldName)
 	case lex.isKeyword("eq_field"):
 		return parseFilterEqField(lex, fieldName)
+	case lex.isKeyword("equals_common_case"):
+		return parseFilterEqualsCommonCase(lex, fieldName)
 	case lex.isKeyword("exact"):
 		return parseFilterExact(lex, fieldName)
 	case lex.isKeyword("i"):
@@ -2224,6 +2310,36 @@ func parseFilterIn(lex *lexer, fieldName string) (filter, error) {
 	return parseInValues(lex, fieldName, fi, &fi.values)
 }
 
+func parseFilterContainsCommonCase(lex *lexer, fieldName string) (filter, error) {
+	lex.nextToken()
+
+	phrases, err := parseArgsInParens(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'contains_common_case(...)' args: %w", err)
+	}
+
+	fi, err := newFilterContainsCommonCase(fieldName, phrases)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'contains_common_case(...)': %w", err)
+	}
+	return fi, nil
+}
+
+func parseFilterEqualsCommonCase(lex *lexer, fieldName string) (filter, error) {
+	lex.nextToken()
+
+	phrases, err := parseArgsInParens(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'equals_common_case(...)' args: %w", err)
+	}
+
+	fi, err := newFilterEqualsCommonCase(fieldName, phrases)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse 'equals_common_case(...)': %w", err)
+	}
+	return fi, nil
+}
+
 func parseInValues(lex *lexer, fieldName string, f filter, iv *inValues) (filter, error) {
 	// Try parsing in(arg1, ..., argN) at first
 	lexState := lex.backupState()
@@ -2388,10 +2504,16 @@ func parseFilterStar(lex *lexer, fieldName string) (filter, error) {
 }
 
 func parseFilterTilda(lex *lexer, fieldName string) (filter, error) {
+	op := lex.token
 	lex.nextToken()
 
 	if lex.isKeyword("-") {
 		return nil, fmt.Errorf("regexp, which start with %q, must be put in quotes", lex.token)
+	}
+
+	if lex.isSkippedSpace && fieldName == "" {
+		// Deny invalid filters `foo ~ bar` and `foo !~ bar`. They must be written as `foo:~bar` and `foo:!~bar`
+		return nil, fmt.Errorf("missing ':' in front of %q; see https://docs.victoriametrics.com/victorialogs/logsql/#filters", op)
 	}
 
 	arg, err := lex.nextCompoundToken()
@@ -2416,6 +2538,10 @@ func parseFilterNotTilda(lex *lexer, fieldName string) (filter, error) {
 func parseFilterEQ(lex *lexer, fieldName string) (filter, error) {
 	op := lex.token
 	lex.nextToken()
+	if lex.isSkippedSpace && fieldName == "" {
+		// Deny invalid filters 'foo = bar`. It must be written as `foo:=bar`
+		return nil, fmt.Errorf("missing ':' in front of %q; see https://docs.victoriametrics.com/victorialogs/logsql/#filters", op)
+	}
 
 	phrase, err := lex.nextCompoundToken()
 	if err != nil {
@@ -2453,10 +2579,15 @@ func parseFilterGT(lex *lexer, fieldName string) (filter, error) {
 
 	includeMinValue := false
 	op := ">"
-	if lex.isKeyword("=") {
+	if !lex.isSkippedSpace && lex.isKeyword("=") {
 		lex.nextToken()
 		includeMinValue = true
 		op = ">="
+	}
+
+	if lex.isSkippedSpace && fieldName == "" {
+		// Deny invalid filters 'foo > bar' and 'foo >= bar'. They must be written as 'foo:>bar` and `foo:>=bar`
+		return nil, fmt.Errorf("missing ':' in front of %q; see https://docs.victoriametrics.com/victorialogs/logsql/#filters", op)
 	}
 
 	lexState := lex.backupState()
@@ -2488,10 +2619,15 @@ func parseFilterLT(lex *lexer, fieldName string) (filter, error) {
 
 	includeMaxValue := false
 	op := "<"
-	if lex.isKeyword("=") {
+	if !lex.isSkippedSpace && lex.isKeyword("=") {
 		lex.nextToken()
 		includeMaxValue = true
 		op = "<="
+	}
+
+	if lex.isSkippedSpace && fieldName == "" {
+		// Deny invalid filters 'foo < bar' and 'foo <= bar'. They must be written as 'foo:<bar' and 'foo:<=bar'
+		return nil, fmt.Errorf("missing ':' in front of %q; see https://docs.victoriametrics.com/victorialogs/logsql/#filters", op)
 	}
 
 	lexState := lex.backupState()
@@ -3604,7 +3740,7 @@ func needQuoteToken(s string) bool {
 	if _, ok := reservedKeywords[sLower]; ok {
 		return true
 	}
-	if sLower == "by" || isPipeName(sLower) || isStatsFuncName(sLower) {
+	if isPipeName(sLower) || isStatsFuncName(sLower) {
 		return true
 	}
 	for _, r := range s {
@@ -3659,7 +3795,9 @@ var reservedKeywords = func() map[string]struct{} {
 		// functions
 		"contains_all",
 		"contains_any",
+		"contains_common_case",
 		"eq_field",
+		"equals_common_case",
 		"exact",
 		"i",
 		"in",
@@ -3677,6 +3815,15 @@ var reservedKeywords = func() map[string]struct{} {
 
 		// queryOptions start with this keyword
 		"options",
+
+		// 'if' is used in conditional pipes such as `format if (...) ...`
+		"if",
+
+		// 'by' is used in various pipes such as `stats by (...) ...`
+		"by",
+
+		// 'as' is used in various pipes such as `format ... as ...`
+		"as",
 	}
 	m := make(map[string]struct{}, len(kws))
 	for _, kw := range kws {
