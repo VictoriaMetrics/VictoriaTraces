@@ -186,6 +186,106 @@ func prepareTraceParentAndChildSpanData(tc *at.TestCase, sut at.VictoriaTracesWr
 	// ingest data via /insert/opentelemetry/v1/traces
 	sut.OTLPExportTraces(t, parentSpanReq, at.QueryOpts{})
 	sut.OTLPExportTraces(t, childSpanReq, at.QueryOpts{})
+
+	// case: 2
+	// ingest invalid data via /insert/opentelemetry/v1/traces
+	// the invalid data attempt to generate `child service (calls) parent service` relation.
+	// but the span kind was set to incorrect (server calls client).
+	//So it should not generate a service graph edge in the result.
+
+	// prepare test data for ingestion and assertion.
+	parentSpanID = "0987654321"
+	childSpanID = "09876543210"
+
+	spanName = "testKeyIngestQuerySpan_invalid"
+	traceID = "0123456789"
+
+	invalidParentSpanReq := &otelpb.ExportTraceServiceRequest{
+		ResourceSpans: []*otelpb.ResourceSpans{
+			{
+				Resource: otelpb.Resource{
+					Attributes: []*otelpb.KeyValue{
+						{
+							Key: "service.name",
+							Value: &otelpb.AnyValue{
+								StringValue: &childServiceName, // attempt to generate `child calls parent`, so parent service should be `child`.
+							},
+						},
+					},
+				},
+				ScopeSpans: []*otelpb.ScopeSpans{
+					{
+						Scope: otelpb.InstrumentationScope{
+							Name:    "testInstrumentation",
+							Version: "1.0",
+						},
+						Spans: []*otelpb.Span{
+							{
+								TraceID:           traceID,
+								SpanID:            parentSpanID,
+								TraceState:        "trace_state",
+								ParentSpanID:      "", // root span
+								Flags:             1,
+								Name:              spanName,
+								Kind:              otelpb.SpanKind(2), // parent span set to 2 (server), which is invalid
+								StartTimeUnixNano: uint64(spanTime.UnixNano()),
+								EndTimeUnixNano:   uint64(spanTime.UnixNano()),
+								Attributes:        testTag,
+								Events:            []*otelpb.SpanEvent{},
+								Links:             []*otelpb.SpanLink{},
+								Status:            otelpb.Status{},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	invalidChildSpanReq := &otelpb.ExportTraceServiceRequest{
+		ResourceSpans: []*otelpb.ResourceSpans{
+			{
+				Resource: otelpb.Resource{
+					Attributes: []*otelpb.KeyValue{
+						{
+							Key: "service.name",
+							Value: &otelpb.AnyValue{
+								StringValue: &parentServiceName, // attempt to generate `child calls parent`, so child service should be `parent`.
+							},
+						},
+					},
+				},
+				ScopeSpans: []*otelpb.ScopeSpans{
+					{
+						Scope: otelpb.InstrumentationScope{
+							Name:    "testInstrumentation",
+							Version: "1.0",
+						},
+						Spans: []*otelpb.Span{
+							{
+								TraceID:           traceID,
+								SpanID:            childSpanID,
+								TraceState:        "trace_state",
+								ParentSpanID:      parentSpanID,
+								Flags:             1,
+								Name:              spanName,
+								Kind:              otelpb.SpanKind(3), // child span set to 3 (client), which is invalid
+								StartTimeUnixNano: uint64(spanTime.UnixNano()),
+								EndTimeUnixNano:   uint64(spanTime.UnixNano()),
+								Attributes:        testTag,
+								Events:            []*otelpb.SpanEvent{},
+								Links:             []*otelpb.SpanLink{},
+								Status:            otelpb.Status{},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	sut.OTLPExportTraces(t, invalidParentSpanReq, at.QueryOpts{})
+	sut.OTLPExportTraces(t, invalidChildSpanReq, at.QueryOpts{})
 	return parentServiceName, childServiceName
 }
 
