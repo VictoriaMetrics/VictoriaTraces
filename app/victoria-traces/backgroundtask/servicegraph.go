@@ -31,14 +31,12 @@ func Init() {
 		sgt = newServiceGraphTask()
 		sgt.Start()
 	}
-	return
 }
 
 func Stop() {
 	if *enableServiceGraph {
 		sgt.Stop()
 	}
-	return
 }
 
 type serviceGraphTask struct {
@@ -66,12 +64,10 @@ func (sgt *serviceGraphTask) Start() {
 			}
 		}
 	}()
-	return
 }
 
 func (sgt *serviceGraphTask) Stop() {
 	close(sgt.stopCh)
-	return
 }
 
 func GenerateServiceGraphTimeRange(ctx context.Context) {
@@ -108,6 +104,4 @@ func GenerateServiceGraphTimeRange(ctx context.Context) {
 			logger.Errorf("cannot presist service graph for time %d: %s", endTime.Unix(), err)
 		}
 	}
-
-	return
 }

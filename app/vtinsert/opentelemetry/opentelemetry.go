@@ -298,7 +298,7 @@ func PersistServiceGraph(ctx context.Context, r *http.Request, fields [][]logsto
 			Name:  "_msg",
 			Value: "-",
 		})
-		lmp.AddRow(timestamp.UnixNano(), f, []logstorage.Field{{otelpb.ServiceGraphStreamName, "-"}})
+		lmp.AddRow(timestamp.UnixNano(), f, []logstorage.Field{{Name: otelpb.ServiceGraphStreamName, Value: "-"}})
 	}
 	lmp.MustClose()
 	return nil
