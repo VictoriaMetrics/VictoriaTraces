@@ -415,7 +415,7 @@ func processGetDependenciesRequest(ctx context.Context, w http.ResponseWriter, r
 		return
 	}
 
-	rows, err := query.GetDependencyList(ctx, cp, param)
+	rows, err := query.GetServiceGraphList(ctx, cp, param)
 	if err != nil {
 		httpserver.Errorf(w, r, "get dependencies error: %s", err)
 		return
@@ -455,12 +455,12 @@ func processGetDependenciesRequest(ctx context.Context, w http.ResponseWriter, r
 	WriteGetDependenciesResponse(w, dependencies)
 }
 
-// parseJaegerDependenciesQueryParam parse Jaeger request to unified DependenciesQueryParameters.
-func parseJaegerDependenciesQueryParam(_ context.Context, r *http.Request) (*query.DependenciesQueryParameters, error) {
+// parseJaegerDependenciesQueryParam parse Jaeger request to unified ServiceGraphQueryParameters.
+func parseJaegerDependenciesQueryParam(_ context.Context, r *http.Request) (*query.ServiceGraphQueryParameters, error) {
 	var err error
 
 	// default params
-	p := &query.DependenciesQueryParameters{
+	p := &query.ServiceGraphQueryParameters{
 		EndTs:    time.Now(),
 		Lookback: time.Minute * 1,
 	}

@@ -15,10 +15,11 @@ import (
 )
 
 var (
-	enableServiceGraph      = flag.Bool("servicegraph.enable", false, "Whether to enable background task for generating service graph. It should only be enabled on VictoriaTraces single-node or vtstorage.")
-	serviceGraphInterval    = flag.Duration("servicegraph.taskInterval", time.Minute, "The background task interval for generating service graph data. It requires setting `-servicegraph.enable=true`.")
-	serviceGraphTaskTimeout = flag.Duration("servicegraph.taskTimeout", 30*time.Second, "The background task timeout duration for generating service graph data. It requires setting `-servicegraph.enable=true`.")
-	serviceGraphLookbehind  = flag.Duration("servicegraph.lookbehind", time.Minute, "The lookbehind window for each time service graph background task run. It requires setting `-servicegraph.enable=true`.")
+	enableServiceGraph         = flag.Bool("servicegraph.enable", false, "Whether to enable background task for generating service graph. It should only be enabled on VictoriaTraces single-node or vtstorage.")
+	serviceGraphTaskInterval   = flag.Duration("servicegraph.taskInterval", time.Minute, "The background task interval for generating service graph data. It requires setting `-servicegraph.enable=true`.")
+	serviceGraphTaskTimeout    = flag.Duration("servicegraph.taskTimeout", 30*time.Second, "The background task timeout duration for generating service graph data. It requires setting `-servicegraph.enable=true`.")
+	serviceGraphTaskLookbehind = flag.Duration("servicegraph.taskLookbehind", time.Minute, "The lookbehind window for each time service graph background task run. It requires setting `-servicegraph.enable=true`.")
+	serviceGraphTaskLimit      = flag.Uint64("servicegraph.taskLimit", 1000, "How many service graph relations each task could fetch for each tenant. It requires setting `-servicegraph.enable=true`.")
 )
 
 var (
@@ -51,8 +52,8 @@ func newServiceGraphTask() *serviceGraphTask {
 }
 
 func (sgt *serviceGraphTask) Start() {
-	logger.Infof("starting background task for service graph, interval: %v, lookbehind: %v", *serviceGraphInterval, *serviceGraphLookbehind)
-	ticker := time.NewTicker(*serviceGraphInterval)
+	logger.Infof("starting background task for service graph, interval: %v, lookbehind: %v", *serviceGraphTaskInterval, *serviceGraphTaskLookbehind)
+	ticker := time.NewTicker(*serviceGraphTaskInterval)
 	go func() {
 		for {
 			select {
@@ -74,8 +75,8 @@ func (sgt *serviceGraphTask) Stop() {
 }
 
 func GenerateServiceGraphTimeRange(ctx context.Context) {
-	endTime := time.Now().Truncate(*serviceGraphInterval)
-	startTime := endTime.Add(-*serviceGraphLookbehind)
+	endTime := time.Now().Truncate(*serviceGraphTaskInterval)
+	startTime := endTime.Add(-*serviceGraphTaskLookbehind)
 
 	tenantIDs, err := vtstorage.GetTenantIDsByTimeRange(ctx, startTime.UnixNano(), endTime.UnixNano())
 	if err != nil {
@@ -85,10 +86,14 @@ func GenerateServiceGraphTimeRange(ctx context.Context) {
 
 	// query and persist operations are executed sequentially, which helps not to consume excessive resources.
 	for _, tenantID := range tenantIDs {
+		// Build a fake HTTP *Request. It helps align the way of handling tenant-related input
+		// in both vtselect and vtinsert, as they assume tenant info will exist in HTTP headers.
 		r, _ := http.NewRequestWithContext(ctx, "", "", nil)
 		r.Header.Set("AccountID", strconv.FormatUint(uint64(tenantID.AccountID), 10))
 		r.Header.Set("ProjectID", strconv.FormatUint(uint64(tenantID.ProjectID), 10))
-		rows, err := vtselect.GetServiceGraphTimeRange(ctx, r, startTime, endTime)
+
+		// query service graph relations
+		rows, err := vtselect.GetServiceGraphTimeRange(ctx, r, startTime, endTime, *serviceGraphTaskLimit)
 		if err != nil {
 			logger.Errorf("cannot get service graph for time range [%d, %d]: %s", startTime.Unix(), endTime.Unix(), err)
 			return
@@ -97,6 +102,7 @@ func GenerateServiceGraphTimeRange(ctx context.Context) {
 			return
 		}
 
+		// persist service graph relations
 		err = vtinsert.PersistServiceGraph(ctx, r, rows, endTime)
 		if err != nil {
 			logger.Errorf("cannot presist service graph for time %d: %s", endTime.Unix(), err)
