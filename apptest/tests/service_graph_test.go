@@ -34,6 +34,12 @@ func TestSingleServiceGraphGenerationJaegerQuery(t *testing.T) {
 func testServiceGraphGenerationJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQuerier) {
 	t := tc.T()
 
+	// prepareTraceParentAndChildSpanData generate 4 spans:
+	// 1. parentService span (with span kind=client) calls childService span (with span kind=server)
+	// 2. childService span (with span kind=server) calls parentService span (with span kind=client)
+	//
+	// Since `server` calls `client` is an invalid case,
+	// this 4 spans should generate only 1 relation edge: parentService->childService.
 	parentServiceName, childServiceName := prepareTraceParentAndChildSpanData(tc, sut)
 
 	// wait for service graph data to be generated
