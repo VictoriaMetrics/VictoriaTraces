@@ -513,8 +513,6 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	The maximum number of service name can return in a get service name request. This limit affects Jaeger's /api/services API. (default 1000)
   -search.traceMaxSpanNameList uint
     	The maximum number of span name can return in a get span name request. This limit affects Jaeger's /api/services/*/operations API. (default 1000)
-  -search.traceMaxDependencyList uint
-    	The maximum number of dependency links can return in a get dependencies request. This limit affects Jaeger's /api/dependencies API. Not limited by default. (default 0)
   -search.traceSearchStep duration
     	Splits the [0, now] time range into many small time ranges by -search.traceSearchStep when searching for spans by trace_id. Once it finds spans in a time range, it performs an additional search according to -search.traceMaxDurationWindow and then stops. It affects Jaeger's /api/traces/<trace_id> API. (default 24h0m0s)
   -search.traceServiceAndSpanNameLookbehind duration
@@ -523,6 +521,16 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	Whether to disable /select/* HTTP endpoints
   -select.disableCompression
     	Whether to disable compression for select query responses received from -storageNode nodes. Disabled compression reduces CPU usage at the cost of higher network usage
+  -servicegraph.enable
+    	Whether to enable background task for generating service graph. It should only be enabled on VictoriaTraces single-node or vtstorage.
+  -servicegraph.taskInterval duration
+    	The background task interval for generating service graph data. It requires setting -servicegraph.enable=true. (default 1m0s)
+  -servicegraph.taskLimit uint
+    	How many service graph relations each task could fetch for each tenant. It requires setting -servicegraph.enable=true. (default 1000)
+  -servicegraph.taskLookbehind duration
+    	The lookbehind window for each time service graph background task run. It requires setting -servicegraph.enable=true. (default 1m0s)
+  -servicegraph.taskTimeout duration
+    	The background task timeout duration for generating service graph data. It requires setting -servicegraph.enable=true. (default 30s)
   -storage.minFreeDiskSpaceBytes size
     	The minimum free disk space at -storageDataPath after which the storage stops accepting new data
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)
