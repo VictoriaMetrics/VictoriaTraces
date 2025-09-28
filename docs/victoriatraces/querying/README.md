@@ -139,10 +139,7 @@ The dependency graph is available at the `/select/jaeger/api/dependencies` HTTP 
 
 This endpoint provides the following params:
 - `endTs`: the end timestamp in unix milliseconds. Current timestamp will be used if empty.
-- `lookback`: the lookbehind window duration in milliseconds. Default to `1m` if empty (not controlled by `-search.traceMaxDependencyLookbehind` flag).
-
-By default, the `lookback` duration cannot exceed `-search.traceMaxDependencyLookbehind` flag (default `1m`), which help preventing
-heavy queries for dependency analysis.
+- `lookback`: the lookbehind window duration in milliseconds. Default to `1m` if empty.
 
 Here are examples of the dependency API:
 
