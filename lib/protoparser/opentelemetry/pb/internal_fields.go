@@ -16,5 +16,5 @@ const (
 	ServiceGraphStreamName         = "trace_service_graph_stream"
 	ServiceGraphParentFieldName    = "parent"
 	ServiceGraphChildFieldName     = "child"
-	ServiceGraphCallCountFieldName = "call_count"
+	ServiceGraphCallCountFieldName = "callCount"
 )
