@@ -132,14 +132,14 @@ Here's a response example:
 
 #### Querying dependencies
 
-> To enable dependencies visualization, you **must** set `-servicegraph.enable` to `true` on VictoriaTraces single-node or
+> To enable dependencies visualization, you **must** set `-servicegraph.enableTask` to `true` on VictoriaTraces single-node or
 > vtstorage to run the background task, which generates service graph data periodically. See also: `-servicegraph.*` flags.
 
 The dependency graph is available at the `/select/jaeger/api/dependencies` HTTP endpoint.
 
 This endpoint provides the following params:
 - `endTs`: the end timestamp in unix milliseconds. Current timestamp will be used if empty.
-- `lookback`: the lookbehind window duration in milliseconds. Default to `1m` if empty.
+- `lookback`: the lookbehind window duration in milliseconds. Default to `1h` if empty.
 
 Here are examples of the dependency API:
 
