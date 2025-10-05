@@ -191,7 +191,6 @@ func pushFieldsFromScopeSpans(ss *otelpb.ScopeSpans, commonFields []logstorage.F
 func pushFieldsFromSpan(span *otelpb.Span, scopeCommonFields []logstorage.Field, lmp insertutil.LogMessageProcessor) []logstorage.Field {
 	fields := scopeCommonFields
 	fields = append(fields,
-		logstorage.Field{Name: otelpb.TraceIDField, Value: span.TraceID},
 		logstorage.Field{Name: otelpb.SpanIDField, Value: span.SpanID},
 		logstorage.Field{Name: otelpb.TraceStateField, Value: span.TraceState},
 		logstorage.Field{Name: otelpb.ParentSpanIDField, Value: span.ParentSpanID},
@@ -239,17 +238,22 @@ func pushFieldsFromSpan(span *otelpb.Span, scopeCommonFields []logstorage.Field,
 		// append link attributes
 		fields = appendKeyValuesWithPrefixSuffix(fields, link.Attributes, "", linkFieldPrefix+otelpb.LinkAttrPrefix, linkFieldSuffix)
 	}
-	fields = append(fields, logstorage.Field{
-		Name:  "_msg",
-		Value: msgFieldValue,
-	})
+	fields = append(fields,
+		logstorage.Field{Name: "_msg", Value: msgFieldValue},
+		// MUST: always place TraceIDField at the last. The Trace ID is required for data distribution.
+		// Placing it at the last position helps netinsert to find it easily, without adding extra field to
+		// *logstorage.InsertRow structure, which is required due to the sync between logstorage and VictoriaTraces.
+		// todo: @jiekun the trace ID field MUST be the last field. add extra ways to secure it.
+		logstorage.Field{Name: otelpb.TraceIDField, Value: span.TraceID},
+	)
 	lmp.AddRow(int64(span.EndTimeUnixNano), fields, nil)
 
 	// create an entity in trace-id-idx stream, if this trace_id hasn't been seen before.
 	if !traceIDCache.Has([]byte(span.TraceID)) {
 		lmp.AddRow(int64(span.StartTimeUnixNano), []logstorage.Field{
-			{Name: otelpb.TraceIDIndexFieldName, Value: span.TraceID},
 			{Name: "_msg", Value: msgFieldValue},
+			// todo: @jiekun the trace ID field MUST be the last field. add extra ways to secure it.
+			{Name: otelpb.TraceIDIndexFieldName, Value: span.TraceID},
 		}, []logstorage.Field{{Name: otelpb.TraceIDIndexStreamName, Value: strconv.FormatUint(xxhash.Sum64String(span.TraceID)%otelpb.TraceIDIndexPartitionCount, 10)}})
 		traceIDCache.Set([]byte(span.TraceID), nil)
 	}

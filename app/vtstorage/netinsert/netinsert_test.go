@@ -1,6 +1,7 @@
 package netinsert
 
 import (
+	cryptorand "crypto/rand"
 	"fmt"
 	"math"
 	"math/rand"
@@ -26,7 +27,7 @@ func TestStreamRowsTracker(t *testing.T) {
 		for i := 0; i < rowsCount; i++ {
 			streamIdx := rng.Intn(streamsCount)
 			h := streamHashes[streamIdx]
-			nodeIdx := srt.getNodeIdx(h)
+			nodeIdx := srt.getNodeIdx(h, cryptorand.Text())
 			rowsPerNode[nodeIdx]++
 		}
 

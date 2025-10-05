@@ -19,7 +19,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 	"github.com/valyala/fastrand"
 )
 
@@ -341,7 +343,8 @@ func (s *Storage) MustStop() {
 
 // AddRow adds the given log row into s.
 func (s *Storage) AddRow(streamHash uint64, r *logstorage.InsertRow) {
-	idx := s.srt.getNodeIdx(streamHash)
+	// todo: @jiekun the trace ID field MUST be the last field. add extra ways to secure it.
+	idx := s.srt.getNodeIdx(streamHash, r.Fields[len(r.Fields)-1].Value)
 	sn := s.sns[idx]
 	sn.addRow(r)
 }
@@ -378,31 +381,15 @@ func newStreamRowsTracker(nodesCount int) *streamRowsTracker {
 	}
 }
 
-func (srt *streamRowsTracker) getNodeIdx(streamHash uint64) uint64 {
+var (
+	traceIDnodeIdxCache = fastcache.New(4 * 1024 * 1024)
+)
+
+func (srt *streamRowsTracker) getNodeIdx(_ uint64, traceID string) uint64 {
 	if srt.nodesCount == 1 {
 		// Fast path for a single node.
 		return 0
 	}
 
-	srt.mu.Lock()
-	defer srt.mu.Unlock()
-
-	streamRows := srt.rowsPerStream[streamHash] + 1
-	srt.rowsPerStream[streamHash] = streamRows
-
-	if streamRows <= 1000 {
-		// Write the initial rows for the stream to a single storage node for better locality.
-		// This should work great for log streams containing small number of logs, since will be distributed
-		// evenly among available storage nodes because they have different streamHash.
-		return streamHash % uint64(srt.nodesCount)
-	}
-
-	// The log stream contains more than 1000 rows. Distribute them among storage nodes at random
-	// in order to improve query performance over this stream (the data for the log stream
-	// can be processed in parallel on all the storage nodes).
-	//
-	// The random distribution is preferred over round-robin distribution in order to avoid possible
-	// dependency between the order of the ingested logs and the number of storage nodes,
-	// which may lead to non-uniform distribution of logs among storage nodes.
-	return uint64(fastrand.Uint32n(uint32(srt.nodesCount)))
+	return xxhash.Sum64String(traceID) % uint64(srt.nodesCount)
 }
