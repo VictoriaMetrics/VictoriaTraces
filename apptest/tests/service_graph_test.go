@@ -301,7 +301,12 @@ func getServiceGraphRowsInsertedTotal(t *testing.T, sut at.VictoriaTracesWriteQu
 	selector := `vt_rows_ingested_total{type="internalinsert_servicegraph"}`
 	switch tt := sut.(type) {
 	case *at.Vtsingle:
-		return tt.GetIntMetric(t, selector)
+		// use TryGetMetric instead of TryMetric, to allow retries.
+		value, err := tt.TryGetMetric(t, selector)
+		if err != nil {
+			t.Logf("try get service graph rows failed: %v", err)
+		}
+		return int(value)
 	default:
 		t.Fatalf("unexpected type: got %T, want *Vtsingle", sut)
 	}
