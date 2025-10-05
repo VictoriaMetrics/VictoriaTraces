@@ -1,4 +1,4 @@
-package backgroundtask
+package servicegraph
 
 import (
 	"context"
@@ -15,11 +15,11 @@ import (
 )
 
 var (
-	enableServiceGraph         = flag.Bool("servicegraph.enable", false, "Whether to enable background task for generating service graph. It should only be enabled on VictoriaTraces single-node or vtstorage.")
-	serviceGraphTaskInterval   = flag.Duration("servicegraph.taskInterval", time.Minute, "The background task interval for generating service graph data. It requires setting -servicegraph.enable=true.")
-	serviceGraphTaskTimeout    = flag.Duration("servicegraph.taskTimeout", 30*time.Second, "The background task timeout duration for generating service graph data. It requires setting -servicegraph.enable=true.")
-	serviceGraphTaskLookbehind = flag.Duration("servicegraph.taskLookbehind", time.Minute, "The lookbehind window for each time service graph background task run. It requires setting -servicegraph.enable=true.")
-	serviceGraphTaskLimit      = flag.Uint64("servicegraph.taskLimit", 1000, "How many service graph relations each task could fetch for each tenant. It requires setting -servicegraph.enable=true.")
+	enableServiceGraphTask     = flag.Bool("servicegraph.enableTask", false, "Whether to enable background task for generating service graph. It should only be enabled on VictoriaTraces single-node or vtstorage.")
+	serviceGraphTaskInterval   = flag.Duration("servicegraph.taskInterval", time.Minute, "The background task interval for generating service graph data. It requires setting -servicegraph.enableTask=true.")
+	serviceGraphTaskTimeout    = flag.Duration("servicegraph.taskTimeout", 30*time.Second, "The background task timeout duration for generating service graph data. It requires setting -servicegraph.enableTask=true.")
+	serviceGraphTaskLookbehind = flag.Duration("servicegraph.taskLookbehind", time.Minute, "The lookbehind window for each time service graph background task run. It requires setting -servicegraph.enableTask=true.")
+	serviceGraphTaskLimit      = flag.Uint64("servicegraph.taskLimit", 1000, "How many service graph relations each task could fetch for each tenant. It requires setting -servicegraph.enableTask=true.")
 )
 
 var (
@@ -27,14 +27,14 @@ var (
 )
 
 func Init() {
-	if *enableServiceGraph {
+	if *enableServiceGraphTask {
 		sgt = newServiceGraphTask()
 		sgt.Start()
 	}
 }
 
 func Stop() {
-	if *enableServiceGraph {
+	if *enableServiceGraphTask {
 		sgt.Stop()
 	}
 }

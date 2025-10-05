@@ -521,16 +521,16 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	Whether to disable /select/* HTTP endpoints
   -select.disableCompression
     	Whether to disable compression for select query responses received from -storageNode nodes. Disabled compression reduces CPU usage at the cost of higher network usage
-  -servicegraph.enable
+  -servicegraph.enableTask
     	Whether to enable background task for generating service graph. It should only be enabled on VictoriaTraces single-node or vtstorage.
   -servicegraph.taskInterval duration
-    	The background task interval for generating service graph data. It requires setting -servicegraph.enable=true. (default 1m0s)
+    	The background task interval for generating service graph data. It requires setting -servicegraph.enableTask=true. (default 1m0s)
   -servicegraph.taskLimit uint
-    	How many service graph relations each task could fetch for each tenant. It requires setting -servicegraph.enable=true. (default 1000)
+    	How many service graph relations each task could fetch for each tenant. It requires setting -servicegraph.enableTask=true. (default 1000)
   -servicegraph.taskLookbehind duration
-    	The lookbehind window for each time service graph background task run. It requires setting -servicegraph.enable=true. (default 1m0s)
+    	The lookbehind window for each time service graph background task run. It requires setting -servicegraph.enableTask=true. (default 1m0s)
   -servicegraph.taskTimeout duration
-    	The background task timeout duration for generating service graph data. It requires setting -servicegraph.enable=true. (default 30s)
+    	The background task timeout duration for generating service graph data. It requires setting -servicegraph.enableTask=true. (default 30s)
   -storage.minFreeDiskSpaceBytes size
     	The minimum free disk space at -storageDataPath after which the storage stops accepting new data
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)

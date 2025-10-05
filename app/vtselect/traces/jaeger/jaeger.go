@@ -462,7 +462,7 @@ func parseJaegerDependenciesQueryParam(_ context.Context, r *http.Request) (*que
 	// default params
 	p := &query.ServiceGraphQueryParameters{
 		EndTs:    time.Now(),
-		Lookback: time.Minute * 1,
+		Lookback: time.Hour,
 	}
 	q := r.URL.Query()
 

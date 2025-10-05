@@ -24,7 +24,7 @@ func TestSingleServiceGraphGenerationJaegerQuery(t *testing.T) {
 	sut := tc.MustStartVtsingle("vtsingle", []string{
 		"-storageDataPath=" + tc.Dir() + "/vtsingle",
 		"-retentionPeriod=100y",
-		"-servicegraph.enable=true",
+		"-servicegraph.enableTask=true",
 		"-servicegraph.taskInterval=1s",
 	})
 
