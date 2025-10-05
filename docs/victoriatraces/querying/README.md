@@ -132,7 +132,7 @@ Here's a response example:
 
 #### Querying dependencies
 
-> To enable dependencies visualization, you **must** set `-servicegraph.enableTask` to `true` on VictoriaTraces single-node or
+> This feature is **experimental**. To enable dependencies visualization, you **must** set `-servicegraph.enableTask` to `true` on VictoriaTraces single-node or
 > vtstorage to run the background task, which generates service graph data periodically. See also: `-servicegraph.*` flags.
 
 The dependency graph is available at the `/select/jaeger/api/dependencies` HTTP endpoint.

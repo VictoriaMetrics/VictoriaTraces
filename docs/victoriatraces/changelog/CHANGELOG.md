@@ -19,7 +19,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 * BUGFIX: all components: restore sorting order of summary and quantile metrics exposed by VictoriaTraces components on `/metrics` page. See [metrics#105](https://github.com/VictoriaMetrics/metrics/pull/105) for details.
 
-* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support Jaeger [service dependencies graph API](https://www.jaegertracing.io/docs/2.10/architecture/apis/#service-dependencies-graph). See [this pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/52) for details.
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): (experimental) support Jaeger [service dependencies graph API](https://www.jaegertracing.io/docs/2.10/architecture/apis/#service-dependencies-graph). See [this pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/52) for details.
 
 ## [v0.3.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.3.0)
 
