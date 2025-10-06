@@ -19,7 +19,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
-	"github.com/VictoriaMetrics/fastcache"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 	"github.com/valyala/fastrand"
@@ -381,10 +380,7 @@ func newStreamRowsTracker(nodesCount int) *streamRowsTracker {
 	}
 }
 
-var (
-	traceIDnodeIdxCache = fastcache.New(4 * 1024 * 1024)
-)
-
+// getNodeIdx return the node index for a specific traceID
 func (srt *streamRowsTracker) getNodeIdx(_ uint64, traceID string) uint64 {
 	if srt.nodesCount == 1 {
 		// Fast path for a single node.
