@@ -344,9 +344,9 @@ func (s *Storage) MustStop() {
 
 // AddRow adds the given log row into s.
 func (s *Storage) AddRow(streamHash uint64, r *logstorage.InsertRow) {
-	// We put the trace ID in the last field. And there is a unit test to secure it.
-	// But for better compatibility, we will search for the trace_id in reverse order,
-	// instead of directly using the last one in the `r.Fields` slice.
+	// we put the trace ID in the last field. And there is a unit test to secure it.
+	// but for better compatibility, we will search for the trace_id in reverse order,
+	// instead of using the last one in the `r.Fields` slice directly.
 	var traceID string
 	for i := len(r.Fields) - 1; i >= 0; i-- {
 		if r.Fields[i].Name == otelpb.TraceIDField {
