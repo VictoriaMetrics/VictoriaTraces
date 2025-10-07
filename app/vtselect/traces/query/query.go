@@ -601,7 +601,6 @@ func GetServiceGraphList(ctx context.Context, cp *CommonParams, param *ServiceGr
 
 	var rowsLock sync.Mutex
 	var rows []*Row
-	//var missingTimeColumn atomic.Bool
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		columns := db.Columns
 		if len(columns) == 0 {
@@ -644,12 +643,13 @@ func GetServiceGraphList(ctx context.Context, cp *CommonParams, param *ServiceGr
 	return rows, nil
 }
 
-// GetServiceGraphTimeRange calculate the service graph relation within the time range in (parent, child, callCount) format.
-func GetServiceGraphTimeRange(ctx context.Context, r *http.Request, startTime, endTime time.Time, limit uint64) ([][]logstorage.Field, error) {
-	cp, err := GetCommonParams(r)
-	if err != nil {
-		return nil, err
+// GetServiceGraphTimeRange is an internal function used by service graph background task.
+// It calculates the service graph relation within the time range in (parent, child, callCount) format for specific tenant.
+func GetServiceGraphTimeRange(ctx context.Context, tenantID logstorage.TenantID, startTime, endTime time.Time, limit uint64) ([][]logstorage.Field, error) {
+	cp := &CommonParams{
+		TenantIDs: []logstorage.TenantID{tenantID},
 	}
+
 	// (NOT parent_span_id:"") AND (kind:~"2|5")  | fields parent_span_id, resource_attr:service.name | rename parent_span_id as span_id, resource_attr:service.name as child
 	qStrChildSpans := fmt.Sprintf(
 		`(NOT %s:"") AND (%s:~"%d|%d")  | fields %s, %s | rename %s as %s, %s as %s`,
@@ -702,7 +702,6 @@ func GetServiceGraphTimeRange(ctx context.Context, r *http.Request, startTime, e
 
 	var rowsLock sync.Mutex
 	var rows [][]logstorage.Field
-	//var missingTimeColumn atomic.Bool
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		columns := db.Columns
 		if len(columns) == 0 {
@@ -721,7 +720,7 @@ func GetServiceGraphTimeRange(ctx context.Context, r *http.Request, startTime, e
 		}
 		for i := 0; i < valuesCount; i++ {
 			fields := make([]logstorage.Field, 0, len(columns))
-			for j := range columns {
+			for j := range clonedColumnNames {
 				fields = append(
 					fields,
 					logstorage.Field{

@@ -116,7 +116,7 @@ func main() {
 									}
 								}
 
-								// replace SpanID and parentSpanID
+								// replace SpanID
 								if sid, ok := spanIDMap[sp.SpanID]; ok {
 									sp.SpanID = sid
 								} else {
@@ -126,7 +126,7 @@ func main() {
 									spanIDMap[oldSpanID] = spanID
 								}
 
-								// replace SpanID and parentSpanID
+								// replace parentSpanID
 								if sid, ok := spanIDMap[sp.ParentSpanID]; ok {
 									sp.ParentSpanID = sid
 								} else {
@@ -219,13 +219,22 @@ func loadTestData() [][]byte {
 	return bodyList
 }
 
+var traceIDMutex sync.Mutex
+
 func generateTraceID() string {
+	traceIDMutex.Lock()
+	defer traceIDMutex.Unlock()
+
 	h := md5.New()
 	h.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
 	return hex.EncodeToString(h.Sum(nil))
 }
 
+var spanIDMutex sync.Mutex
+
 func generateSpanID() string {
+	spanIDMutex.Lock()
+	defer spanIDMutex.Unlock()
 	h := md5.New()
 	h.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
 	return hex.EncodeToString(h.Sum(nil))[:16]

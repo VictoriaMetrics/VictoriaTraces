@@ -50,9 +50,11 @@ func newServiceGraphTask() *serviceGraphTask {
 }
 
 func (sgt *serviceGraphTask) Start() {
-	logger.Infof("starting background task for service graph, interval: %v, lookbehind: %v", *serviceGraphTaskInterval, *serviceGraphTaskLookbehind)
-	ticker := time.NewTicker(*serviceGraphTaskInterval)
+	logger.Infof("starting servicegraph background task, interval: %v, lookbehind: %v", *serviceGraphTaskInterval, *serviceGraphTaskLookbehind)
 	go func() {
+		ticker := time.NewTicker(*serviceGraphTaskInterval)
+		defer ticker.Stop()
+
 		for {
 			select {
 			case <-sgt.stopCh:
@@ -82,14 +84,8 @@ func GenerateServiceGraphTimeRange(ctx context.Context) {
 
 	// query and persist operations are executed sequentially, which helps not to consume excessive resources.
 	for _, tenantID := range tenantIDs {
-		// Build a fake HTTP *Request. It helps align the way of handling tenant-related input
-		// in both vtselect and vtinsert, as they assume tenant info will exist in HTTP headers.
-		r, _ := http.NewRequestWithContext(ctx, "", "", nil)
-		r.Header.Set("AccountID", strconv.FormatUint(uint64(tenantID.AccountID), 10))
-		r.Header.Set("ProjectID", strconv.FormatUint(uint64(tenantID.ProjectID), 10))
-
 		// query service graph relations
-		rows, err := vtselect.GetServiceGraphTimeRange(ctx, r, startTime, endTime, *serviceGraphTaskLimit)
+		rows, err := vtselect.GetServiceGraphTimeRange(ctx, tenantID, startTime, endTime, *serviceGraphTaskLimit)
 		if err != nil {
 			logger.Errorf("cannot get service graph for time range [%d, %d]: %s", startTime.Unix(), endTime.Unix(), err)
 			return
@@ -101,7 +97,7 @@ func GenerateServiceGraphTimeRange(ctx context.Context) {
 		// persist service graph relations
 		err = vtinsert.PersistServiceGraph(ctx, r, rows, endTime)
 		if err != nil {
-			logger.Errorf("cannot presist service graph for time %d: %s", endTime.Unix(), err)
+			logger.Errorf("cannot presist service graph for time range [%d, %d]: %s", startTime.Unix(), endTime.Unix(), err)
 		}
 	}
 }
