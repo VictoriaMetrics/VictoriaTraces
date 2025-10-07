@@ -49,7 +49,7 @@ VictoriaTraces provides the following Jaeger HTTP endpoints:
 - `/select/jaeger/api/services` for querying all the services
 - `/select/jaeger/api/services/{service_name}/operations` for querying all the span names of a service.
 - `/select/jaeger/api/traces/{trace_id}` for querying a trace.
-- `/select/jaeger/api/dependencies` for querying dependencies graph for services.
+- `/select/jaeger/api/dependencies` for querying the service dependency graph.
 - `/select/jaeger/api/traces` for querying traces.
 
 The `/select/jaeger/api/traces` HTTP endpoint provides the following params:
