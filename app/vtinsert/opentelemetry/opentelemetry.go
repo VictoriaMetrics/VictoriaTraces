@@ -286,10 +286,10 @@ func appendKeyValuesWithPrefixSuffix(fields []logstorage.Field, kvs []*otelpb.Ke
 	return fields
 }
 
-func PersistServiceGraph(ctx context.Context, r *http.Request, fields [][]logstorage.Field, timestamp time.Time) error {
-	cp, err := insertutil.GetCommonParams(r)
-	if err != nil {
-		return err
+func PersistServiceGraph(ctx context.Context, tenantID logstorage.TenantID, fields [][]logstorage.Field, timestamp time.Time) error {
+	cp := insertutil.CommonParams{
+		TenantID:   tenantID,
+		TimeFields: []string{"_time"},
 	}
 	lmp := cp.NewLogMessageProcessor("internalinsert_servicegraph", false)
 

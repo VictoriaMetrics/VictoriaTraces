@@ -3,8 +3,6 @@ package servicegraph
 import (
 	"context"
 	"flag"
-	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -95,7 +93,7 @@ func GenerateServiceGraphTimeRange(ctx context.Context) {
 		}
 
 		// persist service graph relations
-		err = vtinsert.PersistServiceGraph(ctx, r, rows, endTime)
+		err = vtinsert.PersistServiceGraph(ctx, tenantID, rows, endTime)
 		if err != nil {
 			logger.Errorf("cannot presist service graph for time range [%d, %d]: %s", startTime.Unix(), endTime.Unix(), err)
 		}
