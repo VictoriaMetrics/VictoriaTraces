@@ -107,7 +107,7 @@ It is recommended to set up monitoring of these metrics via VictoriaMetrics
 (see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
 vmagent (see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
 
-We recommend installing Grafana dashboard for [VictoriaTraces single-node](https://grafana.com/grafana/dashboards/todo) or [cluster](https://grafana.com/grafana/dashboards/todo).
+We recommend installing Grafana dashboard for [VictoriaTraces single-node](https://grafana.com/grafana/dashboards/24136) or [cluster](https://grafana.com/grafana/dashboards/24134).
 
 We recommend setting up [alerts](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/rules/alerts-vtraces.yml)
 via [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or via Prometheus.
@@ -521,6 +521,16 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	Whether to disable /select/* HTTP endpoints
   -select.disableCompression
     	Whether to disable compression for select query responses received from -storageNode nodes. Disabled compression reduces CPU usage at the cost of higher network usage
+  -servicegraph.enableTask
+    	Whether to enable background task for generating service graph. It should only be enabled on VictoriaTraces single-node or vtstorage.
+  -servicegraph.taskInterval duration
+    	The background task interval for generating service graph data. It requires setting -servicegraph.enableTask=true. (default 1m0s)
+  -servicegraph.taskLimit uint
+    	How many service graph relations each task could fetch for each tenant. It requires setting -servicegraph.enableTask=true. (default 1000)
+  -servicegraph.taskLookbehind duration
+    	The lookbehind window for each time service graph background task run. It requires setting -servicegraph.enableTask=true. (default 1m0s)
+  -servicegraph.taskTimeout duration
+    	The background task timeout duration for generating service graph data. It requires setting -servicegraph.enableTask=true. (default 30s)
   -storage.minFreeDiskSpaceBytes size
     	The minimum free disk space at -storageDataPath after which the storage stops accepting new data
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 10000000)

@@ -1,6 +1,7 @@
 package opentelemetry
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -287,4 +288,22 @@ func appendKeyValuesWithPrefixSuffix(fields []logstorage.Field, kvs []*otelpb.Ke
 		})
 	}
 	return fields
+}
+
+func PersistServiceGraph(ctx context.Context, tenantID logstorage.TenantID, fields [][]logstorage.Field, timestamp time.Time) error {
+	cp := insertutil.CommonParams{
+		TenantID:   tenantID,
+		TimeFields: []string{"_time"},
+	}
+	lmp := cp.NewLogMessageProcessor("internalinsert_servicegraph", false)
+
+	for _, row := range fields {
+		f := append(row, logstorage.Field{
+			Name:  "_msg",
+			Value: "-",
+		})
+		lmp.AddRow(timestamp.UnixNano(), f, []logstorage.Field{{Name: otelpb.ServiceGraphStreamName, Value: "-"}})
+	}
+	lmp.MustClose()
+	return nil
 }

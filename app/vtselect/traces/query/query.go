@@ -566,3 +566,178 @@ func checkTraceIDList(traceIDList []string) []string {
 	}
 	return result
 }
+
+type ServiceGraphQueryParameters struct {
+	EndTs    time.Time
+	Lookback time.Duration
+}
+
+// GetServiceGraphList returns service dependencies graph edges (parent, child, callCount) in []*Row format.
+//
+// TODO: currently this function can only handle request from Jaeger dependencies API. Since Tempo provides similar service graph
+// feature, it would be great to add support for Tempo service graph API as well.
+func GetServiceGraphList(ctx context.Context, cp *CommonParams, param *ServiceGraphQueryParameters) ([]*Row, error) {
+	// {trace_service_graph_stream="-"} | fields parent, child, callCount | stats by (parent, child) sum(callCount) as callCount
+	qStr := fmt.Sprintf(`{%s="-"} | fields %s, %s, %s | stats by (%s, %s) sum(%s) as %s`,
+		otelpb.ServiceGraphStreamName,
+		otelpb.ServiceGraphParentFieldName,
+		otelpb.ServiceGraphChildFieldName,
+		otelpb.ServiceGraphCallCountFieldName,
+		otelpb.ServiceGraphParentFieldName,
+		otelpb.ServiceGraphChildFieldName,
+		otelpb.ServiceGraphCallCountFieldName,
+		otelpb.ServiceGraphCallCountFieldName,
+	)
+	startTime := param.EndTs.Add(-param.Lookback).UnixNano()
+	endTime := param.EndTs.UnixNano()
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, endTime)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
+	}
+	q.AddTimeFilter(startTime, endTime)
+
+	cp.Query = q
+	qctx := cp.NewQueryContext(ctx)
+
+	var rowsLock sync.Mutex
+	var rows []*Row
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		columns := db.Columns
+		if len(columns) == 0 {
+			return
+		}
+		clonedColumnNames := make([]string, len(columns))
+		valuesCount := 0
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+			if len(c.Values) > valuesCount {
+				valuesCount = len(c.Values)
+			}
+		}
+		if valuesCount == 0 {
+			return
+		}
+		for i := 0; i < valuesCount; i++ {
+			fields := make([]logstorage.Field, 0, len(columns))
+			for j := range columns {
+				fields = append(
+					fields,
+					logstorage.Field{
+						Name:  clonedColumnNames[j],
+						Value: strings.Clone(columns[j].Values[i]),
+					},
+				)
+			}
+			rowsLock.Lock()
+			rows = append(rows, &Row{
+				Fields: fields,
+			})
+			rowsLock.Unlock()
+		}
+	}
+
+	if err = vtstorage.RunQuery(qctx, writeBlock); err != nil {
+		return nil, err
+	}
+
+	return rows, nil
+}
+
+// GetServiceGraphTimeRange is an internal function used by service graph background task.
+// It calculates the service graph relation within the time range in (parent, child, callCount) format for specific tenant.
+func GetServiceGraphTimeRange(ctx context.Context, tenantID logstorage.TenantID, startTime, endTime time.Time, limit uint64) ([][]logstorage.Field, error) {
+	cp := &CommonParams{
+		TenantIDs: []logstorage.TenantID{tenantID},
+	}
+
+	// (NOT parent_span_id:"") AND (kind:~"2|5")  | fields parent_span_id, resource_attr:service.name | rename parent_span_id as span_id, resource_attr:service.name as child
+	qStrChildSpans := fmt.Sprintf(
+		`(NOT %s:"") AND (%s:~"%d|%d")  | fields %s, %s | rename %s as %s, %s as %s`,
+		otelpb.ParentSpanIDField, // parent span id not empty means this span is a child span.
+		otelpb.KindField,         // only server(2) and consumer(5) span could be used as a child. It helps reduce the spans it needs to fetch.
+		otelpb.SpanKind(2),
+		otelpb.SpanKind(5),
+		otelpb.ParentSpanIDField,
+		otelpb.ResourceAttrServiceName,
+		otelpb.ParentSpanIDField,
+		otelpb.SpanIDField,
+		otelpb.ResourceAttrServiceName,
+		otelpb.ServiceGraphChildFieldName,
+	)
+	// (NOT span_id:"") AND (kind:~"3|4")  | fields span_id, resource_attr:service.name | rename resource_attr:service.name as parent
+	qStrParentSpans := fmt.Sprintf(
+		`(NOT %s:"") AND (%s:~"%d|%d") | fields %s, %s | rename %s as %s`,
+		otelpb.SpanIDField, // Any span could be a parent span, as long as it has a span ID.
+		otelpb.KindField,   // only client(3) and producer(4) span could be used as a parent. It helps reduce the spans it needs to fetch.
+		otelpb.SpanKind(3),
+		otelpb.SpanKind(4),
+		otelpb.SpanIDField,
+		otelpb.ResourceAttrServiceName,
+		otelpb.ResourceAttrServiceName,
+		otelpb.ServiceGraphParentFieldName,
+	)
+	// join by span_id
+	qStr := fmt.Sprintf(
+		`%s | join by (%s) (%s) inner | NOT %s:eq_field(%s) | stats by (%s, %s) count() %s`,
+		qStrChildSpans,
+		otelpb.SpanIDField,
+		qStrParentSpans,
+		otelpb.ServiceGraphParentFieldName,
+		otelpb.ServiceGraphChildFieldName,
+		otelpb.ServiceGraphParentFieldName,
+		otelpb.ServiceGraphChildFieldName,
+		otelpb.ServiceGraphCallCountFieldName,
+	)
+
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, endTime.UnixNano())
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
+	}
+	q.AddTimeFilter(startTime.UnixNano(), endTime.UnixNano())
+	q.AddPipeOffsetLimit(0, limit)
+
+	cp.Query = q
+	qctx := cp.NewQueryContext(ctx)
+	defer cp.UpdatePerQueryStatsMetrics()
+
+	var rowsLock sync.Mutex
+	var rows [][]logstorage.Field
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		columns := db.Columns
+		if len(columns) == 0 {
+			return
+		}
+		clonedColumnNames := make([]string, len(columns))
+		valuesCount := 0
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+			if len(c.Values) > valuesCount {
+				valuesCount = len(c.Values)
+			}
+		}
+		if valuesCount == 0 {
+			return
+		}
+		for i := 0; i < valuesCount; i++ {
+			fields := make([]logstorage.Field, 0, len(columns))
+			for j := range clonedColumnNames {
+				fields = append(
+					fields,
+					logstorage.Field{
+						Name:  clonedColumnNames[j],
+						Value: strings.Clone(columns[j].Values[i]),
+					},
+				)
+			}
+			rowsLock.Lock()
+			rows = append(rows, fields)
+			rowsLock.Unlock()
+		}
+	}
+
+	if err = vtstorage.RunQuery(qctx, writeBlock); err != nil {
+		return nil, fmt.Errorf("cannot execute query [%s]: %s", qStr, err)
+	}
+
+	return rows, nil
+}
