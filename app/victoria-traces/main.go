@@ -50,7 +50,6 @@ func main() {
 	insertutil.SetLogRowsStorage(&vtstorage.Storage{})
 	vtinsert.Init()
 
-	// optional background task(s)
 	servicegraph.Init()
 
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
