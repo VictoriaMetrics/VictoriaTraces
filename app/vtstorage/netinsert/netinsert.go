@@ -344,8 +344,8 @@ func (s *Storage) MustStop() {
 
 // AddRow adds the given log row into s.
 func (s *Storage) AddRow(streamHash uint64, r *logstorage.InsertRow) {
-	// we put the trace ID in the last field. And there is a unit test to secure it.
-	// but for better compatibility, we will search for the trace_id in reverse order,
+	// trace ID should always be put in the last field. 
+	// but for better compatibility, we should search for the trace_id in reverse order,
 	// instead of using the last one in the `r.Fields` slice directly.
 	var traceID string
 	for i := len(r.Fields) - 1; i >= 0; i-- {
@@ -400,6 +400,12 @@ func (srt *streamRowsTracker) getNodeIdx(streamHash uint64, traceID string) uint
 
 	// common path: distribute data by trace ID.
 	if traceID != "" {
+		// When the node count is changed after a restart, the spans of a trace might be
+		// distributed across different nodes. Therefore, there's no guarantee that a trace query
+		// can find all the spans of a trace in ONE vtstorage instance.
+		//
+		// This could potentially affect the service graph, which aggregates data within each vtstorage instance.
+		// However, since only a small number of traces are affected, the overall trend will remain consistent.
 		return xxhash.Sum64String(traceID) % uint64(srt.nodesCount)
 	}
 
