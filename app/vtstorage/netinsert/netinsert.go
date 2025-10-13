@@ -344,7 +344,7 @@ func (s *Storage) MustStop() {
 
 // AddRow adds the given log row into s.
 func (s *Storage) AddRow(streamHash uint64, r *logstorage.InsertRow) {
-	// trace ID should always be put in the last field. 
+	// trace ID should always be put in the last field.
 	// but for better compatibility, we should search for the trace_id in reverse order,
 	// instead of using the last one in the `r.Fields` slice directly.
 	var traceID string
