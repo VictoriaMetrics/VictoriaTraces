@@ -20,7 +20,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/cespare/xxhash/v2"
 	"github.com/valyala/fastrand"
+
+	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
 // the maximum size of a single data block sent to storage node.
@@ -341,7 +344,17 @@ func (s *Storage) MustStop() {
 
 // AddRow adds the given log row into s.
 func (s *Storage) AddRow(streamHash uint64, r *logstorage.InsertRow) {
-	idx := s.srt.getNodeIdx(streamHash)
+	// trace ID should always be put in the last field.
+	// but for better compatibility, we should search for the trace_id in reverse order,
+	// instead of using the last one in the `r.Fields` slice directly.
+	var traceID string
+	for i := len(r.Fields) - 1; i >= 0; i-- {
+		if r.Fields[i].Name == otelpb.TraceIDField {
+			traceID = r.Fields[i].Value
+			break
+		}
+	}
+	idx := s.srt.getNodeIdx(streamHash, traceID)
 	sn := s.sns[idx]
 	sn.addRow(r)
 }
@@ -378,12 +391,26 @@ func newStreamRowsTracker(nodesCount int) *streamRowsTracker {
 	}
 }
 
-func (srt *streamRowsTracker) getNodeIdx(streamHash uint64) uint64 {
+// getNodeIdx return the node index for a specific traceID
+func (srt *streamRowsTracker) getNodeIdx(streamHash uint64, traceID string) uint64 {
 	if srt.nodesCount == 1 {
 		// Fast path for a single node.
 		return 0
 	}
 
+	// common path: distribute data by trace ID.
+	if traceID != "" {
+		// When the node count is changed after a restart, the spans of a trace might be
+		// distributed across different nodes. Therefore, there's no guarantee that a trace query
+		// can find all the spans of a trace in ONE vtstorage instance.
+		//
+		// This could potentially affect the service graph, which aggregates data within each vtstorage instance.
+		// However, since only a small number of traces are affected, the overall trend will remain consistent.
+		return xxhash.Sum64String(traceID) % uint64(srt.nodesCount)
+	}
+
+	// for backward compatible, keep the original random distribution logic.
+	// only data without trace ID will go to the following path.
 	srt.mu.Lock()
 	defer srt.mu.Unlock()
 

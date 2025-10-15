@@ -68,6 +68,7 @@ func main() {
 				// The traceIDMap recorded old traceID->new traceID.
 				// Spans with same old traceID should be replaced with same new traceID.
 				traceIDMap := make(map[string]string)
+				spanIDMap := make(map[string]string)
 
 				// The timeOffset is the time offset of span timestamp and current timestamp.
 				// All spans' timestamp should be increased by this offset.
@@ -113,6 +114,26 @@ func main() {
 									if rand.Intn(10000) < *logNTraceIDEvery10K {
 										logger.Infof(traceID)
 									}
+								}
+
+								// replace SpanID
+								if sid, ok := spanIDMap[sp.SpanID]; ok {
+									sp.SpanID = sid
+								} else {
+									spanID := generateSpanID()
+									oldSpanID := sp.SpanID
+									sp.SpanID = spanID
+									spanIDMap[oldSpanID] = spanID
+								}
+
+								// replace parentSpanID
+								if sid, ok := spanIDMap[sp.ParentSpanID]; ok {
+									sp.ParentSpanID = sid
+								} else {
+									parentSpanID := generateSpanID()
+									oldParentSpanID := sp.ParentSpanID
+									sp.ParentSpanID = parentSpanID
+									spanIDMap[oldParentSpanID] = parentSpanID
 								}
 
 								// adjust the timestamp of the span.
@@ -198,10 +219,25 @@ func loadTestData() [][]byte {
 	return bodyList
 }
 
+var traceIDMutex sync.Mutex
+
 func generateTraceID() string {
+	traceIDMutex.Lock()
+	defer traceIDMutex.Unlock()
+
 	h := md5.New()
 	h.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+var spanIDMutex sync.Mutex
+
+func generateSpanID() string {
+	spanIDMutex.Lock()
+	defer spanIDMutex.Unlock()
+	h := md5.New()
+	h.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
+	return hex.EncodeToString(h.Sum(nil))[:16]
 }
 
 // readWrite Does the following:

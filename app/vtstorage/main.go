@@ -1,6 +1,7 @@
 package vtstorage
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -486,6 +487,13 @@ func GetStreamIDs(qctx *logstorage.QueryContext, limit uint64) ([]logstorage.Val
 		return localStorage.GetStreamIDs(qctx, limit)
 	}
 	return netstorageSelect.GetStreamIDs(qctx, limit)
+}
+
+func GetTenantIDsByTimeRange(ctx context.Context, startTime, endTime int64) ([]logstorage.TenantID, error) {
+	if localStorage == nil {
+		return nil, nil
+	}
+	return localStorage.GetTenantIDs(ctx, startTime, endTime)
 }
 
 func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {

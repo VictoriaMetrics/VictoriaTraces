@@ -1,5 +1,10 @@
 package logstorage
 
+// maxParallelReaders is the maximum parallel readers to use when executing a query.
+//
+// bigger number of parallel readers may help increasing query performance on high-latency storage such as S3 and NFS.
+const maxParallelReaders = 2_000
+
 // partFormatLatestVersion is the latest format version for parts.
 //
 // See partHeader.FormatVersion for details.

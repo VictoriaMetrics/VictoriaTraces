@@ -88,17 +88,26 @@ type pipeProcessor interface {
 	flush() error
 }
 
-type noopPipeProcessor func(workerID uint, br *blockResult)
-
-func newNoopPipeProcessor(writeBlock func(workerID uint, br *blockResult)) pipeProcessor {
-	return noopPipeProcessor(writeBlock)
+type noopPipeProcessor struct {
+	stopCh          <-chan struct{}
+	writeBlockFinal func(workerID uint, br *blockResult)
 }
 
-func (npp noopPipeProcessor) writeBlock(workerID uint, br *blockResult) {
-	npp(workerID, br)
+func newNoopPipeProcessor(stopCh <-chan struct{}, writeBlock func(workerID uint, br *blockResult)) pipeProcessor {
+	return &noopPipeProcessor{
+		stopCh:          stopCh,
+		writeBlockFinal: writeBlock,
+	}
 }
 
-func (npp noopPipeProcessor) flush() error {
+func (npp *noopPipeProcessor) writeBlock(workerID uint, br *blockResult) {
+	if needStop(npp.stopCh) {
+		return
+	}
+	npp.writeBlockFinal(workerID, br)
+}
+
+func (npp *noopPipeProcessor) flush() error {
 	logger.Panicf("BUG: mustn't be called!")
 	return nil
 }
@@ -209,6 +218,7 @@ func initPipeParsers() {
 		"rm":                parsePipeDelete,
 		"running_stats":     parsePipeRunningStats,
 		"sample":            parsePipeSample,
+		"set_stream_fields": parsePipeSetStreamFields,
 		"skip":              parsePipeOffset,
 		"sort":              parsePipeSort,
 		"split":             parsePipeSplit,

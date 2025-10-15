@@ -73,8 +73,7 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		return true
 	} else if path == "/select/jaeger/api/dependencies" {
 		jaegerDependenciesRequests.Inc()
-		// todo it require additional component to calculate the dependency graph. not implemented yet.
-		httpserver.Errorf(w, r, "/api/dependencies API is not supported yet.")
+		processGetDependenciesRequest(ctx, w, r)
 		jaegerDependenciesDuration.UpdateDuration(startTime)
 		return true
 	}
@@ -400,4 +399,92 @@ func hashProcess(process process) uint64 {
 	d.Reset()
 	hashpool.Put(d)
 	return h
+}
+
+// processGetDependenciesRequest handle the Jaeger /api/dependencies API request.
+func processGetDependenciesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cp, err := query.GetCommonParams(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "incorrect query params: %s", err)
+		return
+	}
+
+	param, err := parseJaegerDependenciesQueryParam(ctx, r)
+	if err != nil {
+		httpserver.Errorf(w, r, "incorrect dependencies query params: %s", err)
+		return
+	}
+
+	rows, err := query.GetServiceGraphList(ctx, cp, param)
+	if err != nil {
+		httpserver.Errorf(w, r, "get dependencies error: %s", err)
+		return
+	}
+
+	if len(rows) == 0 {
+		// Write empty results
+		w.Header().Set("Content-Type", "application/json")
+		WriteGetDependenciesResponse(w, nil)
+		return
+	}
+
+	dependencies := make([]*dependencyLink, 0)
+	for _, row := range rows {
+		dependency := &dependencyLink{}
+		for _, f := range row.Fields {
+			switch f.Name {
+			case "parent":
+				dependency.parent = f.Value
+			case "child":
+				dependency.child = f.Value
+			case "callCount":
+				dependency.callCount, err = strconv.ParseUint(f.Value, 10, 64)
+				if err != nil {
+					logger.Errorf("cannot parse callCount [%s]: %s", f.Value, err)
+					continue
+				}
+			}
+		}
+		if dependency.parent != "" && dependency.child != "" && dependency.callCount > 0 {
+			dependencies = append(dependencies, dependency)
+		}
+	}
+
+	// Write results
+	w.Header().Set("Content-Type", "application/json")
+	WriteGetDependenciesResponse(w, dependencies)
+}
+
+// parseJaegerDependenciesQueryParam parse Jaeger request to unified ServiceGraphQueryParameters.
+func parseJaegerDependenciesQueryParam(_ context.Context, r *http.Request) (*query.ServiceGraphQueryParameters, error) {
+	var err error
+
+	// default params
+	p := &query.ServiceGraphQueryParameters{
+		EndTs:    time.Now(),
+		Lookback: time.Hour,
+	}
+	q := r.URL.Query()
+
+	endTs := q.Get("endTs")
+	if endTs != "" {
+		unixMilli, err := strconv.ParseInt(endTs, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse endTs [%s]: %w", endTs, err)
+		}
+		p.EndTs = time.UnixMilli(unixMilli)
+	}
+
+	lookback := q.Get("lookback")
+	if lookback != "" {
+		if strings.TrimLeft(lookback, "0123456789") == "" {
+			lookback += "ms"
+		}
+		p.Lookback, err = time.ParseDuration(lookback)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse lookback [%s]: %w", lookback, err)
+		}
+	}
+
+	return p, nil
 }

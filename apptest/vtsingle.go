@@ -23,10 +23,11 @@ type Vtsingle struct {
 	forceFlushURL string
 	forceMergeURL string
 
-	jaegerAPIServicesURL   string
-	jaegerAPIOperationsURL string
-	jaegerAPITracesURL     string
-	jaegerAPITraceURL      string
+	jaegerAPIServicesURL     string
+	jaegerAPIOperationsURL   string
+	jaegerAPITracesURL       string
+	jaegerAPITraceURL        string
+	jaegerAPIDependenciesURL string
 
 	otlpTracesURL string
 }
@@ -61,10 +62,11 @@ func StartVtsingle(instance string, flags []string, cli *Client) (*Vtsingle, err
 		forceFlushURL: fmt.Sprintf("http://%s/internal/force_flush", stderrExtracts[1]),
 		forceMergeURL: fmt.Sprintf("http://%s/internal/force_merge", stderrExtracts[1]),
 
-		jaegerAPIServicesURL:   fmt.Sprintf("http://%s/select/jaeger/api/services", stderrExtracts[1]),
-		jaegerAPIOperationsURL: fmt.Sprintf("http://%s/select/jaeger/api/services/%%s/operations", stderrExtracts[1]),
-		jaegerAPITracesURL:     fmt.Sprintf("http://%s/select/jaeger/api/traces", stderrExtracts[1]),
-		jaegerAPITraceURL:      fmt.Sprintf("http://%s/select/jaeger/api/traces/%%s", stderrExtracts[1]),
+		jaegerAPIServicesURL:     fmt.Sprintf("http://%s/select/jaeger/api/services", stderrExtracts[1]),
+		jaegerAPIOperationsURL:   fmt.Sprintf("http://%s/select/jaeger/api/services/%%s/operations", stderrExtracts[1]),
+		jaegerAPITracesURL:       fmt.Sprintf("http://%s/select/jaeger/api/traces", stderrExtracts[1]),
+		jaegerAPITraceURL:        fmt.Sprintf("http://%s/select/jaeger/api/traces/%%s", stderrExtracts[1]),
+		jaegerAPIDependenciesURL: fmt.Sprintf("http://%s/select/jaeger/api/dependencies", stderrExtracts[1]),
 
 		otlpTracesURL: fmt.Sprintf("http://%s/insert/opentelemetry/v1/traces", stderrExtracts[1]),
 	}, nil
@@ -143,7 +145,21 @@ func (app *Vtsingle) JaegerAPITrace(t *testing.T, traceID string, opts QueryOpts
 
 // JaegerAPIDependencies is a test helper function that queries for the dependencies.
 // This method is not implemented in Vtsingle and this test is no-op for now.
-func (app *Vtsingle) JaegerAPIDependencies(_ *testing.T, _ QueryOpts) {}
+func (app *Vtsingle) JaegerAPIDependencies(t *testing.T, param JaegerDependenciesParam, opts QueryOpts) *JaegerAPIDependenciesResponse {
+	t.Helper()
+
+	paramsEnc := "?"
+	values := opts.asURLValues()
+	if len(values) > 0 {
+		paramsEnc += values.Encode() + "&"
+	}
+	uv := param.asURLValues()
+	if len(uv) > 0 {
+		paramsEnc += uv.Encode()
+	}
+	res, _ := app.cli.Get(t, app.jaegerAPIDependenciesURL+paramsEnc)
+	return NewJaegerAPIDependenciesResponse(t, res)
+}
 
 // OTLPExportTraces is a test helper function that exports OTLP trace data
 // by sending an HTTP POST request to /insert/opentelemetry/v1/traces

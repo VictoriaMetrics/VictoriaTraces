@@ -2,13 +2,6 @@ package pb
 
 // trace_fields.go contains field names when storing OTLP trace span data in VictoriaLogs.
 
-// Special: TraceID index stream and fields
-const (
-	TraceIDIndexStreamName     = "trace_id_idx_stream"
-	TraceIDIndexFieldName      = "trace_id_idx"
-	TraceIDIndexPartitionCount = uint64(1024)
-)
-
 // Resource
 const (
 	ResourceAttrPrefix      = "resource_attr:"

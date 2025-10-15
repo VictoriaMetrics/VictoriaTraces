@@ -2,6 +2,7 @@ package apptest
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -134,9 +135,19 @@ func (app *ServesMetrics) GetIntMetric(t *testing.T, metricName string) int {
 func (app *ServesMetrics) GetMetric(t *testing.T, metricName string) float64 {
 	t.Helper()
 
+	value, err := app.TryGetMetric(t, metricName)
+	if err != nil {
+		t.Fatalf("get metric error: %s, %v", metricName, err)
+	}
+	return value
+}
+
+func (app *ServesMetrics) TryGetMetric(t *testing.T, metricName string) (float64, error) {
+	t.Helper()
+
 	metrics, statusCode := app.cli.Get(t, app.metricsURL)
 	if statusCode != http.StatusOK {
-		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
+		return 0, fmt.Errorf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
 	for _, metric := range strings.Split(metrics, "\n") {
 		value, found := strings.CutPrefix(metric, metricName)
@@ -144,13 +155,12 @@ func (app *ServesMetrics) GetMetric(t *testing.T, metricName string) float64 {
 			value = strings.Trim(value, " ")
 			res, err := strconv.ParseFloat(value, 64)
 			if err != nil {
-				t.Fatalf("could not parse metric value %s: %v", metric, err)
+				return 0, fmt.Errorf("could not parse metric value %s: %v", metric, err)
 			}
-			return res
+			return res, nil
 		}
 	}
-	t.Fatalf("metric not found: %s", metricName)
-	return 0
+	return 0, fmt.Errorf("metric not found: %s", metricName)
 }
 
 // GetMetricsByPrefix retrieves the values of all metrics that start with given

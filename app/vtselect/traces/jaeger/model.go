@@ -56,6 +56,12 @@ type log struct {
 	fields    []keyValue
 }
 
+type dependencyLink struct {
+	parent    string
+	child     string
+	callCount uint64
+}
+
 // since Jaeger renamed some fields in OpenTelemetry
 // into other span attributes during query, the following map
 // is created to translate the span attributes filter into the

@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -37,6 +38,14 @@ type StorageStats struct {
 
 	// PartitionStats contains partition stats.
 	PartitionStats
+
+	// MinTimestamp is the minimum event timestamp across the entire storage (in nanoseconds).
+	// It is set to math.MinInt64 if there is no data.
+	MinTimestamp int64
+
+	// MaxTimestamp is the maximum event timestamp across the entire storage (in nanoseconds).
+	// It is set to math.MaxInt64 if there is no data.
+	MaxTimestamp int64
 }
 
 // Reset resets s.
@@ -50,6 +59,11 @@ type StorageConfig struct {
 	//
 	// Older data is automatically deleted.
 	Retention time.Duration
+
+	// DefaultParallelReaders is the default number of parallel readers to use per each query execution.
+	//
+	// Higher value can help improving query performance on storage with high disk read latency such as S3.
+	DefaultParallelReaders int
 
 	// MaxDiskSpaceUsageBytes is an optional maximum disk space logs can use.
 	//
@@ -96,6 +110,11 @@ type Storage struct {
 	//
 	// older data is automatically deleted
 	retention time.Duration
+
+	// defaultParallelReaders is the default number of parallel IO-bound readers to use for query execution.
+	//
+	// Higher number of readers may help increasing query performance on storage with high read latency such as S3.
+	defaultParallelReaders int
 
 	// maxDiskSpaceUsageBytes is an optional maximum disk space logs can use.
 	//
@@ -444,6 +463,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	s := &Storage{
 		path:                   path,
 		retention:              retention,
+		defaultParallelReaders: cfg.DefaultParallelReaders,
 		maxDiskSpaceUsageBytes: cfg.MaxDiskSpaceUsageBytes,
 		maxDiskUsagePercent:    cfg.MaxDiskUsagePercent,
 		flushInterval:          flushInterval,
@@ -918,11 +938,21 @@ func (s *Storage) UpdateStats(ss *StorageStats) {
 	} else {
 		ss.MaxDiskSpaceUsageBytes = int64(fs.MustGetTotalSpace(s.path) * uint64(s.maxDiskUsagePercent) / 100)
 	}
+	// Use sentinel values to indicate unbounded / no data for consistency
+	ss.MinTimestamp, ss.MaxTimestamp = math.MinInt64, math.MaxInt64
 
 	s.partitionsLock.Lock()
 	ss.PartitionsCount += uint64(len(s.partitions))
 	for _, ptw := range s.partitions {
 		ptw.pt.updateStats(&ss.PartitionStats)
+	}
+
+	if len(s.partitions) > 0 {
+		p0 := s.partitions[0]
+		pLast := s.partitions[len(s.partitions)-1]
+
+		ss.MinTimestamp, _ = p0.pt.ddb.getMinMaxTimestamps()
+		_, ss.MaxTimestamp = pLast.pt.ddb.getMinMaxTimestamps()
 	}
 	s.partitionsLock.Unlock()
 

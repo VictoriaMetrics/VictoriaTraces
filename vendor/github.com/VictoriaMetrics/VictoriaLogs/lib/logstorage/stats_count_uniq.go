@@ -638,10 +638,6 @@ func (sup *statsCountUniqProcessor) importState(src []byte, stopCh <-chan struct
 		return stateSize, nil
 	}
 
-	if shardsLen != uint64(sup.concurrency) {
-		return 0, fmt.Errorf("unexpected number of imported shards: %d; want %d", shardsLen, sup.concurrency)
-	}
-
 	shards := make([]statsCountUniqSet, shardsLen)
 	stateSizeIncrease := int(unsafe.Sizeof(shards[0])) * len(shards)
 	for i := range shards {
@@ -656,9 +652,44 @@ func (sup *statsCountUniqProcessor) importState(src []byte, stopCh <-chan struct
 	if len(src) > 0 {
 		return 0, fmt.Errorf("unexpected tail left after importing shards' state; len(tail)=%d", len(src))
 	}
-	sup.shards = shards
+
+	stateSizeIncrease = sup.importShards(shards, stateSizeIncrease)
 
 	return stateSizeIncrease, nil
+}
+
+func (sup *statsCountUniqProcessor) importShards(shards []statsCountUniqSet, stateSizeIncrease int) int {
+	if uint(len(shards)) == sup.concurrency {
+		// Fast path - nothing to reshard
+		sup.shards = shards
+		return stateSizeIncrease
+	}
+
+	// Slow path - reshard shards in order to align len(shards) with sup.concurrency.
+	// This case is possible when the remote side has different concurrency than the sup.concurrency.
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/682
+	stateSizeIncrease = 0
+	for i := range shards {
+		stateSizeIncrease += sup.importShard(&shards[i])
+	}
+	return stateSizeIncrease
+}
+
+func (sup *statsCountUniqProcessor) importShard(shard *statsCountUniqSet) int {
+	stateSizeIncrease := 0
+	for ts := range shard.timestamps {
+		stateSizeIncrease += sup.updateStateTimestamp(int64(ts))
+	}
+	for n := range shard.u64 {
+		stateSizeIncrease += sup.updateStateUint64(n)
+	}
+	for n := range shard.negative64 {
+		stateSizeIncrease += sup.updateStateNegativeInt64(int64(n))
+	}
+	for s := range shard.strings {
+		stateSizeIncrease += sup.updateStateString(bytesutil.ToUnsafeBytes(s))
+	}
+	return stateSizeIncrease
 }
 
 func (sup *statsCountUniqProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {

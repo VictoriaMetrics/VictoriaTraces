@@ -57,7 +57,7 @@ sequenceDiagram
 ```
 
 - `vtinsert` handles trace spans ingestion via [the OpenTelemetry protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/).
-  It distributes incoming trace spans evenly across `vtstorage` nodes, as specified by the `-storageNode` command-line flag.
+  It distributes incoming trace spans **by trace ID** evenly across `vtstorage` nodes, as specified by the `-storageNode` command-line flag.
 
 - `vtselect` receives queries through [all supported HTTP query endpoints](https://docs.victoriametrics.com/victoriatraces/querying/).
   It fetches the required data from the configured `vtstorage` nodes, processes the queries, and returns the results.
@@ -264,8 +264,8 @@ The following guide covers the following topics for Linux host:
 Download and unpack the latest VictoriaTraces release:
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaTraces/releases/download/v0.2.0/victoria-traces-linux-amd64-v0.2.0.tar.gz
-tar xzf victoria-traces-linux-amd64-v0.2.0.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaTraces/releases/download/v0.4.0/victoria-traces-linux-amd64-v0.4.0.tar.gz
+tar xzf victoria-traces-linux-amd64-v0.4.0.tar.gz
 ```
 
 Start the first [`vtstorage` node](#architecture), which accepts incoming requests at the port `10491` and stores the ingested spans at `victoria-traces-data-1` directory:
@@ -300,8 +300,7 @@ Note that all the VictoriaTraces cluster components - `vtstorage`, `vtinsert` an
 Their roles depend on whether the `-storageNode` command-line flag is set - if this flag is set, then the executable runs in `vtinsert` and `vtselect` modes.
 Otherwise, it runs in `vtstorage` mode, which is identical to a [single-node VictoriaTraces mode](https://docs.victoriametrics.com/victoriatraces/).
 
-Let's **ingest some trace spans** (aka [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/))
-from [GitHub archive](https://www.gharchive.org/) into the VictoriaTraces cluster.
+Let's **ingest some trace spans** into the VictoriaTraces cluster.
 
 If you don't have instrumented application, one simple way is to use [vtgen](https://github.com/VictoriaMetrics/VictoriaTraces/tree/master/app/vtgen), a trace data generator.
 It needs to be built from source with Go or docker:
