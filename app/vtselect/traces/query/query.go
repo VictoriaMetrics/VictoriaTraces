@@ -2,6 +2,7 @@ package query
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"github.com/cespare/xxhash/v2"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
+	vtstoragecommon "github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/common"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
@@ -163,17 +165,17 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 	}
 	q.AddPipeOffsetLimit(0, 1)
 	traceTimestamp, err := findTraceIDTimeSplitTimeRange(ctx, q, cp)
+	if err != nil && errors.Is(err, vtstoragecommon.ErrOutOfRetention) {
+		// no hit in the retention period, simply returns empty.
+		return nil, nil
+	}
 	if err != nil {
+		// something wrong when trying to find the trace_id's start time.
 		return nil, fmt.Errorf("cannot find trace_id %q start time: %s", traceID, err)
 	}
 
-	// fast path: trace start time found, search in [trace start time, trace start time + *traceMaxDurationWindow] time range.
-	if !traceTimestamp.IsZero() {
-		return findSpansByTraceIDAndTime(ctx, cp, traceID, traceTimestamp.Add(-*traceMaxDurationWindow), traceTimestamp.Add(*traceMaxDurationWindow))
-	}
-	// slow path: if trace start time not exist, probably the root span was not available.
-	// try to search from now to 0 timestamp.
-	return findSpansByTraceID(ctx, cp, traceID)
+	// trace start time found, search in [trace start time, trace start time + *traceMaxDurationWindow] time range.
+	return findSpansByTraceIDAndTime(ctx, cp, traceID, traceTimestamp.Add(-*traceMaxDurationWindow), traceTimestamp.Add(*traceMaxDurationWindow))
 }
 
 // GetTraceList returns multiple traceIDs and spans of them in []*Row format.
@@ -346,6 +348,9 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *Co
 		qClone := q.CloneWithTimeFilter(currentTime.UnixNano(), currentStartTime.UnixNano(), endTime.UnixNano())
 		qctx = qctx.WithQuery(qClone)
 		if err := vtstorage.RunQuery(qctx, writeBlock); err != nil {
+			if errors.Is(err, vtstoragecommon.ErrOutOfRetention) {
+				return nil, time.Time{}, nil
+			}
 			return nil, time.Time{}, err
 		}
 
@@ -355,7 +360,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *Co
 			if err != nil {
 				return nil, maxStartTime, err
 			}
-			return traceIDList, maxStartTime, nil
+			return checkTraceIDList(traceIDList), maxStartTime, nil
 		}
 
 		// not enough trace_id, clear the result, extend the time range and try again.
@@ -384,8 +389,10 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *Co
 }
 
 // findTraceIDTimeSplitTimeRange try to search from {trace_id_idx_stream="xx"} stream, which contains
-// the trace_id and start time of the root span. It returns the start time of the trace if found.
-// Otherwise, the root span may not reach VictoriaTraces, and zero time is returned.
+// the trace_id and the rough start time of this trace. It returns the start time of the trace if found.
+//
+// If the span with this trace_id never reach VictoriaTraces, the search will to through the whole time range within
+// the retention period, and returns an ErrOutOfRetention.
 func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *CommonParams) (time.Time, error) {
 	traceIDStartTimeInt := int64(0)
 	var missingTimeColumn atomic.Bool
@@ -420,13 +427,15 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 	currentTime := time.Now()
 	startTime := currentTime.Add(-*traceSearchStep)
 	endTime := currentTime
-	for startTime.UnixNano() > 0 { // todo: no need to search time range before retention period.
+	for startTime.UnixNano() > 0 {
 		qq := q.CloneWithTimeFilter(currentTime.UnixNano(), startTime.UnixNano(), endTime.UnixNano())
 		qctx = qctx.WithQuery(qq)
 
 		if err := vtstorage.RunQuery(qctx, writeBlock); err != nil {
+			// this could be either a ErrOutOfRetention, or a real error.
 			return time.Time{}, err
 		}
+
 		if missingTimeColumn.Load() {
 			return time.Time{}, fmt.Errorf("missing _time column in the result for the query [%s]", qq)
 		}
@@ -441,50 +450,7 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 		// found result, perform extra search for traceMaxDurationWindow and then break.
 		return time.Unix(traceIDStartTimeInt/1e9, traceIDStartTimeInt%1e9), nil
 	}
-
-	return time.Time{}, nil
-}
-
-// findSpansByTraceID searches for spans from now to 0 time with steps.
-// In order to avoid scanning all data blocks, search is performed on time range splitting by traceSearchStep.
-// Once a trace is found, it assumes other spans will exist on the same time range, and only search this
-// time range (with traceMaxDurationWindow).
-//
-// e.g.
-//  1. find traces span on [now-traceSearchStep, now], no hit.
-//  2. find traces span on [now-2 * traceSearchStep, now - traceSearchStep], hit.
-//  3. make sure to include all the spans by an additional search on: [now-2 * traceSearchStep-traceMaxDurationWindow, now-2 * traceSearchStep].
-//  4. skip [0,  now-2 * traceSearchStep-traceMaxDurationWindow] and return.
-func findSpansByTraceID(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, error) {
-	// query: trace_id:traceID
-	currentTime := time.Now()
-	startTime := currentTime.Add(-*traceSearchStep)
-	endTime := currentTime
-	var (
-		rows []*Row
-		err  error
-	)
-	for startTime.UnixNano() > 0 { // todo: no need to search time range before retention period.
-		rows, err = findSpansByTraceIDAndTime(ctx, cp, traceID, startTime, endTime)
-		if err != nil {
-			return nil, err
-		}
-		// no hit in this time range, continue with step.
-		if len(rows) == 0 {
-			endTime = startTime
-			startTime = startTime.Add(-*traceSearchStep)
-			continue
-		}
-
-		// found result, perform extra search for traceMaxDurationWindow and then break.
-		extraRows, err := findSpansByTraceIDAndTime(ctx, cp, traceID, startTime.Add(-*traceMaxDurationWindow), startTime)
-		if err != nil {
-			return nil, err
-		}
-		rows = append(rows, extraRows...)
-		break
-	}
-	return rows, nil
+	return time.Time{}, vtstoragecommon.ErrOutOfRetention
 }
 
 // findSpansByTraceIDAndTime search for spans in given time range.
@@ -495,7 +461,6 @@ func findSpansByTraceIDAndTime(ctx context.Context, cp *CommonParams, traceID st
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
-
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctxWithCancel)

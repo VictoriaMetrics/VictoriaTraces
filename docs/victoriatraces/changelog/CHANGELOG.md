@@ -11,6 +11,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 * [How to build single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/#how-to-build-from-sources)
 
 ## tip
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): stop query at the earlier timestamp of the retention period when searching by a non-existed trace ID, and response earlier. See [#48](https://github.com/VictoriaMetrics/VictoriaTraces/issues/48) for details. Thank @JayiceZ for [the pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/49).
 
 ## [v0.4.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.4.0)
 

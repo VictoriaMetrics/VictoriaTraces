@@ -247,9 +247,10 @@ func pushFieldsFromSpan(span *otelpb.Span, scopeCommonFields []logstorage.Field,
 		// todo: @jiekun the trace ID field MUST be the last field. add extra ways to secure it.
 		logstorage.Field{Name: otelpb.TraceIDField, Value: span.TraceID},
 	)
-	lmp.AddRow(int64(span.EndTimeUnixNano), fields, nil)
 
-	// create an entity in trace-id-idx stream, if this trace_id hasn't been seen before.
+	// Create an entry in the trace-id-idx stream if this trace_id hasn't been seen before.
+	// The index entry must be written first to ensure that an index always exists for the data.
+	// During querying, if no index is found, the data must not exist.
 	if !traceIDCache.Has([]byte(span.TraceID)) {
 		lmp.AddRow(int64(span.StartTimeUnixNano), []logstorage.Field{
 			{Name: "_msg", Value: msgFieldValue},
@@ -258,6 +259,9 @@ func pushFieldsFromSpan(span *otelpb.Span, scopeCommonFields []logstorage.Field,
 		}, []logstorage.Field{{Name: otelpb.TraceIDIndexStreamName, Value: strconv.FormatUint(xxhash.Sum64String(span.TraceID)%otelpb.TraceIDIndexPartitionCount, 10)}})
 		traceIDCache.Set([]byte(span.TraceID), nil)
 	}
+
+	lmp.AddRow(int64(span.EndTimeUnixNano), fields, nil)
+
 	return fields
 }
 
