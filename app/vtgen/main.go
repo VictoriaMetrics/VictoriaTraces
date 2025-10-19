@@ -303,22 +303,22 @@ func generateSpanID() string {
 // 3. write the `[]byte` result to `./app/vtgen/testdata/testdata.bin`.
 //
 // You have to prepare the request body binary in advance.
-func readWrite() {
-	var bodyList [][]byte
-	for i := 0; i <= 99; i++ {
-		dat, err := os.ReadFile(fmt.Sprintf("%d.bin", i))
-		if err != nil {
-			panic(fmt.Sprintf("cannot read file %d: %v", i, err))
-		}
-		bodyList = append(bodyList, dat)
-	}
-
-	var buf bytes.Buffer
-	gobEnc := gob.NewEncoder(&buf)
-	if err := gobEnc.Encode(bodyList); err != nil {
-		panic(err)
-	}
-	var compressed []byte
-	compressed = zstd.CompressLevel(compressed, buf.Bytes(), 3)
-	os.WriteFile("./app/vtgen/testdata/testdata_grpc.bin", compressed, 0666)
-}
+//func readWrite() {
+//	var bodyList [][]byte
+//	for i := 0; i <= 99; i++ {
+//		dat, err := os.ReadFile(fmt.Sprintf("%d.bin", i))
+//		if err != nil {
+//			panic(fmt.Sprintf("cannot read file %d: %v", i, err))
+//		}
+//		bodyList = append(bodyList, dat)
+//	}
+//
+//	var buf bytes.Buffer
+//	gobEnc := gob.NewEncoder(&buf)
+//	if err := gobEnc.Encode(bodyList); err != nil {
+//		panic(err)
+//	}
+//	var compressed []byte
+//	compressed = zstd.CompressLevel(compressed, buf.Bytes(), 3)
+//	os.WriteFile("./app/vtgen/testdata/testdata_grpc.bin", compressed, 0666)
+//}

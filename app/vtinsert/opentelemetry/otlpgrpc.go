@@ -99,7 +99,6 @@ func GrpcExportHandler(r *http.Request, w http.ResponseWriter) {
 	}
 
 	writeExportTracesGrpcResponse(w, 0, "")
-	return
 }
 
 // +------------+---------------------------------------------+
@@ -167,8 +166,9 @@ func writeExportTracesGrpcResponse(w http.ResponseWriter, rejectedSpans int64, e
 	binary.BigEndian.PutUint32(rpb.B[1:5], uint32(len(b)))
 
 	// append prefix(5 bytes) and body to response bytes.
-	rb.Write(rpb.B)
-	rb.Write(b)
+	_, _ = rb.Write(rpb.B)
+	_, _ = rb.Write(b)
+
 	w.Header().Set("Content-Type", "application/grpc+proto")
 	w.Header().Set("Trailer", "grpc-status, grpc-message")
 	w.Header().Set("Grpc-Status", GrpcOk)
