@@ -16,9 +16,10 @@ aliases:
 
 ![Visualization with Grafana](grafana-jaeger.webp)
 
-Simply click "Add new data source" on Grafana, and then fill your VictoriaTraces URL to "Connection.URL". 
+Simply click "Add new data source" on Grafana, and then fill your VictoriaTraces URL to "Connection.URL".
 
 The URL format for VictoriaTraces single-node is:
+
 ```
 http://<victoria-traces>:10428/select/jaeger
 ```

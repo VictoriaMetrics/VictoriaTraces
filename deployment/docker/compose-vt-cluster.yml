@@ -31,35 +31,35 @@ services:
     restart: always
 
   vtinsert-1:
-    image: victoriametrics/victoria-traces:heads-master-0-g5c245ff53-dirty-e7d1e460
+    image: victoriametrics/victoria-traces:latest
     command:
       - "--storageNode=vtstorage-1:10428"
       - "--storageNode=vtstorage-2:10428"
   vtinsert-2:
-    image: victoriametrics/victoria-traces:heads-master-0-g5c245ff53-dirty-e7d1e460
+    image: victoriametrics/victoria-traces:latest
     command:
       - "--storageNode=vtstorage-1:10428"
       - "--storageNode=vtstorage-2:10428"
 
   vtselect-1:
-    image: victoriametrics/victoria-traces:heads-master-0-g5c245ff53-dirty-e7d1e460
+    image: victoriametrics/victoria-traces:latest
     command:
       - "--storageNode=vtstorage-1:10428"
       - "--storageNode=vtstorage-2:10428"
   vtselect-2:
-    image: victoriametrics/victoria-traces:heads-master-0-g5c245ff53-dirty-e7d1e460
+    image: victoriametrics/victoria-traces:latest
     command:
       - "--storageNode=vtstorage-1:10428"
       - "--storageNode=vtstorage-2:10428"
 
   vtstorage-1:
-    image: victoriametrics/victoria-traces:heads-master-0-g5c245ff53-dirty-e7d1e460
+    image: victoriametrics/victoria-traces:latest
     command:
       - "--storageDataPath=/vtraces"
     volumes:
       - vtdata-1:/vtraces
   vtstorage-2:
-    image: victoriametrics/victoria-traces:heads-master-0-g5c245ff53-dirty-e7d1e460
+    image: victoriametrics/victoria-traces:latest
     command:
       - "--storageDataPath=/vtraces"
     volumes:

@@ -2,6 +2,7 @@ package logsql
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -31,6 +32,10 @@ import (
 var (
 	maxQueryTimeRange = flagutil.NewExtendedDuration("search.maxQueryTimeRange", "0", "The maximum time range, which can be set in the query sent to querying APIs. "+
 		"Queries with bigger time ranges are rejected. See https://docs.victoriametrics.com/victorialogs/querying/#resource-usage-limits")
+
+	allowPartialResponseFlag = flag.Bool("search.allowPartialResponse", false, "Whether to allow returning partial responses when some of vtstorage nodes "+
+		"from the -storageNode list are unavailable for querying. This flag works only for cluster setup of VictoriaTraces. "+
+		"See https://docs.victoriametrics.com/victorialogs/querying/#partial-responses")
 )
 
 // ProcessFacetsRequest handles /select/logsql/facets request.
@@ -494,6 +499,7 @@ func ProcessStreamIDsRequest(ctx context.Context, w http.ResponseWriter, r *http
 	streamIDs, err := vtstorage.GetStreamIDs(qctx, uint64(limit))
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain stream_ids: %s", err)
+		return
 	}
 
 	// Write response headers
@@ -531,6 +537,7 @@ func ProcessStreamsRequest(ctx context.Context, w http.ResponseWriter, r *http.R
 	streams, err := vtstorage.GetStreams(qctx, uint64(limit))
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain streams: %s", err)
+		return
 	}
 
 	// Write response headers
@@ -543,7 +550,7 @@ func ProcessStreamsRequest(ctx context.Context, w http.ResponseWriter, r *http.R
 	WriteValuesWithHitsJSON(w, streams)
 }
 
-// ProcessLiveTailRequest processes live tailing request to /select/logsq/tail
+// ProcessLiveTailRequest processes live tailing request to /select/logsql/tail
 //
 // See https://docs.victoriametrics.com/victorialogs/querying/#live-tailing
 func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
@@ -1103,6 +1110,10 @@ type commonArgs struct {
 	// tenantIDs is the list of tenantIDs to query.
 	tenantIDs []logstorage.TenantID
 
+	// Whether to allow partial response when some of vlstorage nodes are unavailable for querying.
+	// This option makes sense only for cluster setup when vlselect queries vlstorage nodes.
+	allowPartialResponse bool
+
 	// minTimestamp and maxTimestamp is the time range specified in the original query,
 	// without taking into account extra_filters and (start, end) query args.
 	minTimestamp int64
@@ -1113,7 +1124,7 @@ type commonArgs struct {
 }
 
 func (ca *commonArgs) newQueryContext(ctx context.Context) *logstorage.QueryContext {
-	return logstorage.NewQueryContext(ctx, &ca.qs, ca.tenantIDs, ca.q)
+	return logstorage.NewQueryContext(ctx, &ca.qs, ca.tenantIDs, ca.q, ca.allowPartialResponse)
 }
 
 func (ca *commonArgs) updatePerQueryStatsMetrics() {
@@ -1133,19 +1144,24 @@ func parseCommonArgs(r *http.Request) (*commonArgs, error) {
 	tenantIDs := []logstorage.TenantID{tenantID}
 
 	// Parse optional start and end args
-	start, startStr, err := getTimeNsec(r, "start")
+	start, startOK, err := getTimeNsec(r, "start")
 	if err != nil {
 		return nil, err
 	}
-	end, endStr, err := getTimeNsec(r, "end")
+	end, endOK, err := getTimeNsec(r, "end")
 	if err != nil {
 		return nil, err
 	}
-	// Adjust end time according to its string representation
-	end = logstorage.AdjustEndTimestamp(end, endStr)
+	// Treat HTTP 'end' query arg as exclusive: [start, end)
+	// Convert to inclusive bound for internal filter by subtracting 1ns.
+	if endOK {
+		if end != math.MinInt64 {
+			end--
+		}
+	}
 
 	// Parse optional time arg
-	timestamp, timeStr, err := getTimeNsec(r, "time")
+	timestamp, timeOK, err := getTimeNsec(r, "time")
 	if err != nil {
 		return nil, err
 	}
@@ -1153,10 +1169,10 @@ func parseCommonArgs(r *http.Request) (*commonArgs, error) {
 	// to the first nanosecond at the next period of time (month, week, day, hour, etc.)
 	timestamp--
 
-	if timeStr == "" {
+	if !timeOK {
 		// If time arg is missing, then evaluate query either at the end timestamp (if it is set)
 		// or at the current timestamp (if end query arg isn't set)
-		if endStr != "" {
+		if endOK {
 			timestamp = end
 		} else {
 			timestamp = time.Now().UnixNano()
@@ -1172,12 +1188,12 @@ func parseCommonArgs(r *http.Request) (*commonArgs, error) {
 
 	minTimestamp, maxTimestamp := q.GetFilterTimeRange()
 
-	if startStr != "" || endStr != "" {
+	if startOK || endOK {
 		// Add _time:[start, end] filter if start or end args were set.
-		if startStr == "" {
+		if !startOK {
 			start = math.MinInt64
 		}
-		if endStr == "" {
+		if !endOK {
 			end = math.MaxInt64
 		}
 		q.AddTimeFilter(start, end)
@@ -1222,9 +1238,16 @@ func parseCommonArgs(r *http.Request) (*commonArgs, error) {
 		}
 	}
 
+	allowPartialResponse := *allowPartialResponseFlag
+	if err := getBoolFromRequest(&allowPartialResponse, r, "allow_partial_response"); err != nil {
+		return nil, err
+	}
+
 	ca := &commonArgs{
 		q:         q,
 		tenantIDs: tenantIDs,
+
+		allowPartialResponse: allowPartialResponse,
 
 		minTimestamp: minTimestamp,
 		maxTimestamp: maxTimestamp,
@@ -1237,17 +1260,17 @@ func timestampToString(nsecs int64) string {
 	return t.Format(time.RFC3339Nano)
 }
 
-func getTimeNsec(r *http.Request, argName string) (int64, string, error) {
+func getTimeNsec(r *http.Request, argName string) (int64, bool, error) {
 	s := r.FormValue(argName)
 	if s == "" {
-		return 0, "", nil
+		return 0, false, nil
 	}
 	currentTimestamp := time.Now().UnixNano()
 	nsecs, err := timeutil.ParseTimeAt(s, currentTimestamp)
 	if err != nil {
-		return 0, "", fmt.Errorf("cannot parse %s=%s: %w", argName, s, err)
+		return 0, false, fmt.Errorf("cannot parse %s=%s: %w", argName, s, err)
 	}
-	return nsecs, s, nil
+	return nsecs, true, nil
 }
 
 func parseExtraFilters(s string) (*logstorage.Filter, error) {
@@ -1371,6 +1394,19 @@ func getPositiveInt(r *http.Request, argName string) (int, error) {
 		return 0, fmt.Errorf("%q cannot be smaller than 0; got %d", argName, n)
 	}
 	return n, nil
+}
+
+func getBoolFromRequest(dst *bool, r *http.Request, argName string) error {
+	s := r.FormValue(argName)
+	if s == "" {
+		return nil
+	}
+	b, err := strconv.ParseBool(s)
+	if err != nil {
+		return fmt.Errorf("cannot parse %s=%q as bool: %w", argName, s, err)
+	}
+	*dst = b
+	return nil
 }
 
 func writeRequestDuration(h http.Header, startTime time.Time) {

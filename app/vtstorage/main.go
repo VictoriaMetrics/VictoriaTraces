@@ -1,6 +1,7 @@
 package vtstorage
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -16,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/metrics"
 
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/common"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/netinsert"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/netselect"
 )
@@ -418,6 +421,12 @@ func (*Storage) MustAddRows(lr *logstorage.LogRows) {
 	}
 }
 
+// isTimestampOutOfRetention check if nanosecond timestamp is earlier than retention.
+func isTimestampOutOfRetention(timestamp int64) bool {
+	minAllowedTimestamp := int64(fasttime.UnixTimestamp()*1000) - retentionPeriod.Milliseconds()
+	return timestamp/1000000 < minAllowedTimestamp
+}
+
 // RunQuery runs the given qctx and calls writeBlock for the returned data blocks
 func RunQuery(qctx *logstorage.QueryContext, writeBlock logstorage.WriteDataBlockFunc) error {
 	qOpt, offset, limit := qctx.Query.GetLastNResultsQuery()
@@ -427,6 +436,10 @@ func RunQuery(qctx *logstorage.QueryContext, writeBlock logstorage.WriteDataBloc
 	}
 
 	if localStorage != nil {
+		_, endTimestamp := qctx.Query.GetFilterTimeRange()
+		if isTimestampOutOfRetention(endTimestamp) {
+			return common.ErrOutOfRetention
+		}
 		return localStorage.RunQuery(qctx, writeBlock)
 	}
 	return netstorageSelect.RunQuery(qctx, writeBlock)
@@ -486,6 +499,13 @@ func GetStreamIDs(qctx *logstorage.QueryContext, limit uint64) ([]logstorage.Val
 		return localStorage.GetStreamIDs(qctx, limit)
 	}
 	return netstorageSelect.GetStreamIDs(qctx, limit)
+}
+
+func GetTenantIDsByTimeRange(ctx context.Context, startTime, endTime int64) ([]logstorage.TenantID, error) {
+	if localStorage == nil {
+		return nil, nil
+	}
+	return localStorage.GetTenantIDs(ctx, startTime, endTime)
 }
 
 func writeStorageMetrics(w io.Writer, strg *logstorage.Storage) {

@@ -466,10 +466,6 @@ func (sup *statsCountUniqHashProcessor) importState(src []byte, stopCh <-chan st
 		return stateSize, nil
 	}
 
-	if shardsLen != uint64(sup.concurrency) {
-		return 0, fmt.Errorf("unexpected number of imported shards: %d; want %d", shardsLen, sup.concurrency)
-	}
-
 	shards := make([]statsCountUniqHashSet, shardsLen)
 	stateSizeIncrease := int(unsafe.Sizeof(shards[0])) * len(shards)
 	for i := range shards {
@@ -484,9 +480,44 @@ func (sup *statsCountUniqHashProcessor) importState(src []byte, stopCh <-chan st
 	if len(src) > 0 {
 		return 0, fmt.Errorf("unexpected tail left after importing shards' state; len(tail)=%d", len(src))
 	}
-	sup.shards = shards
+
+	stateSizeIncrease = sup.importShards(shards, stateSizeIncrease)
 
 	return stateSizeIncrease, nil
+}
+
+func (sup *statsCountUniqHashProcessor) importShards(shards []statsCountUniqHashSet, stateSizeIncrease int) int {
+	if uint(len(shards)) == sup.concurrency {
+		// Fast path - nothing to reshard
+		sup.shards = shards
+		return stateSizeIncrease
+	}
+
+	// Slow path - reshard shards in order to align len(shards) with sup.concurrency.
+	// This case is possible when the remote side has different concurrency than the sup.concurrency.
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/682
+	stateSizeIncrease = 0
+	for i := range shards {
+		stateSizeIncrease += sup.importShard(&shards[i])
+	}
+	return stateSizeIncrease
+}
+
+func (sup *statsCountUniqHashProcessor) importShard(shard *statsCountUniqHashSet) int {
+	stateSizeIncrease := 0
+	for ts := range shard.timestamps {
+		stateSizeIncrease += sup.updateStateTimestamp(int64(ts))
+	}
+	for n := range shard.u64 {
+		stateSizeIncrease += sup.updateStateUint64(n)
+	}
+	for n := range shard.negative64 {
+		stateSizeIncrease += sup.updateStateNegativeInt64(int64(n))
+	}
+	for h := range shard.strings {
+		stateSizeIncrease += sup.updateStateStringHash(h)
+	}
+	return stateSizeIncrease
 }
 
 func (sup *statsCountUniqHashProcessor) finalizeStats(sf statsFunc, dst []byte, stopCh <-chan struct{}) []byte {
@@ -567,6 +598,10 @@ func (sup *statsCountUniqHashProcessor) updateStateInt64(n int64) int {
 
 func (sup *statsCountUniqHashProcessor) updateStateString(v []byte) int {
 	h := xxhash.Sum64(v)
+	return sup.updateStateStringHash(h)
+}
+
+func (sup *statsCountUniqHashProcessor) updateStateStringHash(h uint64) int {
 	if sup.shards == nil {
 		stateSizeIncrease := sup.uniqValues.updateStateStringHash(h)
 		if stateSizeIncrease > 0 {
@@ -574,10 +609,6 @@ func (sup *statsCountUniqHashProcessor) updateStateString(v []byte) int {
 		}
 		return stateSizeIncrease
 	}
-	return sup.updateStateStringHash(h)
-}
-
-func (sup *statsCountUniqHashProcessor) updateStateStringHash(h uint64) int {
 	sus := sup.getShardByStringHash(h)
 	return sus.updateStateStringHash(h)
 }

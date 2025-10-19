@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"encoding/binary"
 	"encoding/gob"
 	"encoding/hex"
 	"flag"
@@ -34,11 +35,18 @@ var (
 	authHeaders         = flag.String("authorizations", "", `authorization headers for each -addrs, split by ",".`)
 	worker              = flag.Int("worker", 4, "number of workers.")
 	logNTraceIDEvery10K = flag.Int("logEvery10k", 2, "how many trace id should be logged for every 10000 traces by each worker.")
+	grpcMode            = flag.Bool("grpcMode", false, "send data in otlp grpc instead of otlp http. this mode will send only (duplicated) test data as it's captured. only for ingestion test.")
+)
+
+var (
+	http2Client          *http.Client
+	requestHistogramList []*metrics.Histogram
+	errCountList         []*metrics.Counter
 )
 
 func main() {
-	// parse and validate cli flags.
-	addrList, authHeaderList := initFlags()
+	// parse and validate cli flags, init metrics
+	addrList, authHeaderList := initFlagsAndMetrics()
 
 	// load test data from file.
 	reqBodyList := loadTestData()
@@ -47,12 +55,6 @@ func main() {
 	limiter := rate.NewLimiter(rate.Limit(*spanRate), *spanRate)
 
 	// create metrics and pprof HTTP server
-	requestHistogramList := make([]*metrics.Histogram, len(addrList))
-	errCountList := make([]*metrics.Counter, len(addrList))
-	for i, addr := range addrList {
-		requestHistogramList[i] = metrics.NewHistogram(`vt_gen_http_request_duration_seconds{path="` + addr + `"}`)
-		errCountList[i] = metrics.NewCounter(`vt_gen_http_request_error_count{path="` + addr + `"}`)
-	}
 	http.HandleFunc("/metrics", func(w http.ResponseWriter, req *http.Request) {
 		metrics.WritePrometheus(w, true)
 	})
@@ -65,92 +67,7 @@ func main() {
 	for i := 0; i < *worker; i++ {
 		go func() {
 			for {
-				// The traceIDMap recorded old traceID->new traceID.
-				// Spans with same old traceID should be replaced with same new traceID.
-				traceIDMap := make(map[string]string)
-
-				// The timeOffset is the time offset of span timestamp and current timestamp.
-				// All spans' timestamp should be increased by this offset.
-				// This value should be initialized only once when iterating through the first span.
-				once := sync.Once{}
-				timeOffset := uint64(0)
-
-				// update the traceID and start_/end_timestamp of each span.
-				for i := range reqBodyList {
-					// the span count of this request. used for rate limiting.
-					spanCount := 0
-
-					// unmarshal binary request body to otelpb.ExportTraceServiceRequest
-					data := reqBodyList[i]
-					var req otelpb.ExportTraceServiceRequest
-					if err := req.UnmarshalProtobuf(data); err != nil {
-						panic(err)
-					}
-
-					// iterate all spans
-					for j := range req.ResourceSpans {
-						for k := range req.ResourceSpans[j].ScopeSpans {
-							spanCount += len(req.ResourceSpans[j].ScopeSpans[k].Spans)
-
-							for l := range req.ResourceSpans[j].ScopeSpans[k].Spans {
-								sp := req.ResourceSpans[j].ScopeSpans[k].Spans[l]
-
-								once.Do(func() {
-									timeOffset = uint64(time.Now().UnixNano()) - sp.StartTimeUnixNano
-								})
-								// replace TraceID
-								if tid, ok := traceIDMap[sp.TraceID]; ok {
-									// old traceID already seen. use the cached one.
-									sp.TraceID = tid
-								} else {
-									// generate a new traceID by md5(timestamp) and put it into cache.
-									traceID := generateTraceID()
-									oldTraceID := sp.TraceID
-									sp.TraceID = traceID
-									traceIDMap[oldTraceID] = traceID
-
-									// log traceID for query test if needed.
-									if rand.Intn(10000) < *logNTraceIDEvery10K {
-										logger.Infof(traceID)
-									}
-								}
-
-								// adjust the timestamp of the span.
-								sp.StartTimeUnixNano = sp.StartTimeUnixNano + timeOffset
-								sp.EndTimeUnixNano = sp.EndTimeUnixNano + timeOffset + uint64(rand.Int63n(100000000))
-							}
-						}
-					}
-
-					// rate limit
-					_ = limiter.WaitN(context.TODO(), spanCount)
-
-					// send request to each address.
-					for addrIdx, addr := range addrList {
-						// prepare request.
-						httpReq, err := http.NewRequest("POST", addr, bytes.NewReader(req.MarshalProtobuf(nil)))
-						if err != nil {
-							logger.Errorf("cannot create http request for addr %q: %s", addr, err)
-							continue
-						}
-						if *authHeaders != "" {
-							httpReq.Header.Add("authorization", authHeaderList[addrIdx])
-						}
-						httpReq.Header.Add("content-type", "application/x-protobuf")
-
-						// do request and record metrics.
-						startTime := time.Now()
-						res, err := http.DefaultClient.Do(httpReq)
-						if err != nil {
-							logger.Errorf("trace export error: %s", err)
-							errCountList[addrIdx].Add(1)
-						}
-						if res != nil {
-							res.Body.Close()
-						}
-						requestHistogramList[addrIdx].Update(time.Since(startTime).Seconds())
-					}
-				}
+				doHTPPRequest(reqBodyList, limiter, addrList, authHeaderList)
 			}
 		}()
 	}
@@ -158,7 +75,8 @@ func main() {
 	logger.Infof("received signal %s", sig)
 }
 
-func initFlags() ([]string, []string) {
+func initFlagsAndMetrics() ([]string, []string) {
+	// init flags
 	flag.Parse()
 	addrList := strings.Split(*addrs, ",")
 	for _, addr := range addrList {
@@ -170,6 +88,26 @@ func initFlags() ([]string, []string) {
 	if *authHeaders != "" && len(addrList) != len(authHeaderList) {
 		panic("len(addrList) != len(authHeaderList)")
 	}
+
+	// init metrics
+	requestHistogramList = make([]*metrics.Histogram, len(addrList))
+	errCountList = make([]*metrics.Counter, len(addrList))
+	for i, addr := range addrList {
+		requestHistogramList[i] = metrics.NewHistogram(`vt_gen_request_duration_seconds{addr="` + addr + `"}`)
+		errCountList[i] = metrics.NewCounter(`vt_gen_request_error_count{addr="` + addr + `"}`)
+	}
+
+	// init HTTP2 client
+	var protocols http.Protocols
+	protocols.SetUnencryptedHTTP2(true)
+	http2Client = &http.Client{
+		Transport: &http.Transport{
+			ForceAttemptHTTP2: true,
+			Protocols:         &protocols,
+		},
+	}
+
+	// return
 	return addrList, authHeaderList
 }
 
@@ -198,10 +136,165 @@ func loadTestData() [][]byte {
 	return bodyList
 }
 
+func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHeaderList []string) {
+	// The traceIDMap recorded old traceID->new traceID.
+	// Spans with same old traceID should be replaced with same new traceID.
+	traceIDMap := make(map[string]string)
+	spanIDMap := make(map[string]string)
+
+	// The timeOffset is the time offset of span timestamp and current timestamp.
+	// All spans' timestamp should be increased by this offset.
+	// This value should be initialized only once when iterating through the first span.
+	initTimeOnce := sync.Once{}
+	timeOffset := uint64(0)
+
+	// update the traceID and start_/end_timestamp of each span.
+	for idx := range reqBodyList {
+		spanCount := 0
+		var req otelpb.ExportTraceServiceRequest
+
+		// unmarshal binary request body to otelpb.ExportTraceServiceRequest
+		data := reqBodyList[idx]
+		if err := req.UnmarshalProtobuf(data); err != nil {
+			panic(err)
+		}
+
+		// iterate all spans
+		for j := range req.ResourceSpans {
+			for k := range req.ResourceSpans[j].ScopeSpans {
+				spanCount += len(req.ResourceSpans[j].ScopeSpans[k].Spans)
+
+				for l := range req.ResourceSpans[j].ScopeSpans[k].Spans {
+					sp := req.ResourceSpans[j].ScopeSpans[k].Spans[l]
+
+					initTimeOnce.Do(func() {
+						timeOffset = uint64(time.Now().UnixNano()) - sp.StartTimeUnixNano
+					})
+					// replace TraceID
+					if tid, ok := traceIDMap[sp.TraceID]; ok {
+						// old traceID already seen. use the cached one.
+						sp.TraceID = tid
+					} else {
+						// generate a new traceID by md5(timestamp) and put it into cache.
+						traceID := generateTraceID()
+						oldTraceID := sp.TraceID
+						sp.TraceID = traceID
+						traceIDMap[oldTraceID] = traceID
+
+						// log traceID for query test if needed.
+						if rand.Intn(10000) < *logNTraceIDEvery10K {
+							logger.Infof(traceID)
+						}
+					}
+
+					// replace SpanID
+					if sid, ok := spanIDMap[sp.SpanID]; ok {
+						sp.SpanID = sid
+					} else {
+						spanID := generateSpanID()
+						oldSpanID := sp.SpanID
+						sp.SpanID = spanID
+						spanIDMap[oldSpanID] = spanID
+					}
+
+					// replace parentSpanID
+					if sid, ok := spanIDMap[sp.ParentSpanID]; ok {
+						sp.ParentSpanID = sid
+					} else {
+						parentSpanID := generateSpanID()
+						oldParentSpanID := sp.ParentSpanID
+						sp.ParentSpanID = parentSpanID
+						spanIDMap[oldParentSpanID] = parentSpanID
+					}
+
+					// adjust the timestamp of the span.
+					sp.StartTimeUnixNano = sp.StartTimeUnixNano + timeOffset
+					sp.EndTimeUnixNano = sp.EndTimeUnixNano + timeOffset + uint64(rand.Int63n(100000000))
+				}
+			}
+		}
+
+		// rate limit
+		_ = limiter.WaitN(context.TODO(), spanCount)
+
+		// for OTLPHTTP, the request body is the marshaled ExportTraceServiceRequest
+		reqBytes := req.MarshalProtobuf(nil)
+		if *grpcMode {
+			// for OTLP in gRPC, it requires extra 5 bytes as flag, and then the marshaled ExportTraceServiceRequest as body.
+			flagBytes := make([]byte, 5)
+			binary.BigEndian.PutUint32(flagBytes[1:5], uint32(len(reqBytes)))
+			// this is not efficient, but easy to understand and ok for test tool.
+			reqBytes = append(flagBytes, reqBytes...)
+		}
+
+		// send request to each address.
+		for addrIdx, addr := range addrList {
+			var (
+				httpReq    *http.Request
+				err        error
+				httpClient = http.DefaultClient
+			)
+
+			// prepare request.
+			if *grpcMode {
+				httpReq, err = http.NewRequest("POST", addr+"/opentelemetry.proto.collector.trace.v1.TraceService/Export", bytes.NewReader(reqBytes))
+				if err != nil {
+					logger.Errorf("cannot create http request for addr %q: %s", addr, err)
+					continue
+				}
+				httpReq.Header.Add("Content-Type", "application/grpc")
+				httpReq.Header.Add("Grpc-Accept-Encoding", "snappy,zstd,gzip,zstdarrow1,zstdarrow2,zstdarrow3,zstdarrow4,zstdarrow5,zstdarrow6,zstdarrow7,zstdarrow8,zstdarrow9,zstdarrow10")
+				httpReq.Header.Add("Grpc-Timeout", "5000000u")
+				httpReq.Header.Add("Te", "trailers")
+				httpReq.Header.Add("User-Agent", "vtgen")
+				httpClient = http2Client
+			} else {
+				httpReq, err = http.NewRequest("POST", addr, bytes.NewReader(reqBytes))
+				if err != nil {
+					logger.Errorf("cannot create http request for addr %q: %s", addr, err)
+					continue
+				}
+				httpReq.Header.Add("content-type", "application/x-protobuf")
+			}
+
+			if *authHeaders != "" {
+				httpReq.Header.Add("authorization", authHeaderList[addrIdx])
+			}
+
+			// do request and record metrics.
+			startTime := time.Now()
+			res, err := httpClient.Do(httpReq)
+			if err != nil {
+				logger.Errorf("trace export error: %s", err)
+				errCountList[addrIdx].Add(1)
+			}
+			if res != nil {
+				res.Body.Close()
+			}
+			requestHistogramList[addrIdx].Update(time.Since(startTime).Seconds())
+		}
+	}
+}
+
+var traceIDMutex sync.Mutex
+
 func generateTraceID() string {
+	traceIDMutex.Lock()
+	defer traceIDMutex.Unlock()
+
 	h := md5.New()
 	h.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+var spanIDMutex sync.Mutex
+
+func generateSpanID() string {
+	spanIDMutex.Lock()
+	defer spanIDMutex.Unlock()
+	h := md5.New()
+	h.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
+	return hex.EncodeToString(h.Sum(nil))[:16]
 }
 
 // readWrite Does the following:
@@ -210,22 +303,22 @@ func generateTraceID() string {
 // 3. write the `[]byte` result to `./app/vtgen/testdata/testdata.bin`.
 //
 // You have to prepare the request body binary in advance.
-//func readWrite() {
-//	var bodyList [][]byte
-//	for i := 0; i <= 100; i++ {
-//		dat, err := os.ReadFile(fmt.Sprintf("%d.bin", i))
-//		if err != nil {
-//			panic(fmt.Sprintf("cannot read file %d: %v", i, err))
-//		}
-//		bodyList = append(bodyList, dat)
-//	}
-//
-//	var buf bytes.Buffer
-//	gobEnc := gob.NewEncoder(&buf)
-//	if err := gobEnc.Encode(bodyList); err != nil {
-//		panic(err)
-//	}
-//	var compressed []byte
-//	compressed = zstd.CompressLevel(compressed, buf.Bytes(), 3)
-//	os.WriteFile("./app/vtgen/testdata/testdata.bin", compressed, 0666)
-//}
+func readWrite() {
+	var bodyList [][]byte
+	for i := 0; i <= 99; i++ {
+		dat, err := os.ReadFile(fmt.Sprintf("%d.bin", i))
+		if err != nil {
+			panic(fmt.Sprintf("cannot read file %d: %v", i, err))
+		}
+		bodyList = append(bodyList, dat)
+	}
+
+	var buf bytes.Buffer
+	gobEnc := gob.NewEncoder(&buf)
+	if err := gobEnc.Encode(bodyList); err != nil {
+		panic(err)
+	}
+	var compressed []byte
+	compressed = zstd.CompressLevel(compressed, buf.Bytes(), 3)
+	os.WriteFile("./app/vtgen/testdata/testdata_grpc.bin", compressed, 0666)
+}

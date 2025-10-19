@@ -22,6 +22,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/metrics"
+
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/common"
 )
 
 const (
@@ -290,6 +292,12 @@ func (sn *storageNode) getResponseBodyForPathAndArgs(ctx context.Context, path s
 			Err:        fmt.Errorf("cannot connect to storage node at %q: %w", reqURL, err),
 			StatusCode: http.StatusBadGateway,
 		}
+	}
+
+	if resp.Header.Get(common.OutOfRetentionHeaderName) != "" {
+		// the netstorage will set this header only when the request time range
+		// is completely out of the retention period.
+		return nil, "", common.ErrOutOfRetention
 	}
 
 	if resp.StatusCode != http.StatusOK {

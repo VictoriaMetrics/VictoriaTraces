@@ -34,6 +34,9 @@ type QueryContext struct {
 	// Query is the query to execute.
 	Query *Query
 
+	// AllowPartialResponse indicates whether to allow partial response. This flag is used only in cluster setup when vlselect queries vlstorage nodes.
+	AllowPartialResponse bool
+
 	// startTime is creation time for the QueryContext.
 	//
 	// It is used for calculating query druation.
@@ -41,24 +44,24 @@ type QueryContext struct {
 }
 
 // NewQueryContext returns new context for the given query.
-func NewQueryContext(ctx context.Context, qs *QueryStats, tenantIDs []TenantID, q *Query) *QueryContext {
+func NewQueryContext(ctx context.Context, qs *QueryStats, tenantIDs []TenantID, q *Query, allowPartialResponse bool) *QueryContext {
 	startTime := time.Now()
-	return newQueryContext(ctx, qs, tenantIDs, q, startTime)
+	return newQueryContext(ctx, qs, tenantIDs, q, allowPartialResponse, startTime)
 }
 
 // WithQuery returns new QueryContext with the given q, while preserving other fields from qctx.
 func (qctx *QueryContext) WithQuery(q *Query) *QueryContext {
-	return newQueryContext(qctx.Context, qctx.QueryStats, qctx.TenantIDs, q, qctx.startTime)
+	return newQueryContext(qctx.Context, qctx.QueryStats, qctx.TenantIDs, q, qctx.AllowPartialResponse, qctx.startTime)
 }
 
 // WithContext returns new QueryContext with the given ctx, while preserving other fields from qctx.
 func (qctx *QueryContext) WithContext(ctx context.Context) *QueryContext {
-	return newQueryContext(ctx, qctx.QueryStats, qctx.TenantIDs, qctx.Query, qctx.startTime)
+	return newQueryContext(ctx, qctx.QueryStats, qctx.TenantIDs, qctx.Query, qctx.AllowPartialResponse, qctx.startTime)
 }
 
 // WithContextAndQuery returns new QueryContext with the given ctx and q, while preserving other fields from qctx.
 func (qctx *QueryContext) WithContextAndQuery(ctx context.Context, q *Query) *QueryContext {
-	return newQueryContext(ctx, qctx.QueryStats, qctx.TenantIDs, q, qctx.startTime)
+	return newQueryContext(ctx, qctx.QueryStats, qctx.TenantIDs, q, qctx.AllowPartialResponse, qctx.startTime)
 }
 
 // QueryDurationNsecs returns the duration in nanoseconds since the NewQueryContext call.
@@ -66,13 +69,21 @@ func (qctx *QueryContext) QueryDurationNsecs() int64 {
 	return time.Since(qctx.startTime).Nanoseconds()
 }
 
-func newQueryContext(ctx context.Context, qs *QueryStats, tenantIDs []TenantID, q *Query, startTime time.Time) *QueryContext {
+func newQueryContext(ctx context.Context, qs *QueryStats, tenantIDs []TenantID, q *Query, allowPartialResponse bool, startTime time.Time) *QueryContext {
+	if q.opts.allowPartialResponse != nil {
+		// query options override other settings for allowPartialResponse.
+		allowPartialResponse = *q.opts.allowPartialResponse
+	}
+
 	return &QueryContext{
 		Context:    ctx,
 		QueryStats: qs,
 		TenantIDs:  tenantIDs,
 		Query:      q,
-		startTime:  startTime,
+
+		AllowPartialResponse: allowPartialResponse,
+
+		startTime: startTime,
 	}
 }
 
@@ -192,21 +203,22 @@ func (s *Storage) runQuery(qctx *QueryContext, writeBlock writeBlockResultFunc) 
 		timeOffset:   -q.opts.timeOffset,
 	}
 
-	workersCount := q.GetConcurrency()
-
 	search := func(stopCh <-chan struct{}, writeBlockToPipes writeBlockResultFunc) error {
-		s.search(workersCount, so, qctx.QueryStats, stopCh, writeBlockToPipes)
+		workersCount := q.GetParallelReaders(s.defaultParallelReaders)
+		s.searchParallel(workersCount, so, qctx.QueryStats, stopCh, writeBlockToPipes)
 		return nil
 	}
 
-	return runPipes(qctx, q.pipes, search, writeBlock, workersCount)
+	concurrency := q.GetConcurrency()
+	return runPipes(qctx, q.pipes, search, writeBlock, concurrency)
 }
 
 // searchFunc must perform search and pass its results to writeBlock.
 type searchFunc func(stopCh <-chan struct{}, writeBlock writeBlockResultFunc) error
 
 func runPipes(qctx *QueryContext, pipes []pipe, search searchFunc, writeBlock writeBlockResultFunc, concurrency int) error {
-	ctx := qctx.Context
+	ctx, topCancel := context.WithCancel(qctx.Context)
+	defer topCancel()
 
 	stopCh := ctx.Done()
 	if len(pipes) == 0 {
@@ -214,7 +226,7 @@ func runPipes(qctx *QueryContext, pipes []pipe, search searchFunc, writeBlock wr
 		return search(stopCh, writeBlock)
 	}
 
-	pp := newNoopPipeProcessor(writeBlock)
+	pp := newNoopPipeProcessor(stopCh, writeBlock)
 	cancels := make([]func(), len(pipes))
 	pps := make([]pipeProcessor, len(pipes))
 
@@ -231,6 +243,10 @@ func runPipes(qctx *QueryContext, pipes []pipe, search searchFunc, writeBlock wr
 	}
 
 	errSearch := search(stopCh, pp.writeBlock)
+	if errSearch != nil {
+		// Cancel the whole query in order to free up resources occupied by pipes.
+		topCancel()
+	}
 
 	var errFlush error
 	for i, pp := range pps {
@@ -242,6 +258,9 @@ func runPipes(qctx *QueryContext, pipes []pipe, search searchFunc, writeBlock wr
 		}
 
 		if err := pp.flush(); err != nil && errFlush == nil {
+			// Cancel the whole query in order to free up resources occupied by the remaining pipes.
+			topCancel()
+
 			errFlush = err
 		}
 		cancel := cancels[i]
@@ -568,6 +587,86 @@ func (s *Storage) GetStreamIDs(qctx *QueryContext, limit uint64) ([]ValueWithHit
 	return s.GetFieldValues(qctx, "_stream_id", limit)
 }
 
+// GetTenantIDs returns tenantIDs for the given start and end.
+func (s *Storage) GetTenantIDs(ctx context.Context, start, end int64) ([]TenantID, error) {
+	return s.getTenantIDs(ctx, start, end)
+}
+
+func (s *Storage) getTenantIDs(ctx context.Context, start, end int64) ([]TenantID, error) {
+	workersCount := cgroup.AvailableCPUs()
+	stopCh := ctx.Done()
+
+	tenantIDByWorker := make([][]TenantID, workersCount)
+
+	// spin up workers
+	var wg sync.WaitGroup
+	workCh := make(chan *partition, workersCount)
+	for i := 0; i < workersCount; i++ {
+		wg.Add(1)
+		go func(workerID uint) {
+			defer wg.Done()
+			for pt := range workCh {
+				if needStop(stopCh) {
+					// The search has been canceled. Just skip all the scheduled work in order to save CPU time.
+					continue
+				}
+				tenantIDs := pt.idb.searchTenants()
+				tenantIDByWorker[workerID] = append(tenantIDByWorker[workerID], tenantIDs...)
+			}
+		}(uint(i))
+	}
+
+	// Select partitions according to the selected time range
+	s.partitionsLock.Lock()
+	ptws := s.partitions
+	minDay := start / nsecsPerDay
+	n := sort.Search(len(ptws), func(i int) bool {
+		return ptws[i].day >= minDay
+	})
+	ptws = ptws[n:]
+	maxDay := end / nsecsPerDay
+	n = sort.Search(len(ptws), func(i int) bool {
+		return ptws[i].day > maxDay
+	})
+	ptws = ptws[:n]
+
+	// Copy the selected partitions, so they don't interfere with s.partitions.
+	ptws = append([]*partitionWrapper{}, ptws...)
+
+	for _, ptw := range ptws {
+		ptw.incRef()
+	}
+	s.partitionsLock.Unlock()
+
+	// Schedule concurrent search across matching partitions.
+	for _, ptw := range ptws {
+		workCh <- ptw.pt
+	}
+
+	// Wait until workers finish their work
+	close(workCh)
+	wg.Wait()
+
+	// Decrement references to partitions
+	for _, ptw := range ptws {
+		ptw.decRef()
+	}
+
+	uniqTenantIDs := make(map[TenantID]struct{})
+	for _, tenantIDs := range tenantIDByWorker {
+		for _, tenantID := range tenantIDs {
+			uniqTenantIDs[tenantID] = struct{}{}
+		}
+	}
+
+	tenants := make([]TenantID, 0, len(uniqTenantIDs))
+	for k := range uniqTenantIDs {
+		tenants = append(tenants, k)
+	}
+
+	return tenants, nil
+}
+
 func (s *Storage) runValuesWithHitsQuery(qctx *QueryContext) ([]ValueWithHits, error) {
 	var results []ValueWithHits
 	var resultsLock sync.Mutex
@@ -631,10 +730,10 @@ func initSubqueries(qctx *QueryContext, runQuery runQueryFunc, keepInSubquery bo
 	}
 	qNew = initUnionQueries(qNew, runUnionQuery)
 
-	return initStreamContextPipes(qctx.QueryStats, qNew, runQuery)
+	return initStreamContextPipes(qctx, qNew, runQuery)
 }
 
-func initStreamContextPipes(qs *QueryStats, q *Query, runQuery runQueryFunc) (*Query, error) {
+func initStreamContextPipes(qctx *QueryContext, q *Query, runQuery runQueryFunc) (*Query, error) {
 	pipes := q.pipes
 
 	if len(pipes) == 0 {
@@ -652,7 +751,7 @@ func initStreamContextPipes(qs *QueryStats, q *Query, runQuery runQueryFunc) (*Q
 		fieldsFilter := getNeededColumns(pipes)
 
 		pipesNew := append([]pipe{}, pipes...)
-		pipesNew[0] = pc.withRunQuery(qs, runQuery, fieldsFilter)
+		pipesNew[0] = pc.withRunQuery(qctx, runQuery, fieldsFilter)
 		qNew := q.cloneShallow()
 		qNew.pipes = pipesNew
 		return qNew, nil
@@ -1123,14 +1222,15 @@ func (db *DataBlock) initFromBlockResult(br *blockResult) {
 
 // search searches for the matching rows according to so.
 //
-// It calls writeBlock for each matching block.
-func (s *Storage) search(workersCount int, so *genericSearchOptions, qs *QueryStats, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
-	// Spin up workers
-	var wgWorkers sync.WaitGroup
+// It uses workersCount parallel workers for the search and calls writeBlock for each matching block.
+func (s *Storage) searchParallel(workersCount int, so *genericSearchOptions, qs *QueryStats, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
+	// spin up workers
+	var wg sync.WaitGroup
 	workCh := make(chan *blockSearchWorkBatch, workersCount)
-	wgWorkers.Add(workersCount)
-	for i := 0; i < workersCount; i++ {
+	for workerID := 0; workerID < workersCount; workerID++ {
+		wg.Add(1)
 		go func(workerID uint) {
+			defer wg.Done()
 			qsLocal := &QueryStats{}
 			bs := getBlockSearch()
 			bm := getBitmap(0)
@@ -1165,8 +1265,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, qs *QuerySt
 			putBlockSearch(bs)
 			putBitmap(bm)
 			qs.UpdateAtomic(qsLocal)
-			wgWorkers.Done()
-		}(uint(i))
+		}(uint(workerID))
 	}
 
 	// Select partitions according to the selected time range
@@ -1215,7 +1314,7 @@ func (s *Storage) search(workersCount int, so *genericSearchOptions, qs *QuerySt
 
 	// Wait until workers finish their work
 	close(workCh)
-	wgWorkers.Wait()
+	wg.Wait()
 
 	// Finalize partition search
 	for _, psf := range psfs {

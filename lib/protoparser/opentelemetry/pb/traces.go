@@ -93,7 +93,7 @@ func (r *ExportTraceServiceRequest) UnmarshalJSONCustom(src []byte) (err error) 
 // ExportTraceServiceResponse represent the OTLP export trace grpc response message
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.8.0/opentelemetry/proto/collector/trace/v1/trace_service.proto#L43
 type ExportTraceServiceResponse struct {
-	ExportTracePartialSuccess ExportTracePartialSuccess
+	ExportTracePartialSuccess *ExportTracePartialSuccess
 }
 
 // MarshalProtobuf marshals r to protobuf message, appends it to dst and returns the result.
@@ -109,7 +109,9 @@ func (r *ExportTraceServiceResponse) marshalProtobuf(mm *easyproto.MessageMarsha
 	//message ExportTraceServiceResponse {
 	//	ExportTracePartialSuccess partial_success = 1;
 	//}
-	r.ExportTracePartialSuccess.marshalProtobuf(mm.AppendMessage(1))
+	if r.ExportTracePartialSuccess != nil {
+		r.ExportTracePartialSuccess.marshalProtobuf(mm.AppendMessage(1))
+	}
 }
 
 // ExportTracePartialSuccess represent partial success description in grpc response

@@ -93,7 +93,7 @@
     {
       "datasource": {
         "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
+        "uid": "${ds}"
       },
       "description": "Total amount of trace spans in the storage.",
       "fieldConfig": {
@@ -446,9 +446,27 @@
       "type": "stat"
     },
     {
-      "description": "See [latest releases](https://docs.victoriametrics.com/victoriatraces/changelog/).",
+      "datasource": {
+        "type": "victoriametrics-metrics-datasource",
+        "uid": "$ds"
+      },
+      "description": "How many spans are ingested per second.",
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "short"
+        },
         "overrides": []
       },
       "gridPos": {
@@ -457,19 +475,46 @@
         "x": 0,
         "y": 5
       },
-      "id": 138,
+      "id": 144,
+      "maxDataPoints": 100,
       "options": {
-        "code": {
-          "language": "plaintext",
-          "showLineNumbers": false,
-          "showMiniMap": false
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "content": "<div style=\"text-align: center;\">$version</div>",
-        "mode": "markdown"
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
       },
       "pluginVersion": "12.0.2",
-      "title": "Version",
-      "type": "text"
+      "targets": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(rate(vt_storage_rows{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
+          "format": "time_series",
+          "instant": true,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "total",
+          "refId": "A"
+        }
+      ],
+      "title": "Ingested spans/s",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -755,7 +800,7 @@
       "type": "stat"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -763,736 +808,737 @@
         "y": 9
       },
       "id": 18,
-      "panels": [],
+      "panels": [
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Ingestion rate in number of trace spans and bytes per second.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": "/.*(bytes)/"
+                },
+                "properties": [
+                  {
+                    "id": "custom.axisPlacement",
+                    "value": "right"
+                  },
+                  {
+                    "id": "unit",
+                    "value": "bytes"
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 10
+          },
+          "id": 2,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vt_rows_ingested_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
+              "format": "time_series",
+              "hide": false,
+              "intervalFactor": 1,
+              "legendFormat": "{{type}}",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vt_bytes_ingested_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{type}} (bytes)",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Trace spans ingestion rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "* `*` - unsupported query path\n* `/insert` - [inserts](https://docs.victoriametrics.com/victoriatraces/data-ingestion/)\n* `/select` - [reads](https://docs.victoriametrics.com/victoriatraces/querying/)\n* `/metrics` - scraping of system metrics",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 10
+          },
+          "id": 14,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vt_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{path}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Requests rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "* `*` - unsupported query path\n* `/insert` - [inserts](https://docs.victoriametrics.com/victoriatraces/data-ingestion/)\n* `/select` - [reads](https://docs.victoriametrics.com/victoriatraces/querying/)\n* `/metrics` - scraping of system metrics",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 18
+          },
+          "id": 69,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path)",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{path}}",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(rate(vt_http_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{path}}",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Requests error rate",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "99th percentile response time for VictoriaTraces HTTP endpoints, grouped by instance and path. This means 99% of requests are faster than this value. **Lower numbers are better**, as they indicate faster responses and fewer slow requests.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "noValue": "0",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 18
+          },
+          "id": 66,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(vt_http_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\"}) by (path) > 0",
+              "format": "time_series",
+              "intervalFactor": 1,
+              "legendFormat": "{{path}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Request duration p99",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Amount of on-disk space occupied by all the data stored in the storage.\n\nSee how to [control disk usage](https://docs.victoriametrics.com/victoriatraces/#retention-by-disk-space-usage).",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "axisSoftMax": 1,
+                "axisSoftMin": 0,
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "bytes"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 26
+          },
+          "id": 6,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(vt_total_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{instance}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Disk space usage",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "victoriametrics-metrics-datasource",
+            "uid": "$ds"
+          },
+          "description": "Rate of VictoriaTraces' own application log messages (errors, warnings, debug)",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "bars",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".*warn:.*"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "orange",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byRegexp",
+                  "options": ".*error:.*"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "red",
+                      "mode": "fixed"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 26
+          },
+          "id": 67,
+          "options": {
+            "legend": {
+              "calcs": [
+                "lastNotNull",
+                "mean",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "victoriametrics-metrics-datasource",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (instance, level, location)",
+              "interval": "5m",
+              "legendFormat": "{{instance}} - {{level}}: {{location}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Logging rate",
+          "type": "timeseries"
+        }
+      ],
       "title": "Overview",
       "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
-      "description": "Ingestion rate in number of trace spans and bytes per second.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "/.*(bytes)/"
-            },
-            "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              },
-              {
-                "id": "unit",
-                "value": "bytes"
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 10
-      },
-      "id": 2,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vt_rows_ingested_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
-          "format": "time_series",
-          "hide": false,
-          "intervalFactor": 1,
-          "legendFormat": "{{type}}",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vt_bytes_ingested_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "{{type}} (bytes)",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "Trace spans ingestion rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
-      "description": "* `*` - unsupported query path\n* `/insert` - [inserts](https://docs.victoriametrics.com/victoriatraces/data-ingestion/)\n* `/select` - [reads](https://docs.victoriametrics.com/victoriatraces/querying/)\n* `/metrics` - scraping of system metrics",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "min": 0,
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 10
-      },
-      "id": 14,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vt_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
-          "format": "time_series",
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "{{path}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Requests rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
-      "description": "* `*` - unsupported query path\n* `/insert` - [inserts](https://docs.victoriametrics.com/victoriatraces/data-ingestion/)\n* `/select` - [reads](https://docs.victoriametrics.com/victoriatraces/querying/)\n* `/metrics` - scraping of system metrics",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 18
-      },
-      "id": 69,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path)",
-          "format": "time_series",
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "{{path}}",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "exemplar": false,
-          "expr": "sum(rate(vt_http_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path)",
-          "format": "time_series",
-          "hide": false,
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "{{path}}",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "Requests error rate",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
-      "description": "99th percentile response time for VictoriaTraces HTTP endpoints, grouped by instance and path. This means 99% of requests are faster than this value. **Lower numbers are better**, as they indicate faster responses and fewer slow requests.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "min": 0,
-          "noValue": "0",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 18
-      },
-      "id": 66,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "max(vt_http_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\"}) by (path) > 0",
-          "format": "time_series",
-          "intervalFactor": 1,
-          "legendFormat": "{{path}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Request duration p99",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
-      "description": "Amount of on-disk space occupied by all the data stored in the storage.\n\nSee how to [control disk usage](https://docs.victoriametrics.com/victoriatraces/#retention-by-disk-space-usage).",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "axisSoftMax": 1,
-            "axisSoftMin": 0,
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "links": [],
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 26
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean",
-            "lastNotNull",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "max(vt_total_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
-          "format": "time_series",
-          "hide": false,
-          "interval": "",
-          "intervalFactor": 1,
-          "legendFormat": "{{instance}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "Disk space usage",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "victoriametrics-metrics-datasource",
-        "uid": "$ds"
-      },
-      "description": "Rate of VictoriaTraces' own application log messages (errors, warnings, debug)",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "bars",
-            "fillOpacity": 0,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": ".*warn:.*"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "orange",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": ".*error:.*"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "red",
-                  "mode": "fixed"
-                }
-              }
-            ]
-          }
-        ]
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 26
-      },
-      "id": 67,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull",
-            "mean",
-            "max"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Last *",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "victoriametrics-metrics-datasource",
-            "uid": "$ds"
-          },
-          "editorMode": "code",
-          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (instance, level, location)",
-          "interval": "5m",
-          "legendFormat": "{{instance}} - {{level}}: {{location}}",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "title": "VictoriaTraces internal logging",
-      "type": "timeseries"
     },
     {
       "collapsed": true,
@@ -1500,7 +1546,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 34
+        "y": 10
       },
       "id": 28,
       "panels": [
@@ -1540,7 +1586,7 @@
             "h": 5,
             "w": 7,
             "x": 0,
-            "y": 157
+            "y": 11
           },
           "id": 79,
           "maxDataPoints": 100,
@@ -1651,7 +1697,7 @@
             "h": 10,
             "w": 17,
             "x": 7,
-            "y": 157
+            "y": 11
           },
           "id": 38,
           "options": {
@@ -1720,7 +1766,7 @@
             "h": 5,
             "w": 7,
             "x": 0,
-            "y": 202
+            "y": 16
           },
           "id": 78,
           "maxDataPoints": 100,
@@ -1830,7 +1876,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 207
+            "y": 21
           },
           "id": 40,
           "options": {
@@ -1967,7 +2013,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 207
+            "y": 21
           },
           "id": 118,
           "options": {
@@ -2064,8 +2110,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2081,7 +2126,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 215
+            "y": 29
           },
           "id": 73,
           "options": {
@@ -2103,7 +2148,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2194,8 +2239,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   }
                 ]
               },
@@ -2207,7 +2251,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 215
+            "y": 29
           },
           "id": 72,
           "options": {
@@ -2229,7 +2273,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2314,8 +2358,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2344,7 +2387,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 223
+            "y": 37
           },
           "id": 56,
           "options": {
@@ -2366,7 +2409,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2454,8 +2497,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2487,7 +2529,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 223
+            "y": 37
           },
           "id": 46,
           "options": {
@@ -2509,7 +2551,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2580,8 +2622,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2610,7 +2651,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 231
+            "y": 45
           },
           "id": 52,
           "options": {
@@ -2632,7 +2673,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2721,8 +2762,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   }
                 ]
               },
@@ -2734,7 +2774,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 231
+            "y": 45
           },
           "id": 74,
           "options": {
@@ -2756,7 +2796,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2842,8 +2882,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2859,7 +2898,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 239
+            "y": 53
           },
           "id": 60,
           "options": {
@@ -2881,7 +2920,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2952,8 +2991,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2969,7 +3007,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 239
+            "y": 53
           },
           "id": 50,
           "options": {
@@ -2991,7 +3029,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -3061,8 +3099,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3078,7 +3115,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 247
+            "y": 61
           },
           "id": 58,
           "options": {
@@ -3100,7 +3137,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -3171,8 +3208,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3188,7 +3224,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 247
+            "y": 61
           },
           "id": 54,
           "options": {
@@ -3210,7 +3246,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -3281,8 +3317,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3298,7 +3333,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 255
+            "y": 69
           },
           "id": 119,
           "options": {
@@ -3318,7 +3353,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -3390,8 +3425,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -3407,7 +3441,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 255
+            "y": 69
           },
           "id": 61,
           "options": {
@@ -3427,7 +3461,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -3457,7 +3491,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 35
+        "y": 11
       },
       "id": 68,
       "panels": [
@@ -3530,7 +3564,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 158
+            "y": 12
           },
           "id": 62,
           "options": {
@@ -3639,7 +3673,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 158
+            "y": 12
           },
           "id": 26,
           "options": {
@@ -3744,7 +3778,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 166
+            "y": 20
           },
           "id": 70,
           "options": {
@@ -3872,7 +3906,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 166
+            "y": 20
           },
           "id": 71,
           "options": {
@@ -3937,7 +3971,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 12
       },
       "id": 82,
       "panels": [
@@ -3969,7 +4003,7 @@
             "h": 8,
             "w": 3,
             "x": 0,
-            "y": 345
+            "y": 13
           },
           "id": 88,
           "maxDataPoints": 100,
@@ -4015,7 +4049,7 @@
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "description": "Number of storage parts (data files) in each tier. More parts mean fragmentation; fewer parts suggest successful merging. High part counts may slow queries and trigger background merge operations.",
           "fieldConfig": {
@@ -4077,7 +4111,7 @@
             "h": 8,
             "w": 9,
             "x": 3,
-            "y": 345
+            "y": 13
           },
           "id": 84,
           "options": {
@@ -4122,7 +4156,7 @@
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "description": "Disk space usage and limits for VictoriaTraces storage. Tracks current data usage against the configured retention limit or available disk space.\n\nThe red line indicates the space retention limit. When usage approaches this limit, older data will be automatically deleted. If the space retention limit (`-retention.maxDiskSpaceUsageBytes`) is not specified, the red line represents the maximum disk space. In that case, the storage will switch to read-only mode when the limit is reached.",
           "fieldConfig": {
@@ -4206,7 +4240,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 345
+            "y": 13
           },
           "id": 110,
           "options": {
@@ -4247,7 +4281,7 @@
             {
               "datasource": {
                 "type": "victoriametrics-metrics-datasource",
-                "uid": "${ds}"
+                "uid": "$ds"
               },
               "editorMode": "code",
               "exemplar": true,
@@ -4329,7 +4363,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 353
+            "y": 21
           },
           "id": 112,
           "options": {
@@ -4356,7 +4390,7 @@
             {
               "datasource": {
                 "type": "victoriametrics-metrics-datasource",
-                "uid": "${ds}"
+                "uid": "$ds"
               },
               "editorMode": "code",
               "exemplar": true,
@@ -4437,7 +4471,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 353
+            "y": 21
           },
           "id": 86,
           "options": {
@@ -4464,7 +4498,7 @@
             {
               "datasource": {
                 "type": "victoriametrics-metrics-datasource",
-                "uid": "${ds}"
+                "uid": "$ds"
               },
               "editorMode": "code",
               "exemplar": true,
@@ -4546,7 +4580,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 361
+            "y": 29
           },
           "id": 109,
           "options": {
@@ -4573,7 +4607,7 @@
             {
               "datasource": {
                 "type": "victoriametrics-metrics-datasource",
-                "uid": "${ds}"
+                "uid": "$ds"
               },
               "editorMode": "code",
               "exemplar": true,
@@ -4598,7 +4632,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 13
       },
       "id": 83,
       "panels": [
@@ -4686,7 +4720,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2682
+            "y": 14
           },
           "id": 113,
           "options": {
@@ -4808,7 +4842,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2682
+            "y": 14
           },
           "id": 117,
           "options": {
@@ -4917,7 +4951,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2690
+            "y": 22
           },
           "id": 103,
           "options": {
@@ -5026,7 +5060,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2690
+            "y": 22
           },
           "id": 116,
           "options": {
@@ -5136,7 +5170,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2698
+            "y": 30
           },
           "id": 97,
           "options": {
@@ -5258,7 +5292,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2698
+            "y": 30
           },
           "id": 104,
           "options": {
@@ -5383,7 +5417,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2706
+            "y": 38
           },
           "id": 143,
           "options": {
@@ -5491,7 +5525,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2706
+            "y": 38
           },
           "id": 131,
           "options": {
@@ -5596,7 +5630,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2714
+            "y": 46
           },
           "id": 115,
           "options": {
@@ -5647,7 +5681,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 14
       },
       "id": 81,
       "panels": [
@@ -5719,7 +5753,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2683
+            "y": 15
           },
           "id": 102,
           "options": {
@@ -5829,7 +5863,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2683
+            "y": 15
           },
           "id": 108,
           "options": {
@@ -5953,7 +5987,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2691
+            "y": 23
           },
           "id": 107,
           "options": {
@@ -6076,7 +6110,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2691
+            "y": 23
           },
           "id": 132,
           "options": {
@@ -6120,14 +6154,14 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 15
       },
       "id": 126,
       "panels": [
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "description": "Number of storage blocks scanned per query (99th percentile). Each block contains trace spans for a specific time period and field combination. High values indicate queries scanning too many blocks, often caused by:\n\n- Wide time ranges without specific filters\n- Queries missing indexed fields (like `_stream`, `kubernetes.*`)\n- Non-selective filters that don't utilize `bloom filters`\n\nCorrelate with `Bytes/query p99` - if blocks are high but bytes are low, blocks contain little data (good). If both are high, query is reading large amounts of data.",
           "fieldConfig": {
@@ -6191,7 +6225,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2684
+            "y": 2894
           },
           "id": 130,
           "options": {
@@ -6236,7 +6270,7 @@
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "description": "Total bytes read from disk per query (99th percentile). This represents the complete `I/O` overhead for query execution, including:\n\n- Block headers and metadata\n- Bloom filter data for candidate selection\n- Column headers and indexes\n- Actual trace span contents\n\nHigh values indicate expensive queries. Compare with specific breakdown panels below to identify bottlenecks. Monitor trends over time and correlate with query complexity.",
           "fieldConfig": {
@@ -6300,7 +6334,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2684
+            "y": 2894
           },
           "id": 121,
           "options": {
@@ -6345,7 +6379,7 @@
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "description": "Bytes read from block headers per query (99th percentile). Block headers contain metadata about each storage block including `time ranges`, `field names`, and data location pointers.\n\nHigh values indicate:\n- Query `time range` spans many blocks (reduce time range or add time-based filters)\n- Missing stream-level filters (`_stream` field) causing full block header scans\n- High cardinality fields creating excessive blocks\n\nMonitor relative changes over time - sudden increases suggest inefficient query patterns or changes in data structure.",
           "fieldConfig": {
@@ -6409,7 +6443,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2692
+            "y": 2902
           },
           "id": 124,
           "options": {
@@ -6454,7 +6488,7 @@
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "description": "Bytes read from Bloom filters per query (99th percentile). `Bloom filters` are probabilistic data structures that quickly eliminate blocks that definitely don't contain search terms.\n\nHigh values indicate:\n- Queries with low-selectivity text filters (common words like `error`, `info`)\n- Missing or ineffective field-based filters\n- Queries that force scanning many candidate blocks\n\nOptimize by adding specific field filters (`kubernetes.container_name`, `_stream`) before text searches. Monitor for sudden increases that indicate poor filter selectivity.",
           "fieldConfig": {
@@ -6518,7 +6552,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2692
+            "y": 2902
           },
           "id": 129,
           "options": {
@@ -6561,7 +6595,7 @@
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "description": "Bytes read from actual trace span contents per query (99th percentile). This represents the uncompressed trace spans being retrieved and processed for the query result.\n\nHigh values indicate:\n- Queries returning large result sets (add `LIMIT` clause)\n- Retrieving trace spans with large payloads (`JSON` objects, stack traces)\n- Missing filters that would reduce matching trace span volume\n- Functions like `uniq` or `stats` processing many trace spans\n\nReduce by: adding selective filters, limiting result count.",
           "fieldConfig": {
@@ -6625,7 +6659,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2700
+            "y": 2910
           },
           "id": 122,
           "options": {
@@ -6670,7 +6704,7 @@
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "description": "Bytes read from timestamp column (`_time`) per query (99th percentile). The `_time` column is automatically indexed and used for time-range filtering during query execution.\n\nHigh values indicate:\n- Queries with very wide time ranges requiring timestamp scanning\n- Time-based aggregations over large datasets\n- Missing time-range restrictions in query filters\n\nThis is usually the smallest component of query `I/O`. Spikes correlate with time range width and data density in the queried period.",
           "fieldConfig": {
@@ -6734,7 +6768,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2700
+            "y": 2910
           },
           "id": 127,
           "options": {
@@ -6779,7 +6813,7 @@
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "description": "Bytes read from column header indexes per query (99th percentile). `Column header indexes` contain metadata about which fields exist in each block and their data types.\n\nHigh values suggest:\n- Queries scanning many blocks due to missing field filters\n- High field cardinality creating large index structures\n- Queries accessing many different field names across blocks\n- Schema evolution causing index fragmentation\n\nOptimize by using consistent `field names` and adding field-specific filters early in query pipeline.",
           "fieldConfig": {
@@ -6843,7 +6877,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2708
+            "y": 2918
           },
           "id": 128,
           "options": {
@@ -6888,7 +6922,7 @@
         {
           "datasource": {
             "type": "victoriametrics-metrics-datasource",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "description": "Bytes read from column headers per query (99th percentile). `Column headers` store the actual field schema and compression metadata for each block's columns.\n\nThis metric helps identify:\n- Schema complexity overhead (many fields per trace span)\n- Inefficient field access patterns\n- Blocks with heterogeneous schemas requiring header reads\n\nCompare with other `I/O` breakdown panels to understand query cost distribution. High column header reads suggest schema optimization opportunities or need for more selective field access patterns.",
           "fieldConfig": {
@@ -6952,7 +6986,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2708
+            "y": 2918
           },
           "id": 123,
           "options": {
@@ -7028,7 +7062,7 @@
         },
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
-          "uid": "$ds"
+          "uid": "${ds}"
         },
         "definition": "label_values(vm_app_version{version=~\"victoria-traces-.*\"}, job)",
         "includeAll": false,
@@ -7045,9 +7079,7 @@
       {
         "current": {
           "text": "All",
-          "value": [
-            "$__all"
-          ]
+          "value": "$__all"
         },
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
@@ -7068,8 +7100,8 @@
       },
       {
         "current": {
-          "text": "v0.1.0",
-          "value": "v0.1.0"
+          "text": "v0.3.0",
+          "value": "v0.3.0"
         },
         "datasource": {
           "type": "victoriametrics-metrics-datasource",
@@ -7107,6 +7139,6 @@
   "timepicker": {},
   "timezone": "",
   "title": "VictoriaTraces - single-node",
-  "uid": "OqPIZTX5z",
+  "uid": "10dbc46d-e6fe-46c9-8ee2-57783dd70695",
   "version": 1
 }

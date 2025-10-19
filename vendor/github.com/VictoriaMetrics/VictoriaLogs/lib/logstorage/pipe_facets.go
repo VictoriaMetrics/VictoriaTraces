@@ -63,7 +63,11 @@ func (pf *pipeFacets) splitToRemoteAndLocal(timestamp int64) (pipe, []pipe) {
 	pRemote := *pf
 	pRemote.limit = math.MaxUint64
 
-	psLocalStr := fmt.Sprintf("stats by (field_name, field_value) sum(hits) as hits | sort by (hits desc) limit %d partition by (field_name) | sort by (field_name, hits desc)", pf.limit)
+	psLocalStr := fmt.Sprintf(`stats by (field_name, field_value) sum(hits) as hits
+	        | total_stats by (field_name) count() as field_values_count
+		| filter field_values_count:<=%d
+		| sort by (hits desc) limit %d partition by (field_name)
+		| sort by (field_name, hits desc)`, pf.maxValuesPerField, pf.limit)
 	psLocal := mustParsePipes(psLocalStr, timestamp)
 
 	return &pRemote, psLocal
@@ -351,6 +355,7 @@ func (pfp *pipeFacetsProcessor) flush() error {
 		return nil
 	}
 
+	ignoreFields := make(map[string]bool)
 	hmasByFieldName := make(map[string][]*hitsMapAdaptive)
 	rowsTotal := uint64(0)
 	for _, shard := range shards {
@@ -358,7 +363,12 @@ func (pfp *pipeFacetsProcessor) flush() error {
 			return nil
 		}
 		for fieldName, fhs := range shard.m {
+			if ignoreFields[fieldName] {
+				continue
+			}
 			if fhs.mustIgnore {
+				ignoreFields[fieldName] = true
+				delete(hmasByFieldName, fieldName)
 				continue
 			}
 			hmasByFieldName[fieldName] = append(hmasByFieldName[fieldName], &fhs.m)

@@ -34,8 +34,8 @@ type pipeStreamContext struct {
 	// timeWindow is the time window in nanoseconds for searching for surrounding logs
 	timeWindow int64
 
-	// qs, runQuery and fieldsFilter must be initialized via withRunQuery().
-	qs           *QueryStats
+	// qctx, runQuery and fieldsFilter must be initialized via withRunQuery().
+	qctx         *QueryContext
 	runQuery     runQueryFunc
 	fieldsFilter *prefixfilter.Filter
 }
@@ -69,9 +69,9 @@ func (pc *pipeStreamContext) canReturnLastNResults() bool {
 	return false
 }
 
-func (pc *pipeStreamContext) withRunQuery(qs *QueryStats, runQuery runQueryFunc, fieldsFilter *prefixfilter.Filter) pipe {
+func (pc *pipeStreamContext) withRunQuery(qctx *QueryContext, runQuery runQueryFunc, fieldsFilter *prefixfilter.Filter) pipe {
 	pcNew := *pc
-	pcNew.qs = qs
+	pcNew.qctx = qctx
 	pcNew.runQuery = runQuery
 	pcNew.fieldsFilter = fieldsFilter
 	return &pcNew
@@ -322,7 +322,7 @@ func (pcp *pipeStreamContextProcessor) executeQuery(streamID, qStr string, neede
 	if !ok {
 		logger.Panicf("BUG: cannot obtain tenantID from streamID %q", streamID)
 	}
-	qctx := NewQueryContext(ctxWithCancel, pcp.pc.qs, []TenantID{tenantID}, q)
+	qctx := NewQueryContext(ctxWithCancel, pcp.pc.qctx.QueryStats, []TenantID{tenantID}, q, pcp.pc.qctx.AllowPartialResponse)
 	if err := pcp.pc.runQuery(qctx, writeBlock); err != nil {
 		return nil, 0, err
 	}

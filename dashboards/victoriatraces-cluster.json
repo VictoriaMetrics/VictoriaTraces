@@ -50,7 +50,7 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 1,
+  "id": 2,
   "links": [],
   "panels": [
     {
@@ -142,7 +142,7 @@
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "The total number of trace spans ingested over the past 24 hours.",
+      "description": "The cumulative number of trace spans ingested over the last 24h. \n\nThe size is calculated before compression.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -157,7 +157,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -167,7 +167,7 @@
         "x": 4,
         "y": 1
       },
-      "id": 80,
+      "id": 81,
       "maxDataPoints": 100,
       "options": {
         "colorMode": "value",
@@ -196,7 +196,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(increase(vt_rows_ingested_total{job=~\"$job\", instance=~\"$instance\"}[24h]))",
+          "expr": "sum(increase(vt_bytes_ingested_total{job=~\"$job\", instance=~\"$instance\"}[24h]))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -205,7 +205,7 @@
           "refId": "A"
         }
       ],
-      "title": "Ingested trace spans 24h",
+      "title": "Ingested bytes 24h",
       "type": "stat"
     },
     {
@@ -422,37 +422,11 @@
       "type": "stat"
     },
     {
-      "description": "See [latest releases](https://docs.victoriametrics.com/victoriatraces/changelog/).",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 0,
-        "y": 5
-      },
-      "id": 63,
-      "options": {
-        "code": {
-          "language": "plaintext",
-          "showLineNumbers": false,
-          "showMiniMap": false
-        },
-        "content": "<div style=\"text-align: center;\">$version</div>",
-        "mode": "markdown"
-      },
-      "pluginVersion": "12.0.2",
-      "title": "Version",
-      "type": "text"
-    },
-    {
       "datasource": {
         "type": "prometheus",
         "uid": "$ds"
       },
-      "description": "The cumulative number of trace spans ingested over the last 24h. \n\nThe size is calculated before compression.",
+      "description": "How many spans are ingested per second.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -467,17 +441,17 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "short"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 4,
-        "w": 5,
-        "x": 4,
+        "w": 4,
+        "x": 0,
         "y": 5
       },
-      "id": 81,
+      "id": 210,
       "maxDataPoints": 100,
       "options": {
         "colorMode": "value",
@@ -506,7 +480,7 @@
           },
           "editorMode": "code",
           "exemplar": false,
-          "expr": "sum(increase(vt_bytes_ingested_total{job=~\"$job\", instance=~\"$instance\"}[24h]))",
+          "expr": "sum(rate(vt_storage_rows{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -515,7 +489,78 @@
           "refId": "A"
         }
       ],
-      "title": "Ingested bytes 24h",
+      "title": "Ingested spans/s",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
+      "description": "The total number of trace spans ingested over the past 24 hours.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 4,
+        "y": 5
+      },
+      "id": 80,
+      "maxDataPoints": 100,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "text": {},
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "12.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
+          "exemplar": false,
+          "expr": "sum(increase(vt_rows_ingested_total{job=~\"$job\", instance=~\"$instance\"}[24h]))",
+          "format": "time_series",
+          "instant": true,
+          "interval": "",
+          "intervalFactor": 1,
+          "legendFormat": "total",
+          "refId": "A"
+        }
+      ],
+      "title": "Ingested trace spans 24h",
       "type": "stat"
     },
     {
@@ -1088,7 +1133,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 48
+            "y": 96
           },
           "id": 2,
           "options": {
@@ -1117,7 +1162,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vt_rows_ingested_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
+              "expr": "sum(rate(vt_rows_ingested_total{job=~\"$job\", instance=~\"$instance\", type!~\"internalinsert\"}[$__rate_interval])) by (type) > 0",
               "format": "time_series",
               "hide": false,
               "intervalFactor": 1,
@@ -1131,7 +1176,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vt_bytes_ingested_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (type) > 0",
+              "expr": "sum(rate(vt_bytes_ingested_total{job=~\"$job\", instance=~\"$instance\", type!~\"internalinsert\"}[$__rate_interval])) by (type) > 0",
               "hide": false,
               "instant": false,
               "legendFormat": "{{type}} (bytes)",
@@ -1209,7 +1254,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 48
+            "y": 96
           },
           "id": 14,
           "options": {
@@ -1239,7 +1284,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vt_http_requests_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (path) > 0",
+              "expr": "sum(rate(vt_http_requests_total{job=~\"$job\", instance=~\"$instance\", path!~\"/internal/.*\"}[$__rate_interval])) by (path) > 0",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -1318,7 +1363,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 88
+            "y": 104
           },
           "id": 69,
           "options": {
@@ -1442,7 +1487,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 88
+            "y": 104
           },
           "id": 66,
           "options": {
@@ -1472,7 +1517,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max(vt_http_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\"}) by (path) > 0",
+              "expr": "max(vt_http_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\", path!~\"/internal/.*\"}) by (path) > 0",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "{{path}}",
@@ -1550,7 +1595,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 96
+            "y": 112
           },
           "id": 6,
           "options": {
@@ -1656,7 +1701,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 96
+            "y": 112
           },
           "id": 67,
           "options": {
@@ -1693,7 +1738,7 @@
               "refId": "A"
             }
           ],
-          "title": "VictoriaTraces internal logging ($instance)",
+          "title": "Logging rate ($instance)",
           "type": "timeseries"
         }
       ],
@@ -1726,8 +1771,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "yellow",
@@ -1747,7 +1791,7 @@
             "h": 5,
             "w": 7,
             "x": 0,
-            "y": 392
+            "y": 299
           },
           "id": 134,
           "maxDataPoints": 100,
@@ -1769,7 +1813,7 @@
             "textMode": "auto",
             "wideLayout": true
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -1842,8 +1886,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1859,7 +1902,7 @@
             "h": 10,
             "w": 17,
             "x": 7,
-            "y": 392
+            "y": 299
           },
           "id": 136,
           "options": {
@@ -1881,7 +1924,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -1916,8 +1959,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   }
                 ]
               },
@@ -1929,7 +1971,7 @@
             "h": 5,
             "w": 7,
             "x": 0,
-            "y": 397
+            "y": 304
           },
           "id": 135,
           "maxDataPoints": 100,
@@ -1951,7 +1993,7 @@
             "textMode": "auto",
             "wideLayout": true
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2023,8 +2065,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2040,7 +2081,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 402
+            "y": 309
           },
           "id": 137,
           "options": {
@@ -2062,7 +2103,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2162,8 +2203,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2179,7 +2219,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 402
+            "y": 309
           },
           "id": 44,
           "options": {
@@ -2201,7 +2241,7 @@
               "sort": "none"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2276,8 +2316,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2293,7 +2332,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 410
+            "y": 317
           },
           "id": 138,
           "options": {
@@ -2315,7 +2354,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2406,8 +2445,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": 0
+                    "color": "green"
                   }
                 ]
               },
@@ -2419,7 +2457,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 410
+            "y": 317
           },
           "id": 144,
           "options": {
@@ -2441,7 +2479,7 @@
               "sort": "desc"
             }
           },
-          "pluginVersion": "12.1.0",
+          "pluginVersion": "12.0.2",
           "targets": [
             {
               "datasource": {
@@ -2556,7 +2594,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 418
+            "y": 325
           },
           "id": 140,
           "options": {
@@ -2699,7 +2737,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 418
+            "y": 325
           },
           "id": 145,
           "options": {
@@ -2822,7 +2860,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 426
+            "y": 333
           },
           "id": 141,
           "options": {
@@ -2946,7 +2984,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 426
+            "y": 333
           },
           "id": 143,
           "options": {
@@ -3071,7 +3109,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 434
+            "y": 341
           },
           "id": 146,
           "options": {
@@ -3181,7 +3219,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 434
+            "y": 341
           },
           "id": 148,
           "options": {
@@ -3290,7 +3328,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 442
+            "y": 349
           },
           "id": 147,
           "options": {
@@ -3400,7 +3438,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 442
+            "y": 349
           },
           "id": 149,
           "options": {
@@ -3510,7 +3548,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 450
+            "y": 357
           },
           "id": 74,
           "options": {
@@ -3619,7 +3657,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 450
+            "y": 357
           },
           "id": 61,
           "options": {
@@ -3724,7 +3762,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 458
+            "y": 365
           },
           "id": 75,
           "options": {
@@ -3847,7 +3885,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 50
+            "y": 438
           },
           "id": 62,
           "options": {
@@ -3952,7 +3990,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 50
+            "y": 438
           },
           "id": 26,
           "options": {
@@ -4057,7 +4095,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 58
+            "y": 446
           },
           "id": 70,
           "options": {
@@ -4192,7 +4230,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 58
+            "y": 446
           },
           "id": 71,
           "options": {
@@ -4259,6 +4297,361 @@
         "w": 24,
         "x": 0,
         "y": 18
+      },
+      "id": 213,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "The requests rate between VictoriaTraces components.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 123
+          },
+          "id": 211,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "sum(rate(vt_http_requests_total{job=~\"$job\", instance=~\"$instance\", path=~\"/internal/.*\"}[$__rate_interval])) by (path) > 0",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{path}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Internal requests rate ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "99th percentile response time for VictoriaTraces internal HTTP endpoints, grouped by instance and path. This means 99% of requests are faster than this value. **Lower numbers are better**, as they indicate faster responses and fewer slow requests.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 123
+          },
+          "id": 212,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull",
+                "max"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Last *",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "expr": "max(vt_http_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"0.99\", path=~\"/internal/.*\"}) by (path) > 0",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{path}}",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Internal requests duration p99 ($instance)",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "description": "Requests error rate for internal communication between VictoriaTraces's components.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "never",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "links": [],
+              "mappings": [],
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green"
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 131
+          },
+          "id": 214,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.0.2",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(rate(vt_http_request_errors_total{job=~\"$job\", instance=~\"$instance\", path=~\"/internal/*\"}[$__rate_interval])) by (job, path) > 0",
+              "format": "time_series",
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{job}} - {{path}}",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$ds"
+              },
+              "editorMode": "code",
+              "exemplar": false,
+              "expr": "sum(rate(vt_http_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, path) > 0",
+              "format": "time_series",
+              "hide": false,
+              "interval": "",
+              "intervalFactor": 1,
+              "legendFormat": "{{job}} - {{path}}",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Internal requests error rate ($instance)",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Interconnection",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
       },
       "id": 89,
       "panels": [
@@ -4331,7 +4724,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 467
+            "y": 855
           },
           "id": 116,
           "options": {
@@ -5122,7 +5515,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 467
+            "y": 855
           },
           "id": 117,
           "options": {
@@ -5278,7 +5671,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 475
+            "y": 863
           },
           "id": 209,
           "options": {
@@ -5403,7 +5796,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 475
+            "y": 863
           },
           "id": 129,
           "options": {
@@ -5514,7 +5907,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 483
+            "y": 871
           },
           "id": 101,
           "options": {
@@ -5640,7 +6033,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 483
+            "y": 871
           },
           "id": 102,
           "options": {
@@ -5778,7 +6171,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 491
+            "y": 879
           },
           "id": 100,
           "options": {
@@ -5887,7 +6280,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 491
+            "y": 879
           },
           "id": 202,
           "options": {
@@ -5991,7 +6384,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 499
+            "y": 887
           },
           "id": 112,
           "options": {
@@ -6114,7 +6507,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 499
+            "y": 887
           },
           "id": 98,
           "options": {
@@ -6224,7 +6617,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 507
+            "y": 895
           },
           "id": 118,
           "options": {
@@ -6336,7 +6729,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 507
+            "y": 895
           },
           "id": 103,
           "options": {
@@ -6447,7 +6840,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 515
+            "y": 903
           },
           "id": 104,
           "options": {
@@ -6573,7 +6966,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 515
+            "y": 903
           },
           "id": 205,
           "options": {
@@ -6682,7 +7075,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 523
+            "y": 911
           },
           "id": 200,
           "options": {
@@ -6745,7 +7138,7 @@
             "h": 8,
             "w": 3,
             "x": 0,
-            "y": 530
+            "y": 918
           },
           "id": 90,
           "maxDataPoints": 100,
@@ -6854,7 +7247,7 @@
             "h": 8,
             "w": 9,
             "x": 3,
-            "y": 530
+            "y": 918
           },
           "id": 91,
           "options": {
@@ -6964,7 +7357,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 530
+            "y": 918
           },
           "id": 93,
           "options": {
@@ -7073,7 +7466,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 538
+            "y": 926
           },
           "id": 94,
           "options": {
@@ -7183,7 +7576,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 538
+            "y": 926
           },
           "id": 95,
           "options": {
@@ -7235,7 +7628,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 20
       },
       "id": 109,
       "panels": [
@@ -7307,7 +7700,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 84
+            "y": 472
           },
           "id": 206,
           "options": {
@@ -8096,7 +8489,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 84
+            "y": 472
           },
           "id": 127,
           "options": {
@@ -8204,7 +8597,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 92
+            "y": 480
           },
           "id": 130,
           "options": {
@@ -8330,7 +8723,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 92
+            "y": 480
           },
           "id": 113,
           "options": {
@@ -8467,7 +8860,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 100
+            "y": 488
           },
           "id": 207,
           "options": {
@@ -8575,7 +8968,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 100
+            "y": 488
           },
           "id": 203,
           "options": {
@@ -8677,7 +9070,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 108
+            "y": 496
           },
           "id": 114,
           "options": {
@@ -8799,7 +9192,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 108
+            "y": 496
           },
           "id": 119,
           "options": {
@@ -8907,7 +9300,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 116
+            "y": 504
           },
           "id": 120,
           "options": {
@@ -9016,7 +9409,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 116
+            "y": 504
           },
           "id": 121,
           "options": {
@@ -9067,7 +9460,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 21
       },
       "id": 122,
       "panels": [
@@ -9155,7 +9548,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 469
+            "y": 857
           },
           "id": 99,
           "options": {
@@ -9297,7 +9690,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 469
+            "y": 857
           },
           "id": 97,
           "options": {
@@ -9420,7 +9813,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 477
+            "y": 865
           },
           "id": 125,
           "options": {
@@ -9530,7 +9923,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 477
+            "y": 865
           },
           "id": 126,
           "options": {
@@ -9655,7 +10048,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 485
+            "y": 873
           },
           "id": 208,
           "options": {
@@ -9764,7 +10157,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 485
+            "y": 873
           },
           "id": 204,
           "options": {
@@ -9867,7 +10260,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 493
+            "y": 881
           },
           "id": 133,
           "options": {
@@ -9918,7 +10311,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 21
+        "y": 22
       },
       "id": 151,
       "panels": [
@@ -9990,7 +10383,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 470
+            "y": 858
           },
           "id": 152,
           "options": {
@@ -10100,7 +10493,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 470
+            "y": 858
           },
           "id": 150,
           "options": {
@@ -10210,7 +10603,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 478
+            "y": 866
           },
           "id": 153,
           "options": {
@@ -10320,7 +10713,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 478
+            "y": 866
           },
           "id": 154,
           "options": {
@@ -10430,7 +10823,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 486
+            "y": 874
           },
           "id": 155,
           "options": {
@@ -10540,7 +10933,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 486
+            "y": 874
           },
           "id": 156,
           "options": {
@@ -10650,7 +11043,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 494
+            "y": 882
           },
           "id": 157,
           "options": {
@@ -10760,7 +11153,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 494
+            "y": 882
           },
           "id": 158,
           "options": {
@@ -10810,10 +11203,7 @@
   "preload": false,
   "refresh": "",
   "schemaVersion": 41,
-  "tags": [
-    "victoriametrics",
-    "victoriatraces"
-  ],
+  "tags": [],
   "templating": {
     "list": [
       {
@@ -10879,8 +11269,8 @@
       },
       {
         "current": {
-          "text": "",
-          "value": ""
+          "text": "v0.1.0",
+          "value": "v0.1.0"
         },
         "datasource": {
           "type": "prometheus",
@@ -11072,6 +11462,6 @@
   "timepicker": {},
   "timezone": "",
   "title": "VictoriaTraces - cluster",
-  "uid": "XqCOFEX6z",
+  "uid": "d2ce2962-957b-44a9-a5b4-cde7274bf9b3",
   "version": 1
 }

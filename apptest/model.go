@@ -63,7 +63,7 @@ type JaegerQuerier interface {
 	JaegerAPIOperations(t *testing.T, serviceName string, opts QueryOpts) *JaegerAPIOperationsResponse
 	JaegerAPITraces(t *testing.T, params JaegerQueryParam, opts QueryOpts) *JaegerAPITracesResponse
 	JaegerAPITrace(t *testing.T, traceID string, opts QueryOpts) *JaegerAPITraceResponse
-	JaegerAPIDependencies(t *testing.T, opts QueryOpts)
+	JaegerAPIDependencies(t *testing.T, params JaegerDependenciesParam, opts QueryOpts) *JaegerAPIDependenciesResponse
 }
 
 // OTLPTracesWriter contains methods for writing OTLP trace data.
@@ -258,4 +258,51 @@ func NewJaegerAPITraceResponse(t *testing.T, s string) *JaegerAPITraceResponse {
 		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", string(s), err)
 	}
 	return res
+}
+
+// NewJaegerAPIDependenciesResponse is a test helper function that creates a new
+// instance of JaegerAPIDependenciesResponse by unmarshalling a json string.
+func NewJaegerAPIDependenciesResponse(t *testing.T, s string) *JaegerAPIDependenciesResponse {
+	t.Helper()
+
+	res := &JaegerAPIDependenciesResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", string(s), err)
+	}
+	return res
+}
+
+// JaegerDependenciesParam is a helper structure for implementing extra
+// helper functions of `query.ServiceGraphQueryParameters`.
+type JaegerDependenciesParam struct {
+	query.ServiceGraphQueryParameters
+}
+
+// asURLValues add non-empty jaeger dependencies params as URL values.
+func (jqp *JaegerDependenciesParam) asURLValues() url.Values {
+	uv := make(url.Values)
+	addNonEmpty := func(name string, values ...string) {
+		for _, value := range values {
+			if len(value) == 0 {
+				continue
+			}
+			uv.Add(name, value)
+		}
+	}
+
+	addNonEmpty("endTs", strconv.FormatInt(jqp.EndTs.UnixMilli(), 10))
+	addNonEmpty("lookback", strconv.FormatInt(jqp.Lookback.Milliseconds(), 10))
+
+	return uv
+}
+
+type JaegerAPIDependenciesResponse struct {
+	Data []DependenciesResponseData `json:"data"`
+	JaegerResponse
+}
+
+type DependenciesResponseData struct {
+	Parent    string `json:"parent"`
+	Child     string `json:"child"`
+	CallCount int    `json:"callCount"`
 }

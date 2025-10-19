@@ -2,6 +2,7 @@ package internalselect
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
+	vtstoragecommon "github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/common"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/netselect"
 )
 
@@ -125,6 +127,10 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	defer cp.UpdatePerQueryStatsMetrics()
 
 	if err := vtstorage.RunQuery(qctx, writeBlock); err != nil {
+		if errors.Is(err, vtstoragecommon.ErrOutOfRetention) {
+			w.Header().Set(vtstoragecommon.OutOfRetentionHeaderName, "true")
+			return nil
+		}
 		return err
 	}
 	if errGlobal != nil {
@@ -284,7 +290,7 @@ type commonParams struct {
 }
 
 func (cp *commonParams) NewQueryContext(ctx context.Context) *logstorage.QueryContext {
-	return logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query)
+	return logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query, false)
 }
 
 func (cp *commonParams) UpdatePerQueryStatsMetrics() {

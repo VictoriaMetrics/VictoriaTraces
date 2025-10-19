@@ -25,7 +25,7 @@ func Init() {
 func Stop() {
 }
 
-// RequestHandler handles insert requests for VictoriaLogs
+// RequestHandler handles HTTP insert requests for VictoriaTraces
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := strings.ReplaceAll(r.URL.Path, "//", "/")
 
@@ -50,14 +50,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	return false
 }
 
-func GrpcExportHandler(w http.ResponseWriter, r *http.Request) {
-	if *disableInsert {
-		opentelemetry.WriteErrorGrpcResponse(w, opentelemetry.GrpcInternal, "requests to grpc export are disabled with -insert.disable command-line flag")
-		return
-	}
-	opentelemetry.GrpcExportHandler(r, w)
-}
-
+// insertHandler handles HTTP insert request from public APIs.
 func insertHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 	switch path {
 	case "/insert/ready":
@@ -72,4 +65,13 @@ func insertHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 	}
 
 	return false
+}
+
+// GRPCRequestHandler handles gRPC insert requests over HTTP for VictoriaTraces.
+func GRPCRequestHandler(w http.ResponseWriter, r *http.Request) {
+	if *disableInsert {
+		opentelemetry.WriteErrorGrpcResponse(w, opentelemetry.GrpcUnavailable, "requests to grpc export are disabled with -insert.disable command-line flag")
+		return
+	}
+	opentelemetry.GrpcExportHandler(r, w)
 }

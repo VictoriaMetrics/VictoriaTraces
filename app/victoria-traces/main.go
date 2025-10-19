@@ -15,13 +15,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
+	"github.com/VictoriaMetrics/VictoriaTraces/app/victoria-traces/servicegraph"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 )
 
 var (
@@ -29,7 +30,7 @@ var (
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
-	grpcListenAddr = flag.String("grpcListenAddr", "", `TCP address to listen for incoming grpc requests.`)
+	otlpGRPCListenAddr = flag.String("otlpGRPCListenAddr", "", `TCP address for accepting OTLP gRPC requests. ":4317" is the recommend value when needed.`)
 )
 
 func main() {
@@ -53,15 +54,18 @@ func main() {
 	insertutil.SetLogRowsStorage(&vtstorage.Storage{})
 	vtinsert.Init()
 
+	servicegraph.Init()
+
 	go httpserver.Serve(listenAddrs, httpRequestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 	})
 
-	if len(*grpcListenAddr) != 0 {
+	if len(*otlpGRPCListenAddr) != 0 {
 		http2Server := http.Server{
-			Addr:    *grpcListenAddr,
+			Addr:    *otlpGRPCListenAddr,
 			Handler: h2c.NewHandler(http.HandlerFunc(http2RequestHandler), &http2.Server{}),
 		}
+		logger.Infof("starting OTLP gPRC service at %q...", *otlpGRPCListenAddr)
 		go func() {
 			if err := http2Server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				logger.Fatalf("http2 server start error: %s", err)
@@ -83,6 +87,7 @@ func main() {
 	}
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 
+	servicegraph.Stop()
 	vtinsert.Stop()
 	vtselect.Stop()
 	vtstorage.Stop()
@@ -121,7 +126,7 @@ func httpRequestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func http2RequestHandler(w http.ResponseWriter, r *http.Request) {
-	vtinsert.GrpcExportHandler(w, r)
+	vtinsert.GRPCRequestHandler(w, r)
 }
 
 func usage() {

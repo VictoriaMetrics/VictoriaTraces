@@ -40,13 +40,13 @@ sequenceDiagram
     participant VS2 as vtstorage-2
     participant VT as vtselect
     participant QC as Query Client
-    
+
     Note over TS,VS2: Trace Ingestion Flow
     TS->>VI: Send spans via OTLP
     VI->>VS1: POST /internal/insert (HTTP)
     VI->>VS2: POST /internal/insert (HTTP)
     Note right of VI: Distributes spans evenly<br/>across vtstorage nodes
-    
+
     Note over VS1,QC: Query Flow
     QC->>VT: Query via HTTP endpoints
     VT->>VS1: GET /internal/select/* (HTTP)
@@ -56,23 +56,23 @@ sequenceDiagram
     VT->>QC: Processed & aggregated results
 ```
 
-- `vtinsert` handles trace spans ingestion via [the OpenTelemetry protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/).  
-  It distributes incoming trace spans evenly across `vtstorage` nodes, as specified by the `-storageNode` command-line flag.
+- `vtinsert` handles trace spans ingestion via [the OpenTelemetry protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/).
+  It distributes incoming trace spans **by trace ID** evenly across `vtstorage` nodes, as specified by the `-storageNode` command-line flag.
 
-- `vtselect` receives queries through [all supported HTTP query endpoints](https://docs.victoriametrics.com/victoriatraces/querying/).  
+- `vtselect` receives queries through [all supported HTTP query endpoints](https://docs.victoriametrics.com/victoriatraces/querying/).
   It fetches the required data from the configured `vtstorage` nodes, processes the queries, and returns the results.
 
 - `vtstorage` performs two key roles:
-    - It stores trace spans received from `vtinsert` at the directory defined by the `-storageDataPath` flag.  
+  - It stores trace spans received from `vtinsert` at the directory defined by the `-storageDataPath` flag.
       See [storage configuration docs](https://docs.victoriametrics.com/victoriatraces/#storage) for details.
-    - It handles queries from `vtselect` by retrieving and transforming the requested data locally before returning results.
+  - It handles queries from `vtselect` by retrieving and transforming the requested data locally before returning results.
 
-Each `vtstorage` node operates as a self-contained VictoriaTraces instance.  
-Refer to the [single-node and cluster mode duality](#single-node-and-cluster-mode-duality) documentation for more information.  
+Each `vtstorage` node operates as a self-contained VictoriaTraces instance.
+Refer to the [single-node and cluster mode duality](#single-node-and-cluster-mode-duality) documentation for more information.
 This design allows you to reuse existing single-node VictoriaTraces instances by listing them in the `-storageNode` flag for `vtselect`, enabling unified querying across all nodes.
 
-All VictoriaTraces components are horizontally scalable and can be deployed on hardware best suited to their respective workloads.  
-`vtinsert` and `vtselect` can be run on the same node, which allows the minimal cluster to consist of just one `vtstorage` node and one node acting as both `vtinsert` and `vtselect`.  
+All VictoriaTraces components are horizontally scalable and can be deployed on hardware best suited to their respective workloads.
+`vtinsert` and `vtselect` can be run on the same node, which allows the minimal cluster to consist of just one `vtstorage` node and one node acting as both `vtinsert` and `vtselect`.
 However, for production environments, it is recommended to separate `vtinsert` and `vtselect` roles to avoid resource contention — for example, to prevent heavy queries from interfering with trace ingestion.
 
 Communication between `vtinsert` / `vtselect` and `vtstorage` is done via HTTP over the port specified by the `-httpListenAddr` flag:
@@ -80,12 +80,11 @@ Communication between `vtinsert` / `vtselect` and `vtstorage` is done via HTTP o
 - `vtinsert` sends data to the `/internal/insert` endpoint on `vtstorage`.
 - `vtselect` sends queries to endpoints under `/internal/select/` on `vtstorage`.
 
-This HTTP-based communication model allows you to use reverse proxies for authorization, routing, and encryption between components.  
+This HTTP-based communication model allows you to use reverse proxies for authorization, routing, and encryption between components.
 Use of [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) is recommended for managing access control.
 See [Security docs](https://docs.victoriametrics.com/victoriatraces/#security) for details.
 
 For advanced setups, refer to the [multi-level cluster setup](#multi-level-cluster-setup) documentation.
-
 
 ## High availability
 
@@ -97,8 +96,8 @@ In the cluster setup, the following rules apply:
 
 - The `vtinsert` component continues to function normally when some vtstorage nodes are unavailable. It automatically routes new trace spans to the remaining available nodes to ensure that data ingestion remains uninterrupted and newly received spans are not lost.
 
-> [!NOTE] Insight  
-> In most real-world cases, `vtstorage` nodes become unavailable during planned maintenance such as upgrades, config changes, or rolling restarts. These are typically infrequent (weekly or monthly) and brief (a few minutes).  
+> [!NOTE] Insight
+> In most real-world cases, `vtstorage` nodes become unavailable during planned maintenance such as upgrades, config changes, or rolling restarts. These are typically infrequent (weekly or monthly) and brief (a few minutes).
 > A short period of query downtime during such events is acceptable and fits well within most SLAs. For example, 60 minutes of downtime per month still provides around 99.86% availability, which often outperforms complex HA setups that rely on opaque auto-recovery and may fail unpredictably.
 
 VictoriaTraces itself does not handle replication at the storage level. Instead, it relies on an external trace shipper, such as [the OpenTelemetry collector](https://opentelemetry.io/docs/collector/), to send the same trace spans to multiple independent VictoriaTraces instances:
@@ -110,30 +109,30 @@ graph TD
             LS["Trace Sources<br/>(Applications)"]
             VECTOR["Trace Collector<br/>• Buffering<br/>• Replication<br/>• Delivery Guarantees"]
         end
-        
+
         subgraph "Storage Layer"
             subgraph "Zone A"
                 VLA["VictoriaTraces Cluster A"]
             end
-            
+
             subgraph "Zone B"
                 VLB["VictoriaTraces Cluster B"]
             end
         end
-        
+
         subgraph "Query Layer"
             LB["Load Balancer<br/>(vmauth)<br/>• Health Checks<br/>• Failover<br/>• Query Distribution"]
             QC["Query Clients<br/>(Grafana, API)"]
         end
-        
+
         LS --> VECTOR
         VECTOR -->|"Replicate spans to<br/>Zone A cluster"| VLA
         VECTOR -->|"Replicate spans to<br/>Zone B cluster"| VLB
-        
+
         VLA -->|"Serve queries from<br/>Zone A cluster"| LB
         VLB -->|"Serve queries from<br/>Zone B cluster"| LB
         LB --> QC
-        
+
         style VECTOR fill:#e8f5e8
         style VLA fill:#d5e8d4
         style VLB fill:#d5e8d4
@@ -265,8 +264,8 @@ The following guide covers the following topics for Linux host:
 Download and unpack the latest VictoriaTraces release:
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaTraces/releases/download/v0.2.0/victoria-traces-linux-amd64-v0.2.0.tar.gz
-tar xzf victoria-traces-linux-amd64-v0.2.0.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaTraces/releases/download/v0.4.0/victoria-traces-linux-amd64-v0.4.0.tar.gz
+tar xzf victoria-traces-linux-amd64-v0.4.0.tar.gz
 ```
 
 Start the first [`vtstorage` node](#architecture), which accepts incoming requests at the port `10491` and stores the ingested spans at `victoria-traces-data-1` directory:
@@ -301,11 +300,11 @@ Note that all the VictoriaTraces cluster components - `vtstorage`, `vtinsert` an
 Their roles depend on whether the `-storageNode` command-line flag is set - if this flag is set, then the executable runs in `vtinsert` and `vtselect` modes.
 Otherwise, it runs in `vtstorage` mode, which is identical to a [single-node VictoriaTraces mode](https://docs.victoriametrics.com/victoriatraces/).
 
-Let's **ingest some trace spans** (aka [wide events](https://jeremymorrell.dev/blog/a-practitioners-guide-to-wide-events/))
-from [GitHub archive](https://www.gharchive.org/) into the VictoriaTraces cluster. 
+Let's **ingest some trace spans** into the VictoriaTraces cluster.
 
-If you don't have instrumented application, one simple way is to use [vtgen](https://github.com/VictoriaMetrics/VictoriaTraces/tree/master/app/vtgen), a trace data generator. 
+If you don't have instrumented application, one simple way is to use [vtgen](https://github.com/VictoriaMetrics/VictoriaTraces/tree/master/app/vtgen), a trace data generator.
 It needs to be built from source with Go or docker:
+
 ```shell
 # clone the source code
 git clone https://github.com/VictoriaMetrics/VictoriaTraces.git
@@ -318,6 +317,7 @@ make vtgen-prod
 ```
 
 To generate and send data to VictoriaTraces cluster(`vtinsert`), run:
+
 ```shell
 ./bin/vtgen -addrs=http://localhost:10481/insert/opentelemetry/v1/traces
 ```

@@ -3,7 +3,7 @@
 Docker compose environment for VictoriaTraces includes VictoriaTraces components and [Grafana](https://grafana.com/).
 
 For starting the docker-compose environment ensure that you have docker installed and running, and that you have access
-to the Internet. 
+to the Internet.
 **All commands should be executed from the root directory of [the VictoriaTraces repo](https://github.com/VictoriaMetrics/VictoriaTraces).**
 
 * Traces:
@@ -16,6 +16,7 @@ to the Internet.
 ## VictoriaTraces server
 
 To spin-up environment with [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/), run the following command:
+
 ```sh
 # clone VictoriaTraces
 git clone https://github.com/VictoriaMetrics/VictoriaTraces.git
@@ -24,11 +25,13 @@ cd VictoriaTraces
 # start docker compose
 make docker-vt-single-up
 ```
+
 _See [compose-vt-single.yml](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/compose-vt-single.yml)_
 
 VictoriaTraces will be accessible on the `--httpListenAddr=:10428` port.
 
 In addition to VictoriaTraces server, the docker compose contains the following components:
+
 * [HotROD](https://hub.docker.com/r/jaegertracing/example-hotrod) application to generate trace data.
 * `VictoriaMetrics single-node` to collect metrics from all the components.
 * [Grafana](#grafana) is configured with [VictoriaMetrics](https://github.com/VictoriaMetrics/victoriametrics-datasource) and Jaeger datasource pointing to VictoriaTraces server.
@@ -45,17 +48,20 @@ To access [VictoriaTraces UI](https://docs.victoriametrics.com/victoriatraces/qu
 use link [http://localhost:10428/select/vmui](http://localhost:10428/select/vmui).
 
 To shut down environment execute the following command:
-```
+
+```sh
 make docker-vt-single-down
 ```
 
 ## VictoriaTraces cluster
 
 To spin-up environment with [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) **cluster**, run the following command:
+
 ```sh
 # start docker compose
 make docker-vt-cluster-up
 ```
+
 _See [compose-vt-cluster.yml](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/compose-vt-cluster.yml)_
 
 VictoriaTraces cluster environment consists of `vtinsert`, `vtstorage` and `vtselect` components.
@@ -64,6 +70,7 @@ For example, `HotROD` pushes trace spans via `http://vmauth:8427/insert/opentele
 and Grafana queries `http://vmauth:8427/select/jaeger/` for datasource queries.
 
 In addition to VictoriaTraces cluster, the docker compose contains the following components:
+
 * [HotROD](https://hub.docker.com/r/jaegertracing/example-hotrod) application to generate trace data.
 * `VictoriaMetrics single-node` to collect metrics from all the components.
 * [Grafana](#grafana) is configured with [VictoriaMetrics](https://github.com/VictoriaMetrics/victoriametrics-datasource) and Jaeger datasource pointing to VictoriaTraces cluster (vmauth).
@@ -79,7 +86,8 @@ To access [VictoriaTraces UI](https://docs.victoriametrics.com/victoriatraces/qu
 use link [http://localhost:8427/select/vmui](http://localhost:8427/select/vmui).
 
 To shut down environment execute the following command:
-```
+
+```sh
 make docker-vt-cluster-down
 ```
 
@@ -103,8 +111,9 @@ vmalert-traces evaluates [alerting rules](https://github.com/VictoriaMetrics/Vic
 They are connected with AlertManager for firing alerts.
 
 Web interface link:
-- vmalert-metrics: [http://localhost:8880/](http://localhost:8880/).
-- vmalert-traces: [http://localhost:8881/](http://localhost:8881/).
+
+* vmalert-metrics: [http://localhost:8880/](http://localhost:8880/).
+* vmalert-traces: [http://localhost:8881/](http://localhost:8881/).
 
 ## alertmanager
 
@@ -118,6 +127,7 @@ Web interface link [http://localhost:9093/](http://localhost:9093/).
 Web interface link [http://localhost:3000](http://localhost:3000).
 
 Default credentials:
+
 * login: `admin`
 * password: `admin`
 
@@ -126,26 +136,29 @@ Grafana is provisioned with default dashboards and datasources.
 ## Troubleshooting
 
 This environment has the following requirements:
+
 * installed [docker compose](https://docs.docker.com/compose/);
 * access to the Internet for downloading docker images;
 * **All commands should be executed from the root directory of [the VictoriaTraces repo](https://github.com/VictoriaMetrics/VictoriaTraces).**
 
 The expected output of running a command like `make docker-vm-single-up` is the following:
+
 ```sh
  make docker-vm-single-up                                                                                                           :(
 docker compose -f deployment/docker/compose-vm-single.yml up -d
 [+] Running 9/9
- ✔ Network docker_default              Created                                                                                                                                                                                     0.0s 
- ✔ Volume "docker_vmagentdata"         Created                                                                                                                                                                                     0.0s 
- ✔ Container docker-alertmanager-1     Started                                                                                                                                                                                     0.3s 
- ✔ Container docker-victoriametrics-1  Started                                                                                                                                                                                     0.3s 
-...  
+ ✔ Network docker_default              Created                                                                                                                                                                                     0.0s
+ ✔ Volume "docker_vmagentdata"         Created                                                                                                                                                                                     0.0s
+ ✔ Container docker-alertmanager-1     Started                                                                                                                                                                                     0.3s
+ ✔ Container docker-victoriametrics-1  Started                                                                                                                                                                                     0.3s
+...
  ```
 
 Containers are started in [--detach mode](https://docs.docker.com/reference/cli/docker/compose/up/), meaning they run in the background.
 As a result, you won't see their logs or exit status directly in the terminal.
 
 If something isn’t working as expected, try the following troubleshooting steps:
+
 1. Run from the correct directory. Make sure you're running the command from the root of the [VictoriaTraces repository](https://github.com/VictoriaMetrics/VictoriaTraces).
 2. Check container status. Run `docker ps -a` to list all containers and their status. Healthy and running containers should have `STATUS` set to `Up`.
 3. View container logs. To inspect logs for a specific container, get its container ID from step p2 and run: `docker logs -f <containerID>`.
