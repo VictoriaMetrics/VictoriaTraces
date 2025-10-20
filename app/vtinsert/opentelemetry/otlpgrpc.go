@@ -29,14 +29,14 @@ func OTLPGRPCRequestHandler(r *http.Request, w http.ResponseWriter) {
 	case otlpExportTracesPath:
 		otlpExportTracesHandler(r, w)
 	default:
-		WriteErrorGrpcResponse(w, grpc.StatusCodeUnimplemented, fmt.Sprintf("gRPC method not found: %s", r.URL.Path))
+		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeUnimplemented, fmt.Sprintf("gRPC method not found: %s", r.URL.Path))
 	}
 }
 
 // otlpExportTracesHandler handles OTLP export traces requests.
 func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	if err := insertutil.CanWriteData(); err != nil {
-		WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
+		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
 		return
 	}
 
@@ -46,13 +46,13 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 
 	_, err := bb.ReadFrom(r.Body)
 	if err != nil {
-		WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot read request body: %s", err))
+		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot read request body: %s", err))
 		return
 	}
 
 	err = grpc.CheckDataFrame(bb.B)
 	if err != nil {
-		WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
+		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
 		return
 	}
 
@@ -61,7 +61,7 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	// prepare ingestion
 	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
-		WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot parse common params from request: %s", err))
+		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot parse common params from request: %s", err))
 		return
 	}
 	// stream fields must contain the service name and span name.
@@ -84,19 +84,11 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 		return callbackErr
 	})
 	if err != nil {
-		WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
+		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
 		return
 	}
 
 	writeExportTraceServiceResponse(w, 0, "")
-}
-
-// WriteErrorGrpcResponse write error response in gRPC protocol over HTTP.
-func WriteErrorGrpcResponse(w http.ResponseWriter, grpcErrorCode, grpcErrorMessage string) {
-	w.Header().Set("content-type", "application/grpc+proto")
-	w.Header().Set("trailer", "grpc-status, grpc-message")
-	w.Header().Set("grpc-status", grpcErrorCode)
-	w.Header().Set("grpc-message", grpcErrorMessage)
 }
 
 // writeExportTraceServiceResponse write response in gRPC protocol over HTTP.

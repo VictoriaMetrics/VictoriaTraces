@@ -47,15 +47,37 @@ vt_gen_http_request_error_count{path="http://example-url1:port/v1/traces"} 667
 ### Command-line flags
 ```
   -addrs string
-        otlp trace export endpoints, split by ",".
+    	otlp trace export endpoints, split by ",".
   -authorizations string
-        authorization header for each -addrs, split by ",".
+    	authorization headers for each -addrs, split by ",".
+  -grpcMode
+    	send data in otlp grpc instead of otlp http.
   -httpListenAddr string
-        http listen address for pprof and metrics. (default "0.0.0.0:8080")
+    	http listen address for pprof and metrics. (default "0.0.0.0:8080")
   -logEvery10k int
-        how many trace id should be logged for every 10000 traces by each worker. (default 2)
+    	how many trace id should be logged for every 10000 traces by each worker. (default 2)
+  -loggerDisableTimestamps
+    	Whether to disable writing timestamps in logs
+  -loggerErrorsPerSecondLimit int
+    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
+  -loggerFormat string
+    	Format for logs. Possible values: default, json (default "default")
+  -loggerJSONFields string
+    	Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
+  -loggerLevel string
+    	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerMaxArgLen int
+    	The maximum length of a single logged argument. Longer arguments are replaced with 'arg_start..arg_end', where 'arg_start' and 'arg_end' is prefix and suffix of the arg with the length not exceeding -loggerMaxArgLen / 2 (default 5000)
+  -loggerOutput string
+    	Output for the logs. Supported values: stderr, stdout (default "stderr")
+  -loggerTimezone string
+    	Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
+  -loggerWarnsPerSecondLimit int
+    	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -rate int
-        spans per second. (default 10000)
+    	spans per second. (default 10000)
+  -version
+    	Show VictoriaMetrics version
   -worker int
-        number of workers. (default 4)
+    	number of workers. (default 4)
 ```

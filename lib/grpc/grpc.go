@@ -3,6 +3,7 @@ package grpc
 import (
 	"encoding/binary"
 	"fmt"
+	"net/http"
 )
 
 // https://github.com/grpc/grpc/blob/master/doc/statuscodes.md
@@ -56,4 +57,12 @@ func CheckDataFrame(req []byte) error {
 		return fmt.Errorf("invalid gRPC message length: %d, actual length: %d", messageLength, n)
 	}
 	return nil
+}
+
+// WriteErrorGrpcResponse write error response in gRPC protocol over HTTP.
+func WriteErrorGrpcResponse(w http.ResponseWriter, grpcErrorCode, grpcErrorMessage string) {
+	w.Header().Set("content-type", "application/grpc+proto")
+	w.Header().Set("trailer", "grpc-status, grpc-message")
+	w.Header().Set("grpc-status", grpcErrorCode)
+	w.Header().Set("grpc-message", grpcErrorMessage)
 }

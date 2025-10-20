@@ -35,7 +35,7 @@ var (
 	authHeaders         = flag.String("authorizations", "", `authorization headers for each -addrs, split by ",".`)
 	worker              = flag.Int("worker", 4, "number of workers.")
 	logNTraceIDEvery10K = flag.Int("logEvery10k", 2, "how many trace id should be logged for every 10000 traces by each worker.")
-	grpcMode            = flag.Bool("grpcMode", false, "send data in otlp grpc instead of otlp http. this mode will send only (duplicated) test data as it's captured. only for ingestion test.")
+	grpcMode            = flag.Bool("grpcMode", false, "send data in otlp grpc instead of otlp http.")
 )
 
 var (

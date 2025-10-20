@@ -20,10 +20,9 @@ import (
 )
 
 var (
-	disableInsert   = flag.Bool("insert.disable", false, "Whether to disable /insert/* HTTP endpoints")
-	disableInternal = flag.Bool("internalinsert.disable", false, "Whether to disable /internal/insert HTTP endpoint. See https://docs.victoriametrics.com/victoriatraces/cluster/#security")
-
-	otlpGRPCListenAddr = flag.String("otlpGRPCListenAddr", "", `TCP address for accepting OTLP gRPC requests. ":4317" is the recommend value when needed.`)
+	disableInsert      = flag.Bool("insert.disable", false, "Whether to disable /insert/* HTTP endpoints")
+	disableInternal    = flag.Bool("internalinsert.disable", false, "Whether to disable /internal/insert HTTP endpoint. See https://docs.victoriametrics.com/victoriatraces/cluster/#security")
+	otlpGRPCListenAddr = flag.String("otlpGRPCListenAddr", "", `TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317".`)
 )
 
 var (
@@ -101,7 +100,7 @@ func insertHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 // otlpGRPCRequestHandler handles OTLP gRPC insert requests over HTTP for VictoriaTraces.
 func otlpGRPCRequestHandler(w http.ResponseWriter, r *http.Request) {
 	if *disableInsert {
-		opentelemetry.WriteErrorGrpcResponse(w, grpc.StatusCodeUnavailable, "requests to grpc export are disabled with -insert.disable command-line flag")
+		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeUnavailable, "requests to grpc export are disabled with -insert.disable command-line flag")
 		return
 	}
 	opentelemetry.OTLPGRPCRequestHandler(r, w)

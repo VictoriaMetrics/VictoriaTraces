@@ -468,6 +468,8 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -opentelemetry.traces.maxRequestSize size
     	The maximum size in bytes of a single OpenTelemetry trace export request.
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
+  -otlpGRPCListenAddr string
+    	TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317".
   -partitionManageAuthKey value
     	authKey, which must be passed in query string to /internal/partition/* . It overrides -httpAuth.* . See https://docs.victoriametrics.com/victoriatraces/#partitions-lifecycle
     	Flag value can be read from the given file when using -partitionManageAuthKey=file:///abs/path/to/file or -partitionManageAuthKey=file://./relative/path/to/file.

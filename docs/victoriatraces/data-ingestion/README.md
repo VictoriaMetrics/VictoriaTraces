@@ -17,7 +17,7 @@ VictoriaTraces provides the following API for OpenTelemetry data ingestion:
 
 - `/insert/opentelemetry/v1/traces`
 
-See more details [in this docs](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/).
+See more details in [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/).
 
 ### HTTP parameters
 
@@ -56,12 +56,13 @@ additionally to [HTTP query args](#http-query-string-parameters):
 
 See also [HTTP Query string parameters](#http-query-string-parameters).
 
-## gRPC APIs
-Currently, VictoriaTraces gRPC endpoint doesn't support TLS yet, so you need to disable it client. See more details [in this docs](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/).
+## gRPC Services and Methods
 
-### Opentelemetry API
+### OpenTelemetry Collector TraceService
 
-VictoriaTraces provides the following gRPC function for OpenTelemetry data ingestion:
-- `TraceService.Export` defined in [here](https://github.com/open-telemetry/opentelemetry-proto/blob/main/opentelemetry/proto/collector/trace/v1/trace_service.proto)
+VictoriaTraces implements the OpenTelemetry Collector [TraceService](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.8.0/opentelemetry/proto/collector/trace/v1/trace_service.proto#L30)
+to accept spans pushed by applications or collectors in [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc).
 
-gRPC is running over HTTP2, so it also accepts optional HTTP parameters via [HTTP headers in HTTP endpoint](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers)
+As gRPC is running over HTTP2, it can also accept optional HTTP parameters via [HTTP headers](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers)
+
+See more details in [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/#grpc-exporter).

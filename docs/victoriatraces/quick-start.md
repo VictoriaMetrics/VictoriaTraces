@@ -78,9 +78,15 @@ See how to [write](#write-data) or [read](#read-data) from VictoriaTraces.
 
 ### Write data
 
-VictoriaTraces can accept trace spans via [the OpenTelemetry protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/). It provides the following API:
+VictoriaTraces can accept trace spans via [the OpenTelemetry protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/). 
+
+It provides the following HTTP API:
 
 - `/insert/opentelemetry/v1/traces`
+
+and the OpenTelemetry Collector gRPC [TraceService](https://github.com/open-telemetry/opentelemetry-proto/blob/v1.8.0/opentelemetry/proto/collector/trace/v1/trace_service.proto#L30).
+
+These enable user to ingest trace spans through [OTLP/HTTP](https://opentelemetry.io/docs/specs/otlp/#otlphttp) and [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc). 
 
 To test the data ingestion, run the following command:
 
@@ -125,16 +131,6 @@ http://<victoria-traces>:10428/select/jaeger
 ```
 
 See more details about the HTTP APIs and params VictoriaTraces supports and how to query data from them [in this doc](https://docs.victoriametrics.com/victoriatraces/querying/).
-
-### gRPC endpoint
-VictoriaTraces provides gRPC endpoint for OpenTelemetry trace ingestion. The endpoint won't start by default unless you enable it by specify `-grpcListenAddr`
-```sh
-./victoria-traces-prod -grpcListenAddr=":4317"
-```
-
-Then VictoriaTraces will start gRPC service at port `4317`.
-
-See more details about the gRPC APIs and how to ingest data through it [in this doc](https://docs.victoriametrics.com/victoriatraces/data-ingestion/).
 
 ### Alerting
 
