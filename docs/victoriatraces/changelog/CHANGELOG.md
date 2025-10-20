@@ -11,6 +11,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 * [How to build single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/#how-to-build-from-sources)
 
 ## tip
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc) data ingestion. It requires `-otlpGRPCListenAddr` flag to be set on Single-node VictoriaTraces or vtinsert. See [this doc](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry) for details. Thanks to @JayiceZ for the [pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/59).
+
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): stop query at the earlier timestamp of the retention period when searching by a non-existed trace ID, and response earlier. See [#48](https://github.com/VictoriaMetrics/VictoriaTraces/issues/48) for details. Thank @JayiceZ for [the pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/49).
 
 ## [v0.4.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.4.0)
