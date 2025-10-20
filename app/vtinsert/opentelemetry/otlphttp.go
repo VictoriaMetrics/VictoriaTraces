@@ -78,7 +78,7 @@ func handleProtobufRequest(r *http.Request, w http.ResponseWriter) {
 			req         otelpb.ExportTraceServiceRequest
 			callbackErr error
 		)
-		lmp := cp.NewLogMessageProcessor("opentelemetry_traces", false)
+		lmp := cp.NewLogMessageProcessor("opentelemetry_traces_otlphttp_protobuf", false)
 		if callbackErr = req.UnmarshalProtobuf(data); callbackErr != nil {
 			errorsProtobufTotal.Inc()
 			return fmt.Errorf("cannot unmarshal request from %d protobuf bytes: %w", len(data), callbackErr)
@@ -122,7 +122,7 @@ func handleJSONRequest(r *http.Request, w http.ResponseWriter) {
 			req         otelpb.ExportTraceServiceRequest
 			callbackErr error
 		)
-		lmp := cp.NewLogMessageProcessor("opentelemetry_traces", false)
+		lmp := cp.NewLogMessageProcessor("opentelemetry_traces_otlphttp_json", false)
 		if callbackErr = req.UnmarshalJSONCustom(data); callbackErr != nil {
 			errorsJSONTotal.Inc()
 			return fmt.Errorf("cannot unmarshal request from %d protobuf bytes: %w", len(data), callbackErr)

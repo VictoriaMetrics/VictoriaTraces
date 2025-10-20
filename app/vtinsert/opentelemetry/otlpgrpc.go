@@ -10,31 +10,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/grpc"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
-const OLTPExportTracesGrpcPath = "/opentelemetry.proto.collector.trace.v1.TraceService/Export"
-
-// https://github.com/grpc/grpc/blob/master/doc/statuscodes.md
-const (
-	GrpcOk                 = "0"
-	GrpcCancelled          = "1"
-	GrpcUnknown            = "2"
-	GrpcInvalidArgument    = "3"
-	GrpcDeadlineExceeded   = "4"
-	GrpcNotFound           = "5"
-	GrpcAlreadyExist       = "6"
-	GrpcPermissionDenied   = "7"
-	GrpcResourceExhausted  = "8"
-	GrpcFailedPrecondition = "9"
-	GrpcAbort              = "10"
-	GrpcOutOfRange         = "11"
-	GrpcUnimplemented      = "12"
-	GrpcInternal           = "13"
-	GrpcUnavailable        = "14"
-	GrpcDataLoss           = "15"
-	GrpcUnauthenticated    = "16"
-)
+const otlpExportTracesPath = "/opentelemetry.proto.collector.trace.v1.TraceService/Export"
 
 var (
 	compressedBytes     bytesutil.ByteBufferPool
@@ -43,14 +23,45 @@ var (
 	responseBytes       bytesutil.ByteBufferPool
 )
 
-func GrpcExportHandler(r *http.Request, w http.ResponseWriter) {
-	if r.URL.Path != OLTPExportTracesGrpcPath {
-		WriteErrorGrpcResponse(w, GrpcUnimplemented, fmt.Sprintf("grpc method not found: %s", r.URL.Path))
+// OTLPGRPCRequestHandler is the router of gRPC requests.
+func OTLPGRPCRequestHandler(r *http.Request, w http.ResponseWriter) {
+	switch r.URL.Path {
+	case otlpExportTracesPath:
+		otlpExportTracesHandler(r, w)
+	default:
+		WriteErrorGrpcResponse(w, grpc.StatusCodeUnimplemented, fmt.Sprintf("gRPC method not found: %s", r.URL.Path))
+	}
+}
+
+// otlpExportTracesHandler handles OTLP export traces requests.
+func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
+	if err := insertutil.CanWriteData(); err != nil {
+		WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
 		return
 	}
+
+	// read, check and extract the real message from request body.
+	bb := compressedBytes.Get()
+	defer compressedBytes.Put(bb)
+
+	_, err := bb.ReadFrom(r.Body)
+	if err != nil {
+		WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot read request body: %s", err))
+		return
+	}
+
+	err = grpc.CheckDataFrame(bb.B)
+	if err != nil {
+		WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
+		return
+	}
+
+	bb.B = bb.B[5:]
+
+	// prepare ingestion
 	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
-		WriteErrorGrpcResponse(w, GrpcInternal, fmt.Sprintf("cannot parse common params from request: %s", err))
+		WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot parse common params from request: %s", err))
 		return
 	}
 	// stream fields must contain the service name and span name.
@@ -58,34 +69,13 @@ func GrpcExportHandler(r *http.Request, w http.ResponseWriter) {
 	// for potentially better efficiency.
 	cp.StreamFields = append(mandatoryStreamFields, cp.StreamFields...)
 
-	if err = insertutil.CanWriteData(); err != nil {
-		WriteErrorGrpcResponse(w, GrpcInternal, err.Error())
-		return
-	}
-
-	bb := compressedBytes.Get()
-	defer compressedBytes.Put(bb)
-
-	_, err = bb.ReadFrom(r.Body)
-	if err != nil {
-		WriteErrorGrpcResponse(w, GrpcInternal, fmt.Sprintf("cannot read request body: %s", err))
-		return
-	}
-
-	err = checkProtobufRequest(bb.B)
-	if err != nil {
-		WriteErrorGrpcResponse(w, GrpcInternal, err.Error())
-		return
-	}
-	bb.B = bb.B[5:]
-
 	encoding := r.Header.Get("grpc-encoding")
 	err = protoparserutil.ReadUncompressedData(bb.NewReader(), encoding, maxRequestSize, func(data []byte) error {
 		var (
 			req         otelpb.ExportTraceServiceRequest
 			callbackErr error
 		)
-		lmp := cp.NewLogMessageProcessor("opentelemetry_traces", false)
+		lmp := cp.NewLogMessageProcessor("opentelemetry_traces_otlpgrpc", false)
 		if callbackErr = req.UnmarshalProtobuf(data); callbackErr != nil {
 			return fmt.Errorf("cannot unmarshal request from %d protobuf bytes: %w", len(data), callbackErr)
 		}
@@ -94,51 +84,23 @@ func GrpcExportHandler(r *http.Request, w http.ResponseWriter) {
 		return callbackErr
 	})
 	if err != nil {
-		WriteErrorGrpcResponse(w, GrpcInternal, fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
+		WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
 		return
 	}
 
-	writeExportTracesGrpcResponse(w, 0, "")
+	writeExportTraceServiceResponse(w, 0, "")
 }
 
-// +------------+---------------------------------------------+
-// |   1 byte   |                 4 bytes                     |
-// +------------+---------------------------------------------+
-// | Compressed |               Message Length                |
-// |   Flag     |                 (uint32)                    |
-// +------------+---------------------------------------------+
-// |                                                          |
-// |                   Message Data                           |
-// |                 (variable length)                        |
-// |                                                          |
-// +----------------------------------------------------------+
-// See https://grpc.github.io/grpc/core/md_doc__p_r_o_t_o_c_o_l-_h_t_t_p2.html
-func checkProtobufRequest(req []byte) error {
-	n := len(req)
-	if n < 5 {
-		return fmt.Errorf("invalid grpc header length: %d", n)
-	}
-
-	grpcHeader := req[:5]
-	if isCompress := grpcHeader[0]; isCompress != 0 && isCompress != 1 {
-		return fmt.Errorf("grpc compression not supporte")
-	}
-	messageLength := binary.BigEndian.Uint32(grpcHeader[1:5])
-	if n != 5+int(messageLength) {
-		return fmt.Errorf("invalid message length: %d", messageLength)
-	}
-	return nil
-}
-
+// WriteErrorGrpcResponse write error response in gRPC protocol over HTTP.
 func WriteErrorGrpcResponse(w http.ResponseWriter, grpcErrorCode, grpcErrorMessage string) {
-	w.Header().Set("Content-Type", "application/grpc+proto")
-	w.Header().Set("Trailer", "grpc-status, grpc-message")
-	w.Header().Set("Grpc-Status", grpcErrorCode)
-	w.Header().Set("Grpc-Message", grpcErrorMessage)
+	w.Header().Set("content-type", "application/grpc+proto")
+	w.Header().Set("trailer", "grpc-status, grpc-message")
+	w.Header().Set("grpc-status", grpcErrorCode)
+	w.Header().Set("grpc-message", grpcErrorMessage)
 }
 
-// https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md#message-encoding
-func writeExportTracesGrpcResponse(w http.ResponseWriter, rejectedSpans int64, errorMessage string) {
+// writeExportTraceServiceResponse write response in gRPC protocol over HTTP.
+func writeExportTraceServiceResponse(w http.ResponseWriter, rejectedSpans int64, errorMessage string) {
 	rbb := responseBodyBytes.Get()
 	defer responseBodyBytes.Put(rbb)
 
@@ -169,9 +131,9 @@ func writeExportTracesGrpcResponse(w http.ResponseWriter, rejectedSpans int64, e
 	_, _ = rb.Write(rpb.B)
 	_, _ = rb.Write(b)
 
-	w.Header().Set("Content-Type", "application/grpc+proto")
-	w.Header().Set("Trailer", "grpc-status, grpc-message")
-	w.Header().Set("Grpc-Status", GrpcOk)
+	w.Header().Set("content-type", "application/grpc+proto")
+	w.Header().Set("trailer", "grpc-status, grpc-message")
+	w.Header().Set("grpc-status", grpc.StatusCodeOk)
 
 	writtenLen, err := w.Write(rb.B) // this will write both header and body since w.WriteHeader is not called.
 	if err != nil {
@@ -179,7 +141,7 @@ func writeExportTracesGrpcResponse(w http.ResponseWriter, rejectedSpans int64, e
 		return
 	}
 	if writtenLen != rb.Len() {
-		logger.Errorf("unexpected write of %d bytes in replying OLTP export grpc request, expected:%d", writtenLen, rb.Len())
+		logger.Errorf("unexpected write of %d bytes in replying OLTP export gRPC request, expected:%d", writtenLen, rb.Len())
 		return
 	}
 }

@@ -57,7 +57,7 @@ additionally to [HTTP query args](#http-query-string-parameters):
 See also [HTTP Query string parameters](#http-query-string-parameters).
 
 ## gRPC APIs
-Currently, VictoriaTraces grpc endpoint doesn't support TLS yet, so you need to disable it client. See more details [in this docs](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/).
+Currently, VictoriaTraces gRPC endpoint doesn't support TLS yet, so you need to disable it client. See more details [in this docs](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/).
 
 ### Opentelemetry API
 
