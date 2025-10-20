@@ -39,7 +39,9 @@ func Stop() {
 	if *otlpGRPCListenAddr != "" {
 		startTime := time.Now()
 		logger.Infof("gracefully shutting down the OTLP gPRC server at %q...", *otlpGRPCListenAddr)
-		httpserver.Stop([]string{*otlpGRPCListenAddr})
+		if err := httpserver.Stop([]string{*otlpGRPCListenAddr}); err != nil {
+			logger.Fatalf("cannot stop the OTLP gRPC server: %s", err)
+		}
 		logger.Infof("successfully shut down the OTLP gPRC  in %.3f seconds", time.Since(startTime).Seconds())
 	}
 }
