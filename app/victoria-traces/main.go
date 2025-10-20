@@ -55,7 +55,7 @@ func main() {
 	go httpserver.Serve(listenAddrs, httpRequestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 	})
-	
+
 	logger.Infof("started VictoriaTraces in %.3f seconds; see https://docs.victoriametrics.com/victoriatraces/", time.Since(startTime).Seconds())
 
 	pushmetrics.Init()

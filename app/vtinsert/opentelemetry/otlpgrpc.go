@@ -24,13 +24,14 @@ var (
 )
 
 // OTLPGRPCRequestHandler is the router of gRPC requests.
-func OTLPGRPCRequestHandler(r *http.Request, w http.ResponseWriter) {
+func OTLPGRPCRequestHandler(r *http.Request, w http.ResponseWriter) bool {
 	switch r.URL.Path {
 	case otlpExportTracesPath:
 		otlpExportTracesHandler(r, w)
 	default:
 		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeUnimplemented, fmt.Sprintf("gRPC method not found: %s", r.URL.Path))
 	}
+	return true
 }
 
 // otlpExportTracesHandler handles OTLP export traces requests.

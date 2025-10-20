@@ -1,8 +1,6 @@
 package vtinsert
 
 import (
-	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -11,8 +9,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/internalinsert"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/opentelemetry"
@@ -20,28 +16,21 @@ import (
 )
 
 var (
-	disableInsert      = flag.Bool("insert.disable", false, "Whether to disable /insert/* HTTP endpoints")
-	disableInternal    = flag.Bool("internalinsert.disable", false, "Whether to disable /internal/insert HTTP endpoint. See https://docs.victoriametrics.com/victoriatraces/cluster/#security")
-	otlpGRPCListenAddr = flag.String("otlpGRPCListenAddr", "", `TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317".`)
-)
+	disableInsert   = flag.Bool("insert.disable", false, "Whether to disable /insert/* HTTP endpoints")
+	disableInternal = flag.Bool("internalinsert.disable", false, "Whether to disable /internal/insert HTTP endpoint. See https://docs.victoriametrics.com/victoriatraces/cluster/#security")
 
-var (
-	otlpGRPCServer http.Server
+	otlpGRPCListenAddr = flag.String("otlpGRPCListenAddr", "", `TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317".`)
 )
 
 // Init initializes vtinsert
 func Init() {
 	if *otlpGRPCListenAddr != "" {
-		otlpGRPCServer = http.Server{
-			Addr:    *otlpGRPCListenAddr,
-			Handler: h2c.NewHandler(http.HandlerFunc(otlpGRPCRequestHandler), &http2.Server{}),
-		}
 		logger.Infof("starting OTLP gPRC server at %q...", *otlpGRPCListenAddr)
-		go func() {
-			if err := otlpGRPCServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				logger.Fatalf("http2 server start error: %s", err)
-			}
-		}()
+		go httpserver.Serve(
+			[]string{*otlpGRPCListenAddr},
+			otlpGRPCRequestHandler,
+			httpserver.ServeOptions{UseProxyProtocol: nil, DisableBuiltinRoutes: true, EnableHTTP2: true},
+		)
 	}
 }
 
@@ -50,7 +39,7 @@ func Stop() {
 	if *otlpGRPCListenAddr != "" {
 		startTime := time.Now()
 		logger.Infof("gracefully shutting down the OTLP gPRC server at %q...", *otlpGRPCListenAddr)
-		otlpGRPCServer.Shutdown(context.Background())
+		httpserver.Stop([]string{*otlpGRPCListenAddr})
 		logger.Infof("successfully shut down the OTLP gPRC  in %.3f seconds", time.Since(startTime).Seconds())
 	}
 }
@@ -98,10 +87,10 @@ func insertHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 }
 
 // otlpGRPCRequestHandler handles OTLP gRPC insert requests over HTTP for VictoriaTraces.
-func otlpGRPCRequestHandler(w http.ResponseWriter, r *http.Request) {
+func otlpGRPCRequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if *disableInsert {
 		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeUnavailable, "requests to grpc export are disabled with -insert.disable command-line flag")
-		return
+		return true
 	}
-	opentelemetry.OTLPGRPCRequestHandler(r, w)
+	return opentelemetry.OTLPGRPCRequestHandler(r, w)
 }
