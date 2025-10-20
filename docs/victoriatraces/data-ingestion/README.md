@@ -7,7 +7,7 @@ sitemap:
   disable: true
 ---
 
-[VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) can accept trace spans via [the OpenTelemetry protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/), and support both HTTP and gRPC endpoints.
+[VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) can accept trace spans via [the OpenTelemetry protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/).
 
 ## HTTP APIs
 
