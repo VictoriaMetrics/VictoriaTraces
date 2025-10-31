@@ -46,6 +46,7 @@ victoria-traces-crossbuild: \
 	victoria-traces-linux-arm64 \
 	victoria-traces-linux-arm \
 	victoria-traces-linux-ppc64le \
+	victoria-traces-linux-s390x \
 	victoria-traces-darwin-amd64 \
 	victoria-traces-darwin-arm64 \
 	victoria-traces-freebsd-amd64 \
@@ -71,6 +72,7 @@ release-victoria-traces:
 		release-victoria-traces-linux-amd64 \
 		release-victoria-traces-linux-arm \
 		release-victoria-traces-linux-arm64 \
+		release-victoria-traces-linux-s390x \
 		release-victoria-traces-darwin-amd64 \
 		release-victoria-traces-darwin-arm64 \
 		release-victoria-traces-freebsd-amd64 \
@@ -88,6 +90,9 @@ release-victoria-traces-linux-arm:
 
 release-victoria-traces-linux-arm64:
 	GOOS=linux GOARCH=arm64 $(MAKE) release-victoria-traces-goos-goarch
+
+release-victoria-traces-linux-s390x:
+	GOOS=linux GOARCH=s390x $(MAKE) release-victoria-traces-goos-goarch
 
 release-victoria-traces-darwin-amd64:
 	GOOS=darwin GOARCH=amd64 $(MAKE) release-victoria-traces-goos-goarch
