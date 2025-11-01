@@ -48,28 +48,30 @@ type ServeOptions struct {
 // Serve starts an http server on the given addrs with the given optional rh.
 //
 // By default, all the responses are transparently compressed, since egress traffic is usually expensive.
-func Serve(addrs []string, rh httpserver.RequestHandler, opts ServeOptions) {
+func Serve(addrs []string, rh httpserver.RequestHandler, tlsConfigs []*tls.Config, opts ServeOptions) {
 	if rh == nil {
 		rh = func(_ http.ResponseWriter, _ *http.Request) bool {
 			return false
 		}
 	}
+	if len(addrs) != len(tlsConfigs) {
+		logger.Fatalf("incorrect length of addrs and tlsConfigs, addrs: %d, tlsConfigs: %d", len(addrs), len(tlsConfigs))
+	}
 	for idx, addr := range addrs {
 		if addr == "" {
 			continue
 		}
-		go serve(addr, rh, idx, opts)
+		go serve(addr, rh, idx, tlsConfigs[idx], opts)
 	}
 }
 
-func serve(addr string, rh httpserver.RequestHandler, idx int, opts ServeOptions) {
+func serve(addr string, rh httpserver.RequestHandler, idx int, tlsConfig *tls.Config, opts ServeOptions) {
 	scheme := "http2"
 	useProxyProto := false
 	if opts.UseProxyProtocol != nil {
 		useProxyProto = opts.UseProxyProtocol.GetOptionalArg(idx)
 	}
 
-	var tlsConfig *tls.Config
 	ln, err := netutil.NewTCPListener(scheme, addr, useProxyProto, tlsConfig)
 	if err != nil {
 		logger.Fatalf("cannot start http/2 server at %s: %s", addr, err)
