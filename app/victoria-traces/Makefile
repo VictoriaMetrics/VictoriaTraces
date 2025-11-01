@@ -27,6 +27,9 @@ victoria-traces-linux-ppc64le-prod:
 victoria-traces-linux-386-prod:
 	APP_NAME=victoria-traces $(MAKE) app-via-docker-linux-386
 
+victoria-traces-linux-s390x-prod:
+	APP_NAME=victoria-traces $(MAKE) app-via-docker-linux-s390x
+
 victoria-traces-darwin-amd64-prod:
 	APP_NAME=victoria-traces $(MAKE) app-via-docker-darwin-amd64
 
