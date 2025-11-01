@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
@@ -23,7 +24,7 @@ type Client struct {
 func NewClient() *Client {
 	return &Client{
 		httpCli: &http.Client{
-			Transport: httputil.NewTransport(false, "apptest_client"),
+			Transport: httputil.NewTransport(true, "apptest_client"),
 		},
 	}
 }
@@ -192,4 +193,23 @@ func (app *ServesMetrics) GetMetricsByPrefix(t *testing.T, prefix string) []floa
 		values = append(values, value)
 	}
 	return values
+}
+
+var (
+	http2Client *http.Client
+	once        sync.Once
+)
+
+func GetHTTP2Client() *http.Client {
+	once.Do(func() {
+		var protocols http.Protocols
+		protocols.SetUnencryptedHTTP2(true)
+		http2Client = &http.Client{
+			Transport: &http.Transport{
+				ForceAttemptHTTP2: true,
+				Protocols:         &protocols,
+			},
+		}
+	})
+	return http2Client
 }

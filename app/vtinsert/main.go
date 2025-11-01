@@ -7,29 +7,32 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/internalinsert"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/opentelemetry"
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/grpc"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/http2server"
 )
 
 var (
 	disableInsert   = flag.Bool("insert.disable", false, "Whether to disable /insert/* HTTP endpoints")
 	disableInternal = flag.Bool("internalinsert.disable", false, "Whether to disable /internal/insert HTTP endpoint. See https://docs.victoriametrics.com/victoriatraces/cluster/#security")
 
-	otlpGRPCListenAddr = flag.String("otlpGRPCListenAddr", "", `TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317".`)
+	otlpGRPCListenAddr       = flag.String("otlpGRPCListenAddr", "", `TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317".`)
+	otlpGRPCUseProxyProtocol = flag.Bool("otlpGRPCListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -otlpGRPCListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
 )
 
 // Init initializes vtinsert
 func Init() {
 	if *otlpGRPCListenAddr != "" {
 		logger.Infof("starting OTLP gPRC server at %q...", *otlpGRPCListenAddr)
-		go httpserver.Serve(
+		go http2server.Serve(
 			[]string{*otlpGRPCListenAddr},
 			otlpGRPCRequestHandler,
-			httpserver.ServeOptions{UseProxyProtocol: nil, DisableBuiltinRoutes: true, EnableHTTP2: true},
+			http2server.ServeOptions{UseProxyProtocol: &flagutil.ArrayBool{*otlpGRPCUseProxyProtocol}},
 		)
 	}
 }
@@ -39,10 +42,10 @@ func Stop() {
 	if *otlpGRPCListenAddr != "" {
 		startTime := time.Now()
 		logger.Infof("gracefully shutting down the OTLP gPRC server at %q...", *otlpGRPCListenAddr)
-		if err := httpserver.Stop([]string{*otlpGRPCListenAddr}); err != nil {
+		if err := http2server.Stop([]string{*otlpGRPCListenAddr}); err != nil {
 			logger.Fatalf("cannot stop the OTLP gRPC server: %s", err)
 		}
-		logger.Infof("successfully shut down the OTLP gPRC  in %.3f seconds", time.Since(startTime).Seconds())
+		logger.Infof("successfully shut down the OTLP gPRC in %.3f seconds", time.Since(startTime).Seconds())
 	}
 }
 
@@ -52,7 +55,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	if strings.HasPrefix(path, "/insert/") {
 		if *disableInsert {
-			httpserver.Errorf(w, r, "requests to /insert/* are disabled with -insert.disable command-line flag")
+			http2server.Errorf(w, r, "requests to /insert/* are disabled with -insert.disable command-line flag")
 			return true
 		}
 
@@ -61,7 +64,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	if path == "/internal/insert" {
 		if *disableInternal || *disableInsert {
-			httpserver.Errorf(w, r, "requests to /internal/insert are disabled with -internalinsert.disable or -insert.disable command-line flag")
+			http2server.Errorf(w, r, "requests to /internal/insert are disabled with -internalinsert.disable or -insert.disable command-line flag")
 			return true
 		}
 		internalinsert.RequestHandler(w, r)

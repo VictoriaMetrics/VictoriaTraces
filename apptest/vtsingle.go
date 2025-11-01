@@ -1,6 +1,8 @@
 package apptest
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"net/http"
 	"os"
@@ -29,7 +31,8 @@ type Vtsingle struct {
 	jaegerAPITraceURL        string
 	jaegerAPIDependenciesURL string
 
-	otlpTracesURL string
+	otlpTracesURL     string
+	otlpGRPCTracesURL string
 }
 
 // StartVtsingle starts an instance of Vtsingle with the given flags. It also
@@ -38,12 +41,14 @@ type Vtsingle struct {
 func StartVtsingle(instance string, flags []string, cli *Client) (*Vtsingle, error) {
 	app, stderrExtracts, err := startApp(instance, "../../bin/victoria-traces", flags, &appOptions{
 		defaultFlags: map[string]string{
-			"-storageDataPath": fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
-			"-httpListenAddr":  "127.0.0.1:0",
+			"-storageDataPath":    fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
+			"-httpListenAddr":     "127.0.0.1:0",
+			"-otlpGRPCListenAddr": "127.0.0.1:0",
 		},
 		extractREs: []*regexp.Regexp{
 			logsStorageDataPathRE,
 			httpListenAddrRE,
+			gRPCListenAddrRE,
 		},
 	})
 	if err != nil {
@@ -68,7 +73,8 @@ func StartVtsingle(instance string, flags []string, cli *Client) (*Vtsingle, err
 		jaegerAPITraceURL:        fmt.Sprintf("http://%s/select/jaeger/api/traces/%%s", stderrExtracts[1]),
 		jaegerAPIDependenciesURL: fmt.Sprintf("http://%s/select/jaeger/api/dependencies", stderrExtracts[1]),
 
-		otlpTracesURL: fmt.Sprintf("http://%s/insert/opentelemetry/v1/traces", stderrExtracts[1]),
+		otlpTracesURL:     fmt.Sprintf("http://%s/insert/opentelemetry/v1/traces", stderrExtracts[1]),
+		otlpGRPCTracesURL: fmt.Sprintf("http://%s/opentelemetry.proto.collector.trace.v1.TraceService/Export", stderrExtracts[2]),
 	}, nil
 }
 
@@ -164,13 +170,38 @@ func (app *Vtsingle) JaegerAPIDependencies(t *testing.T, param JaegerDependencie
 // OTLPExportTraces is a test helper function that exports OTLP trace data
 // by sending an HTTP POST request to /insert/opentelemetry/v1/traces
 // Vtsingle endpoint.
-func (app *Vtsingle) OTLPExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, _ QueryOpts) {
+func (app *Vtsingle) OTLPHTTPExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, _ QueryOpts) {
 	t.Helper()
 
 	pbData := request.MarshalProtobuf(nil)
 	body, code := app.cli.Post(t, app.otlpTracesURL, "application/x-protobuf", pbData)
 	if code != 200 {
 		t.Fatalf("got %d, expected 200. body: %s", code, body)
+	}
+}
+
+// OTLPgRPCExportTraces is a test helper function that exports OTLP trace data
+// by sending an `Export` gRPC call to a TraceService provider (Vtsingle).
+func (app *Vtsingle) OTLPgRPCExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, _ QueryOpts) {
+	t.Helper()
+
+	pbData := request.MarshalProtobuf(nil)
+
+	// 5 bytes prefix: 1 byte compress flag + 4 bytes body length
+	buf := make([]byte, 5)
+	binary.BigEndian.PutUint32(buf[1:5], uint32(len(pbData)))
+
+	reqBody := append(buf, pbData...)
+
+	// must use a http2 client
+	client := GetHTTP2Client()
+
+	resp, err := client.Post(app.otlpGRPCTracesURL, "application/grpc", bytes.NewReader(reqBody))
+	if err != nil {
+		t.Fatalf("go error: %s", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Fatalf("got %d, expected 200", resp.StatusCode)
 	}
 }
 

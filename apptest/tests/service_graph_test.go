@@ -190,8 +190,8 @@ func prepareTraceParentAndChildSpanData(tc *at.TestCase, sut at.VictoriaTracesWr
 	}
 
 	// ingest data via /insert/opentelemetry/v1/traces
-	sut.OTLPExportTraces(t, parentSpanReq, at.QueryOpts{})
-	sut.OTLPExportTraces(t, childSpanReq, at.QueryOpts{})
+	sut.OTLPHTTPExportTraces(t, parentSpanReq, at.QueryOpts{})
+	sut.OTLPHTTPExportTraces(t, childSpanReq, at.QueryOpts{})
 
 	// case: 2
 	// ingest invalid data via /insert/opentelemetry/v1/traces
@@ -290,8 +290,8 @@ func prepareTraceParentAndChildSpanData(tc *at.TestCase, sut at.VictoriaTracesWr
 		},
 	}
 
-	sut.OTLPExportTraces(t, invalidParentSpanReq, at.QueryOpts{})
-	sut.OTLPExportTraces(t, invalidChildSpanReq, at.QueryOpts{})
+	sut.OTLPHTTPExportTraces(t, invalidParentSpanReq, at.QueryOpts{})
+	sut.OTLPHTTPExportTraces(t, invalidChildSpanReq, at.QueryOpts{})
 	return parentServiceName, childServiceName
 }
 

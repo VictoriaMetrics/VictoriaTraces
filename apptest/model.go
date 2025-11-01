@@ -68,7 +68,8 @@ type JaegerQuerier interface {
 
 // OTLPTracesWriter contains methods for writing OTLP trace data.
 type OTLPTracesWriter interface {
-	OTLPExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, opts QueryOpts)
+	OTLPHTTPExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, opts QueryOpts)
+	OTLPgRPCExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, opts QueryOpts)
 }
 
 // StorageFlusher defines a method that forces the flushing of data inserted

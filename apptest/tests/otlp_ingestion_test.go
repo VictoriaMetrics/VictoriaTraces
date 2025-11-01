@@ -30,7 +30,49 @@ func TestSingleOTLPIngestionJaegerQuery(t *testing.T) {
 func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQuerier) {
 	t := tc.T()
 
-	// prepare test data for ingestion and assertion.
+	req, assertFunc := getDefaultIngestRequestAndAssertFunc(tc, sut)
+
+	// ingest data via /insert/opentelemetry/v1/traces
+	sut.OTLPHTTPExportTraces(t, req, at.QueryOpts{})
+	sut.ForceFlush(t)
+
+	// verify
+	assertFunc()
+}
+
+// TestSingleOTLPgRPCIngestionJaegerQuery test data ingestion of OTLP/gRPC Export method which provided by vt-single,
+// and queries of various `/select/jaeger/api/*` APIs from vt-single.
+func TestSingleOTLPgRPCIngestionJaegerQuery(t *testing.T) {
+	os.RemoveAll(t.Name())
+
+	tc := at.NewTestCase(t)
+
+	defer tc.Stop()
+
+	sut := tc.MustStartDefaultVtsingle()
+
+	testOTLPgRPCIngestionJaegerQuery(tc, sut)
+}
+
+func testOTLPgRPCIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQuerier) {
+	t := tc.T()
+
+	req, assertFunc := getDefaultIngestRequestAndAssertFunc(tc, sut)
+
+	// ingest data via /insert/opentelemetry/v1/traces
+	sut.OTLPgRPCExportTraces(t, req, at.QueryOpts{})
+	sut.ForceFlush(t)
+
+	// verify
+	assertFunc()
+}
+
+// getDefaultIngestRequestAndAssertFunc creates test data, returns it as `*otelpb.ExportTraceServiceRequest` and provides
+// a assert function to verify the test data.
+func getDefaultIngestRequestAndAssertFunc(tc *at.TestCase, sut at.VictoriaTracesWriteQuerier) (*otelpb.ExportTraceServiceRequest, func()) {
+	t := tc.T()
+
+	// prepare test data
 	serviceName := "testKeyIngestQueryService"
 	spanName := "testKeyIngestQuerySpan"
 	traceID := "123456789"
@@ -114,38 +156,6 @@ func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQue
 		},
 	}
 
-	// ingest data via /insert/opentelemetry/v1/traces
-	sut.OTLPExportTraces(t, req, at.QueryOpts{})
-	sut.ForceFlush(t)
-
-	// check services via /select/jaeger/api/services
-	tc.Assert(&at.AssertOptions{
-		Msg: "unexpected /select/jaeger/api/services response",
-		Got: func() any {
-			return sut.JaegerAPIServices(t, at.QueryOpts{})
-		},
-		Want: &at.JaegerAPIServicesResponse{
-			Data: []string{serviceName},
-		},
-		CmpOpts: []cmp.Option{
-			cmpopts.IgnoreFields(at.JaegerAPIServicesResponse{}, "Errors", "Limit", "Offset", "Total"),
-		},
-	})
-
-	// check span name via /select/jaeger/api/services/*/operations
-	tc.Assert(&at.AssertOptions{
-		Msg: "unexpected /select/jaeger/api/services/*/operations response",
-		Got: func() any {
-			return sut.JaegerAPIOperations(t, serviceName, at.QueryOpts{})
-		},
-		Want: &at.JaegerAPIOperationsResponse{
-			Data: []string{spanName},
-		},
-		CmpOpts: []cmp.Option{
-			cmpopts.IgnoreFields(at.JaegerAPIOperationsResponse{}, "Errors", "Limit", "Offset", "Total"),
-		},
-	})
-
 	expectTraceData := []at.TracesResponseData{
 		{
 			Processes: map[string]at.Process{"p1": {ServiceName: "testKeyIngestQueryService", Tags: []at.Tag{}}},
@@ -190,36 +200,67 @@ func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQue
 		},
 	}
 
-	// check traces data via /select/jaeger/api/traces
-	tc.Assert(&at.AssertOptions{
-		Msg: "unexpected /select/jaeger/api/traces response",
-		Got: func() any {
-			return sut.JaegerAPITraces(t, at.JaegerQueryParam{
-				TraceQueryParam: query.TraceQueryParam{
-					ServiceName:  serviceName,
-					StartTimeMin: spanTime.Add(-10 * time.Minute),
-					StartTimeMax: spanTime.Add(10 * time.Minute),
-				},
-			}, at.QueryOpts{})
-		},
-		Want: &at.JaegerAPITracesResponse{
-			Data: expectTraceData,
-		},
-		CmpOpts: []cmp.Option{
-			cmpopts.IgnoreFields(at.JaegerAPITracesResponse{}, "Errors", "Limit", "Offset", "Total"),
-		},
-	})
-	// check single trace data via /select/jaeger/api/traces/<trace_id>
-	tc.Assert(&at.AssertOptions{
-		Msg: "unexpected /select/jaeger/api/traces/<trace_id> response",
-		Got: func() any {
-			return sut.JaegerAPITrace(t, hex.EncodeToString([]byte(traceID)), at.QueryOpts{})
-		},
-		Want: &at.JaegerAPITraceResponse{
-			Data: expectTraceData,
-		},
-		CmpOpts: []cmp.Option{
-			cmpopts.IgnoreFields(at.JaegerAPITraceResponse{}, "Errors", "Limit", "Offset", "Total"),
-		},
-	})
+	assertFunc := func() {
+		// check services via /select/jaeger/api/services
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /select/jaeger/api/services response",
+			Got: func() any {
+				return sut.JaegerAPIServices(t, at.QueryOpts{})
+			},
+			Want: &at.JaegerAPIServicesResponse{
+				Data: []string{serviceName},
+			},
+			CmpOpts: []cmp.Option{
+				cmpopts.IgnoreFields(at.JaegerAPIServicesResponse{}, "Errors", "Limit", "Offset", "Total"),
+			},
+		})
+
+		// check span name via /select/jaeger/api/services/*/operations
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /select/jaeger/api/services/*/operations response",
+			Got: func() any {
+				return sut.JaegerAPIOperations(t, serviceName, at.QueryOpts{})
+			},
+			Want: &at.JaegerAPIOperationsResponse{
+				Data: []string{spanName},
+			},
+			CmpOpts: []cmp.Option{
+				cmpopts.IgnoreFields(at.JaegerAPIOperationsResponse{}, "Errors", "Limit", "Offset", "Total"),
+			},
+		})
+
+		// check traces data via /select/jaeger/api/traces
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /select/jaeger/api/traces response",
+			Got: func() any {
+				return sut.JaegerAPITraces(t, at.JaegerQueryParam{
+					TraceQueryParam: query.TraceQueryParam{
+						ServiceName:  serviceName,
+						StartTimeMin: spanTime.Add(-10 * time.Minute),
+						StartTimeMax: spanTime.Add(10 * time.Minute),
+					},
+				}, at.QueryOpts{})
+			},
+			Want: &at.JaegerAPITracesResponse{
+				Data: expectTraceData,
+			},
+			CmpOpts: []cmp.Option{
+				cmpopts.IgnoreFields(at.JaegerAPITracesResponse{}, "Errors", "Limit", "Offset", "Total"),
+			},
+		})
+		// check single trace data via /select/jaeger/api/traces/<trace_id>
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /select/jaeger/api/traces/<trace_id> response",
+			Got: func() any {
+				return sut.JaegerAPITrace(t, hex.EncodeToString([]byte(traceID)), at.QueryOpts{})
+			},
+			Want: &at.JaegerAPITraceResponse{
+				Data: expectTraceData,
+			},
+			CmpOpts: []cmp.Option{
+				cmpopts.IgnoreFields(at.JaegerAPITraceResponse{}, "Errors", "Limit", "Offset", "Total"),
+			},
+		})
+	}
+	return req, assertFunc
 }

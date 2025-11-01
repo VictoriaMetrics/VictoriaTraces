@@ -1,9 +1,9 @@
-# github.com/VictoriaMetrics/VictoriaLogs v1.36.2-0.20251008164716-21c0fb3de84d
+# github.com/VictoriaMetrics/VictoriaLogs v1.36.1
 ## explicit; go 1.25.2
 github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage
 github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter
-# github.com/VictoriaMetrics/VictoriaMetrics v1.127.1-0.20251020060633-8a63d84e2eeb
-## explicit; go 1.25.3
+# github.com/VictoriaMetrics/VictoriaMetrics v1.127.0
+## explicit; go 1.25.1
 github.com/VictoriaMetrics/VictoriaMetrics/lib/appmetrics
 github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/blockcache

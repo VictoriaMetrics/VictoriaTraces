@@ -4,10 +4,12 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/grpc"
@@ -23,6 +25,13 @@ var (
 	responseBytes       bytesutil.ByteBufferPool
 )
 
+var (
+	requestsGRPCTotal = metrics.NewCounter(`vt_http_requests_total{path="/opentelemetry.proto.collector.trace.v1.TraceService/Export",format="protobuf"}`)
+	errorsGRPCTotal   = metrics.NewCounter(`vt_http_errors_total{path="/opentelemetry.proto.collector.trace.v1.TraceService/Export",format="protobuf"}`)
+
+	requestGRPCDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/opentelemetry.proto.collector.trace.v1.TraceService/Export",format="protobuf"}`)
+)
+
 // OTLPGRPCRequestHandler is the router of gRPC requests.
 func OTLPGRPCRequestHandler(r *http.Request, w http.ResponseWriter) bool {
 	switch r.URL.Path {
@@ -36,28 +45,13 @@ func OTLPGRPCRequestHandler(r *http.Request, w http.ResponseWriter) bool {
 
 // otlpExportTracesHandler handles OTLP export traces requests.
 func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
+	startTime := time.Now()
+	requestsGRPCTotal.Inc()
+
 	if err := insertutil.CanWriteData(); err != nil {
 		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
 		return
 	}
-
-	// read, check and extract the real message from request body.
-	bb := compressedBytes.Get()
-	defer compressedBytes.Put(bb)
-
-	_, err := bb.ReadFrom(r.Body)
-	if err != nil {
-		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot read request body: %s", err))
-		return
-	}
-
-	err = grpc.CheckDataFrame(bb.B)
-	if err != nil {
-		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
-		return
-	}
-
-	bb.B = bb.B[5:]
 
 	// prepare ingestion
 	cp, err := insertutil.GetCommonParams(r)
@@ -65,6 +59,27 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot parse common params from request: %s", err))
 		return
 	}
+
+	// read, check and extract the real message from request body.
+	bb := compressedBytes.Get()
+	defer compressedBytes.Put(bb)
+
+	_, err = bb.ReadFrom(r.Body)
+	if err != nil {
+		errorsGRPCTotal.Inc()
+		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot read request body: %s", err))
+		return
+	}
+
+	err = grpc.CheckDataFrame(bb.B)
+	if err != nil {
+		errorsGRPCTotal.Inc()
+		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
+		return
+	}
+
+	bb.B = bb.B[5:]
+
 	// stream fields must contain the service name and span name.
 	// by using arguments and headers, users can also add other fields as stream fields
 	// for potentially better efficiency.
@@ -85,11 +100,17 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 		return callbackErr
 	})
 	if err != nil {
+		errorsGRPCTotal.Inc()
 		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
 		return
 	}
 
 	writeExportTraceServiceResponse(w, 0, "")
+
+	// update requestGRPCDuration only for successfully parsed requests
+	// There is no need in updating requestGRPCDuration for request errors,
+	// since their timings are usually much smaller than the timing for successful request parsing.
+	requestGRPCDuration.UpdateDuration(startTime)
 }
 
 // writeExportTraceServiceResponse write response in gRPC protocol over HTTP.

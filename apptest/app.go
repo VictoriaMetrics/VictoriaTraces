@@ -16,6 +16,7 @@ import (
 // Regular expressions for runtime information to extract from the app logs.
 var (
 	httpListenAddrRE = regexp.MustCompile(`started server at http://(.*:\d{1,5})/`)
+	gRPCListenAddrRE = regexp.MustCompile(`started http/2 server at http2://(.*:\d{1,5})/`)
 
 	logsStorageDataPathRE = regexp.MustCompile(`opening storage at -storageDataPath=(.*)`)
 )
