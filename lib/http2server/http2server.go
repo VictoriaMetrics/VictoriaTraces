@@ -246,9 +246,6 @@ var (
 	requestsTotal = metrics.NewCounter(`vm_http_requests_all_total{type="http2"}`)
 )
 
-//go:embed favicon.ico
-var faviconData []byte
-
 // GetQuotedRemoteAddr returns quoted remote address.
 func GetQuotedRemoteAddr(r *http.Request) string {
 	remoteAddr := r.RemoteAddr
