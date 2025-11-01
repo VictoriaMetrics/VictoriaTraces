@@ -468,8 +468,22 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -opentelemetry.traces.maxRequestSize size
     	The maximum size in bytes of a single OpenTelemetry trace export request.
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
+  -otlpGRPC.tls
+    	Whether to enable TLS for incoming gRPC request at the given -otlpGRPCListenAddr. -otlpGRPC.tlsCertFile and -otlpGRPC.tlsKeyFile must be set if -otlpGRPC.tls is set.
+  -otlpGRPC.tlsCertFile string
+    	Path to file with TLS certificate for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated.
+  -otlpGRPC.tlsCipherSuites array
+    	Optional TLS cipher suites for incoming requests over HTTPS if -otlpGRPC.tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -otlpGRPC.tlsKeyFile string
+    	Path to file with TLS key for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated.
+  -otlpGRPC.tlsMinVersion string
+    	Optional minimum TLS version to use for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. Supported values: TLS10, TLS11, TLS12, TLS13.
   -otlpGRPCListenAddr string
     	TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317".
+  -otlpGRPCListenAddr.useProxyProtocol
+    	Whether to use proxy protocol for connections accepted at -otlpGRPCListenAddr. See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -partitionManageAuthKey value
     	authKey, which must be passed in query string to /internal/partition/* . It overrides -httpAuth.* . See https://docs.victoriametrics.com/victoriatraces/#partitions-lifecycle
     	Flag value can be read from the given file when using -partitionManageAuthKey=file:///abs/path/to/file or -partitionManageAuthKey=file://./relative/path/to/file.

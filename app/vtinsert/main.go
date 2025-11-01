@@ -26,18 +26,16 @@ var (
 var (
 	otlpGRPCListenAddr = flag.String("otlpGRPCListenAddr", "", `TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317".`)
 
-	otlpGRPCUseProxyProtocol = flag.Bool("otlpGRPCListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -otlpGRPCListenAddr . "+
+	otlpGRPCUseProxyProtocol = flag.Bool("otlpGRPCListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -otlpGRPCListenAddr. "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
-	otlpGRPCTlsEnable = flag.Bool("otlpGRPC.tls", false, "Whether to enable TLS for incoming gRPC request at the given -otlpGRPCListenAddr. -otlpGRPC.tlsCertFile and -otlpGRPC.tlsKeyFile must be set if -otlpGRPC.tls is set. "+
-		"See also -otlpGRPC.mtls")
+	otlpGRPCTlsEnable   = flag.Bool("otlpGRPC.tls", false, "Whether to enable TLS for incoming gRPC request at the given -otlpGRPCListenAddr. -otlpGRPC.tlsCertFile and -otlpGRPC.tlsKeyFile must be set if -otlpGRPC.tls is set.")
 	otlpGRPCTlsCertFile = flag.String("otlpGRPC.tlsCertFile", "", "Path to file with TLS certificate for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. "+
-		"Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated. "+
-		"See also -otlpGRPC.tlsAutocertHosts")
+		"Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated.")
 	otlpGRPCTlsKeyFile = flag.String("otlpGRPC.tlsKeyFile", "", "Path to file with TLS key for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. "+
-		"The provided key file is automatically re-read every second, so it can be dynamically updated. See also -otlpGRPC.tlsAutocertHosts")
+		"The provided key file is automatically re-read every second, so it can be dynamically updated.")
 	otlpGRPCTlsCipherSuites = flagutil.NewArrayString("otlpGRPC.tlsCipherSuites", "Optional TLS cipher suites for incoming requests over HTTPS if -otlpGRPC.tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants")
 	otlpGRPCTlsMinVersion   = flag.String("otlpGRPC.tlsMinVersion", "", "Optional minimum TLS version to use for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. "+
-		"Supported values: TLS10, TLS11, TLS12, TLS13")
+		"Supported values: TLS10, TLS11, TLS12, TLS13.")
 )
 
 // Init initializes vtinsert
