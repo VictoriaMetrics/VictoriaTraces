@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
@@ -39,38 +38,23 @@ type server struct {
 }
 
 // ServeOptions defines optional parameters for http server
-type ServeOptions struct {
-	// UseProxyProtocol if is set to true for the corresponding addr, then the incoming connections are accepted via proxy protocol.
-	// See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
-	UseProxyProtocol *flagutil.ArrayBool
-}
+type ServeOptions struct{}
 
 // Serve starts an http server on the given addrs with the given optional rh.
 //
 // By default, all the responses are transparently compressed, since egress traffic is usually expensive.
-func Serve(addrs []string, rh httpserver.RequestHandler, tlsConfigs []*tls.Config, opts ServeOptions) {
+func Serve(addr string, rh httpserver.RequestHandler, tlsConfig *tls.Config) {
 	if rh == nil {
 		rh = func(_ http.ResponseWriter, _ *http.Request) bool {
 			return false
 		}
 	}
-	if len(addrs) != len(tlsConfigs) {
-		logger.Fatalf("incorrect length of addrs and tlsConfigs, addrs: %d, tlsConfigs: %d", len(addrs), len(tlsConfigs))
-	}
-	for idx, addr := range addrs {
-		if addr == "" {
-			continue
-		}
-		go serve(addr, rh, idx, tlsConfigs[idx], opts)
-	}
+	go serve(addr, rh, tlsConfig)
 }
 
-func serve(addr string, rh httpserver.RequestHandler, idx int, tlsConfig *tls.Config, opts ServeOptions) {
+func serve(addr string, rh httpserver.RequestHandler, tlsConfig *tls.Config) {
 	scheme := "http2"
 	useProxyProto := false
-	if opts.UseProxyProtocol != nil {
-		useProxyProto = opts.UseProxyProtocol.GetOptionalArg(idx)
-	}
 
 	ln, err := netutil.NewTCPListener(scheme, addr, useProxyProto, tlsConfig)
 	if err != nil {
