@@ -63,6 +63,26 @@
 }
 {% endfunc %}
 
+{% func GetTraceResponse(trace *trace) %}
+{
+	"data":[
+        {% if trace != nil %}
+            {%= traceJson(trace) %}
+        {% endif %}
+	],
+	"errors": 
+        {% if trace == nil %}
+            [{"code":404,"msg":"trace not found"}]
+        {% else %}
+            null
+        {% endif %}
+	,
+	"limit": 0,
+	"offset": 0,
+	"total": {% if trace == nil %}0{% else %}1{% endif %}
+}
+{% endfunc %}
+
 {% func GetDependenciesResponse(dependencies []*dependencyLink) %}
 {
 	"data":[
