@@ -49,8 +49,10 @@ traceExporter, err := otlptracehttp.New(ctx,
 
 To send the trace data to VictoriaTraces gRPC trace service, you need to first enable the OTLP gRPC server on VictoriaTraces by:
 ```shell
-./victoria-traces -otlpGRPCListenAddr=:4317
+./victoria-traces -otlpGRPCListenAddr=:4317 -otlpGRPC.tlsCertFile=<cert_file> -otlpGRPC.tlsKeyFile=<key_file>
 ```
+
+> You can also **disable TLS** for incoming gRPC requests by setting `-otlpGRPC.tls=false`. TLS is recommended for production use, and disabling it should only be done when you're testing or aware of the potential risks.
 
 After that, specify the `Endpoint` for grpc-exporter builder to `<victoria-traces>:4317`, and disable TLS by `WithInsecure()` (Because VictoriaTraces gRPC endpoint doesn't support TLS yet).
 
@@ -101,13 +103,20 @@ exporters:
 
 To send the collected traces to VictoriaTraces gRPC trace service, you need to first enable the OTLP gRPC server on VictoriaTraces by:
 ```shell
-./victoria-traces -otlpGRPCListenAddr=:4317
+./victoria-traces -otlpGRPCListenAddr=:4317 -otlpGRPC.tlsCertFile=<cert_file> -otlpGRPC.tlsKeyFile=<key_file>
 ```
 
-After that, specify endpoint for [OTLP/gRPC exporter](https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlpexporter/README.md) and **disable TLS** in configuration file:
+> You can also **disable TLS** for incoming gRPC requests by setting `-otlpGRPC.tls=false`. TLS is recommended for production use, and disabling it should only be done when you're testing or aware of the potential risks.
+
+After that, specify endpoint for [OTLP/gRPC exporter](https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlpexporter/README.md):
 ```yaml
 exporters:
-  otlp:
+  otlp/with-tls:
+    endpoint: <victoria-traces>:4317
+    tls:
+      cert_file: file.cert
+      key_file: file.key
+  otlp/without-tls:
     endpoint: <victoria-traces>:4317
     tls:
       insecure: true
@@ -118,7 +127,7 @@ exporters:
 As same as HTTP endpoint, gRPC also support various HTTP headers. For example, the following configs add (or overwrites) `foo: bar` field to each trace span during data ingestion:
 ```yaml
 exporters:
-  otlp:
+  otlp/without-tls:
     endpoint: <victoria-traces>:4317
     tls:
       insecure: true
