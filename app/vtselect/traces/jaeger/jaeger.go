@@ -158,6 +158,13 @@ func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.
 		return
 	}
 
+	if len(rows) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		WriteGetTraceResponse(w, nil)
+		return
+	}
+
 	t := &trace{}
 	processHashIDMap := make(map[uint64]string)     // process name -> process id
 	processIDProcessMap := make(map[string]process) // process id -> process
@@ -196,7 +203,7 @@ func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.
 
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
-	WriteGetTracesResponse(w, []*trace{t})
+	WriteGetTraceResponse(w, t)
 }
 
 // processGetTracesRequest handle the Jaeger /api/traces API request.
