@@ -22,7 +22,7 @@ VictoriaTraces provides the following prominent features:
   to integrate with [Grafana](https://grafana.com/docs/grafana/latest/datasources/jaeger/) or [Jaeger Frontend](https://www.jaegertracing.io/docs/2.6/frontend-ui/).
 - It supports alerting - see [these docs](https://docs.victoriametrics.com/victoriatraces/vmalert/).
 
-If you want to play with the VictoriaTraces demo, simply go to our [Grafana playground](https://play-grafana.victoriametrics.com/explore) to query and visualize the traces, 
+If you want to play with the VictoriaTraces demo, simply go to our [Grafana playground](https://play-grafana.victoriametrics.com/explore) to query and visualize the traces,
 and visit the [VictoriaTraces playground](https://play-vtraces.victoriametrics.com/) to see how trace spans are structured and stored.
 
 ## Operation

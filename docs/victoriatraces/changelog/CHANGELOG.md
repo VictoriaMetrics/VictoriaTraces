@@ -30,7 +30,7 @@ Released at 2025-11-08
 
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc) data ingestion. It requires `-otlpGRPCListenAddr` flag to be set on Single-node VictoriaTraces or vtinsert. See [this doc](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry) for details. Thanks to @JayiceZ for the [pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/59).
 
-* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return the correct error message and the total number when searching by trace ID yields no hits in the result. Thank @huan89983 for [the bug report](https://github.com/VictoriaMetrics/VictoriaTraces/issues/77). 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return the correct error message and the total number when searching by trace ID yields no hits in the result. Thank @huan89983 for [the bug report](https://github.com/VictoriaMetrics/VictoriaTraces/issues/77).
 
 ## [v0.4.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.4.1)
 

@@ -95,7 +95,7 @@ func GenerateServiceGraphTimeRange(ctx context.Context) {
 		// persist service graph relations
 		err = vtinsert.PersistServiceGraph(ctx, tenantID, rows, endTime)
 		if err != nil {
-			logger.Errorf("cannot presist service graph for time range [%d, %d]: %s", startTime.Unix(), endTime.Unix(), err)
+			logger.Errorf("cannot persist service graph for time range [%d, %d]: %s", startTime.Unix(), endTime.Unix(), err)
 		}
 	}
 }
