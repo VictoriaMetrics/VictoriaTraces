@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/md5"
 	"encoding/binary"
@@ -231,6 +232,10 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 			reqBytes = append(flagBytes, reqBytes...)
 		}
 
+		var buf bytes.Buffer
+		gw := gzip.NewWriter(&buf)
+		gw.Write(reqBytes)
+
 		// send request to each address.
 		for addrIdx, addr := range addrList {
 			if addrIdx == 1 {
@@ -244,7 +249,7 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 
 			// prepare request.
 			if *grpcMode {
-				httpReq, err = http.NewRequest("POST", addr+"/opentelemetry.proto.collector.trace.v1.TraceService/Export", bytes.NewReader(reqBytes))
+				httpReq, err = http.NewRequest("POST", addr+"/opentelemetry.proto.collector.trace.v1.TraceService/Export", bytes.NewReader(buf.Bytes()))
 				if err != nil {
 					logger.Errorf("cannot create http request for addr %q: %s", addr, err)
 					continue
@@ -256,7 +261,7 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 				httpReq.Header.Add("User-Agent", "vtgen")
 				httpClient = http2Client
 			} else {
-				httpReq, err = http.NewRequest("POST", addr, bytes.NewReader(reqBytes))
+				httpReq, err = http.NewRequest("POST", addr, bytes.NewReader(buf.Bytes()))
 				if err != nil {
 					logger.Errorf("cannot create http request for addr %q: %s", addr, err)
 					continue
@@ -264,12 +269,14 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 				httpReq.Header.Add("content-type", "application/x-protobuf")
 			}
 
+			gw.Close()
+
 			if *authHeaders != "" {
 				httpReq.Header.Add("authorization", authHeaderList[addrIdx])
 			}
 			// force gzip for both way
 			httpReq.Header.Add("content-encoding", "gzip")
-			
+
 			// do request and record metrics.
 			startTime := time.Now()
 			res, err := httpClient.Do(httpReq)
