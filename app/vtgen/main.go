@@ -233,7 +233,7 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 
 		// send request to each address.
 		for addrIdx, addr := range addrList {
-			if addr == "http://1.1.1.1:1/v1/traces" {
+			if addrIdx == 1 {
 				addr = agentAddrs[rand.Intn(len(agentAddrs))]
 			}
 			var (
