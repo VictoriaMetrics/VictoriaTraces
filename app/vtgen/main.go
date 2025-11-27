@@ -44,6 +44,10 @@ var (
 	errCountList         []*metrics.Counter
 )
 
+var (
+	agentAddrs = []string{"http://10.140.0.2:4318/v1/traces", "http://10.140.15.234:4318/v1/traces", "http://10.140.0.6:4318/v1/traces"}
+)
+
 func main() {
 	// parse and validate cli flags, init metrics
 	addrList, authHeaderList := initFlagsAndMetrics()
@@ -229,6 +233,9 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 
 		// send request to each address.
 		for addrIdx, addr := range addrList {
+			if addr == "agent" {
+				addr = agentAddrs[rand.Intn(len(agentAddrs))]
+			}
 			var (
 				httpReq    *http.Request
 				err        error
