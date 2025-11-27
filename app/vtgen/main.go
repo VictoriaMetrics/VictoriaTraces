@@ -235,6 +235,7 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 		var buf bytes.Buffer
 		gw := gzip.NewWriter(&buf)
 		gw.Write(reqBytes)
+		gw.Close()
 
 		// send request to each address.
 		for addrIdx, addr := range addrList {
@@ -268,8 +269,6 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 				}
 				httpReq.Header.Add("content-type", "application/x-protobuf")
 			}
-
-			gw.Close()
 
 			if *authHeaders != "" {
 				httpReq.Header.Add("authorization", authHeaderList[addrIdx])
