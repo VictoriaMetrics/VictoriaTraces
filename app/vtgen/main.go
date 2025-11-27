@@ -267,7 +267,9 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 			if *authHeaders != "" {
 				httpReq.Header.Add("authorization", authHeaderList[addrIdx])
 			}
-
+			// force gzip for both way
+			httpReq.Header.Add("accept-encoding", "gzip")
+			
 			// do request and record metrics.
 			startTime := time.Now()
 			res, err := httpClient.Do(httpReq)
