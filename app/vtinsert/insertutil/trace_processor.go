@@ -81,7 +81,7 @@ func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID,
 	)
 
 	i := len(fields) - 1
-	// find trace ID in revert order.
+	// find trace ID in reverse order.
 	for ; i >= 0; i-- {
 		if fields[i].Name == otelpb.TraceIDField {
 			traceID = strings.Clone(fields[i].Value)
@@ -93,8 +93,8 @@ func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID,
 		return false
 	}
 
-	// find endTimeNano of the span in revert order, it should be right before trace ID field.
-	for ; i >= 0; i-- {
+	// find endTimeNano of the span in reverse order, it should be right before trace ID field.
+	for i = i - 1; i >= 0; i-- {
 		if fields[i].Name == otelpb.EndTimeUnixNanoField {
 			endTime, err = strconv.ParseInt(fields[i].Value, 10, 64)
 			if err != nil {
@@ -105,8 +105,8 @@ func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID,
 		}
 	}
 
-	// find startTimeNano of the span in revert order, it should be right before endTimeNano field.
-	for ; i >= 0; i-- {
+	// find startTimeNano of the span in reverse order, it should be right before endTimeNano field.
+	for i = i - 1; i >= 0; i-- {
 		if fields[i].Name == otelpb.StartTimeUnixNanoField {
 			startTime, err = strconv.ParseInt(fields[i].Value, 10, 64)
 			if err != nil {
@@ -150,7 +150,7 @@ func (tsp *traceSpanProcessor) pushNativeRowToIndexQueue(r *logstorage.InsertRow
 	)
 
 	i := len(r.Fields) - 1
-	// find trace ID in revert order.
+	// find trace ID in reverse order.
 	for ; i >= 0; i-- {
 		if r.Fields[i].Name == otelpb.TraceIDField {
 			traceID = strings.Clone(r.Fields[i].Value)
@@ -159,11 +159,12 @@ func (tsp *traceSpanProcessor) pushNativeRowToIndexQueue(r *logstorage.InsertRow
 	}
 
 	if traceID == "" {
+		logger.Errorf("cannot push index for a trace to the queue: cannot find the trace ID of an insert row: %v", r)
 		return false
 	}
 
-	// find endTimeNano of the span in revert order, it should be right before trace ID field.
-	for ; i >= 0; i-- {
+	// find endTimeNano of the span in reverse order, it should be right before trace ID field.
+	for i = i - 1; i >= 0; i-- {
 		if r.Fields[i].Name == otelpb.EndTimeUnixNanoField {
 			endTime, err = strconv.ParseInt(r.Fields[i].Value, 10, 64)
 			if err != nil {
@@ -174,8 +175,8 @@ func (tsp *traceSpanProcessor) pushNativeRowToIndexQueue(r *logstorage.InsertRow
 		}
 	}
 
-	// find startTimeNano of the span in revert order, it should be right before endTimeNano field.
-	for ; i >= 0; i-- {
+	// find startTimeNano of the span in reverse order, it should be right before endTimeNano field.
+	for i = i - 1; i >= 0; i-- {
 		if r.Fields[i].Name == otelpb.StartTimeUnixNanoField {
 			startTime, err = strconv.ParseInt(r.Fields[i].Value, 10, 64)
 			if err != nil {
