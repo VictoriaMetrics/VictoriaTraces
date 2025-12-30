@@ -4,10 +4,10 @@ import (
 	"flag"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/cespare/xxhash/v2"
 
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
@@ -20,8 +20,8 @@ var (
 
 type indexEntry struct {
 	tenantID      logstorage.TenantID
-	startTimeNano string
-	endTimeNano   string
+	startTimeNano atomic.Int64
+	endTimeNano   atomic.Int64
 }
 
 var (
@@ -43,7 +43,7 @@ var (
 
 // pushIndexToQueue organize index data (from LogMessageProcessor interface or InsertRowProcessor interface)
 // and push it to the queue.
-func pushIndexToQueue(tenantID logstorage.TenantID, traceID string, startTime, endTime string) bool {
+func pushIndexToQueue(tenantID logstorage.TenantID, traceID string, startTime, endTime int64) bool {
 	select {
 	case <-stopCh:
 		// during stop, no data should be pushed to the queue anymore.
@@ -52,23 +52,58 @@ func pushIndexToQueue(tenantID logstorage.TenantID, traceID string, startTime, e
 		index, ok := traceIDIndexMapCur.Load(traceID)
 		if ok {
 			idxEntry := index.(*indexEntry)
-			idxEntry.startTimeNano = min(idxEntry.startTimeNano, startTime)
-			idxEntry.endTimeNano = max(idxEntry.endTimeNano, endTime)
+			for {
+				st := idxEntry.startTimeNano.Load()
+				if st < startTime {
+					break
+				}
+				if idxEntry.startTimeNano.CompareAndSwap(st, startTime) {
+					break
+				}
+			}
+			for {
+				et := idxEntry.endTimeNano.Load()
+				if et > endTime {
+					break
+				}
+				if idxEntry.endTimeNano.CompareAndSwap(et, endTime) {
+					break
+				}
+			}
 			return true
 		}
 
 		index, ok = traceIDIndexMapPrev.Load(traceID)
 		if ok {
 			idxEntry := index.(*indexEntry)
-			idxEntry.startTimeNano = min(idxEntry.startTimeNano, startTime)
-			idxEntry.endTimeNano = max(idxEntry.endTimeNano, endTime)
+			for {
+				st := idxEntry.startTimeNano.Load()
+				if st < startTime {
+					break
+				}
+				if idxEntry.startTimeNano.CompareAndSwap(st, startTime) {
+					break
+				}
+			}
+			for {
+				et := idxEntry.endTimeNano.Load()
+				if et > endTime {
+					break
+				}
+				if idxEntry.endTimeNano.CompareAndSwap(et, endTime) {
+					break
+				}
+			}
 			return true
 		}
 
+		var s, e atomic.Int64
+		s.Store(startTime)
+		e.Store(endTime)
 		idxEntry := &indexEntry{
 			tenantID:      tenantID,
-			startTimeNano: startTime,
-			endTimeNano:   endTime,
+			startTimeNano: s,
+			endTimeNano:   e,
 		}
 
 		traceIDIndexMapCur.Store(traceID, idxEntry)
@@ -127,18 +162,15 @@ func flushIndexInMap(traceID, index any) bool {
 		logMessageProcessorMap[idxEntry.tenantID] = lmp
 	}
 
-	indexTimestamp, err := strconv.ParseInt(idxEntry.startTimeNano, 10, 64)
-	if err != nil {
-		logger.Errorf("trace index: cannot parse start time %q to int64", idxEntry.startTimeNano)
-		return true
-	}
-	lmp.AddRow(indexTimestamp,
+	startTimestamp := idxEntry.startTimeNano.Load()
+	endTimestamp := idxEntry.startTimeNano.Load()
+	lmp.AddRow(startTimestamp,
 		// fields
 		[]logstorage.Field{
 			{Name: "_msg", Value: "-"},
 			{Name: otelpb.TraceIDIndexFieldName, Value: traceID.(string)},
-			{Name: otelpb.TraceIDIndexStartTimeFieldName, Value: idxEntry.startTimeNano},
-			{Name: otelpb.TraceIDIndexEndTimeFieldName, Value: idxEntry.endTimeNano},
+			{Name: otelpb.TraceIDIndexStartTimeFieldName, Value: strconv.FormatInt(startTimestamp, 10)},
+			{Name: otelpb.TraceIDIndexEndTimeFieldName, Value: strconv.FormatInt(endTimestamp, 10)},
 		},
 		// stream fields
 		[]logstorage.Field{

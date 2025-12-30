@@ -74,7 +74,11 @@ func (tsp *traceSpanProcessor) MustClose() {
 // pushTraceToIndexQueue is for trace from LogMessageProcessor. It adds trace ID, startTimeNano, endTimeNano of the span to the FIFO queue.
 // Each item in the queue will be popped after certain interval, and carries the min(startTimeNano), max(endTimeNano) of this trace ID.
 func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID, fields []logstorage.Field) bool {
-	var traceID, startTime, endTime string
+	var (
+		traceID            string
+		startTime, endTime int64
+		err                error
+	)
 
 	i := len(fields) - 1
 	// find trace ID in revert order.
@@ -92,7 +96,11 @@ func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID,
 	// find endTimeNano of the span in revert order, it should be right before trace ID field.
 	for ; i >= 0; i-- {
 		if fields[i].Name == otelpb.EndTimeUnixNanoField {
-			endTime = strings.Clone(fields[i].Value)
+			endTime, err = strconv.ParseInt(fields[i].Value, 10, 64)
+			if err != nil {
+				logger.Errorf("cannot parse endTime %s for traceID %q: %v", fields[i].Value, traceID, err)
+				return false
+			}
 			break
 		}
 	}
@@ -100,17 +108,21 @@ func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID,
 	// find startTimeNano of the span in revert order, it should be right before endTimeNano field.
 	for ; i >= 0; i-- {
 		if fields[i].Name == otelpb.StartTimeUnixNanoField {
-			startTime = strings.Clone(fields[i].Value)
+			startTime, err = strconv.ParseInt(fields[i].Value, 10, 64)
+			if err != nil {
+				logger.Errorf("cannot parse startTime %s for traceID %q: %v", fields[i].Value, traceID, err)
+				return false
+			}
 			break
 		}
 	}
 
 	// to secure an index entry will be created even if the span does not have startTimeNano and endTimeNano.
-	if startTime == "" {
-		startTime = strconv.FormatInt(time.Now().UnixNano(), 10)
+	if startTime == 0 {
+		startTime = time.Now().UnixNano()
 	}
-	if endTime == "" {
-		endTime = strconv.FormatInt(time.Now().UnixNano(), 10)
+	if endTime == 0 {
+		endTime = time.Now().UnixNano()
 	}
 
 	return pushIndexToQueue(tenant, traceID, startTime, endTime)
