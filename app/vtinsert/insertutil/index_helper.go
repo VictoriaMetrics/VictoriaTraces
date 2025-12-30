@@ -18,6 +18,8 @@ var (
 		"Each trace ID must wait in the queue for -insert.indexFlushInterval, continuously updating its start and end times before being flushed into the index.")
 )
 
+const int64Max = int64(1<<63 - 1)
+
 type indexEntry struct {
 	tenantID      logstorage.TenantID
 	startTimeNano atomic.Int64
@@ -97,14 +99,10 @@ func pushIndexToQueue(tenantID logstorage.TenantID, traceID string, startTime, e
 			return true
 		}
 
-		var s, e atomic.Int64
-		s.Store(startTime)
-		e.Store(endTime)
-		idxEntry := &indexEntry{
-			tenantID:      tenantID,
-			startTimeNano: s,
-			endTimeNano:   e,
-		}
+		idxEntry := GetIndexEntry()
+		idxEntry.tenantID = tenantID
+		idxEntry.startTimeNano.Store(startTime)
+		idxEntry.endTimeNano.Store(endTime)
 
 		traceIDIndexMapCur.Store(traceID, idxEntry)
 	}
@@ -131,10 +129,8 @@ func MustStartIndexWorker() {
 
 				return
 			case <-ticker.C:
-				counter := 0
 				// flush the data in prev map
 				traceIDIndexMapPrev.Range(func(k, v any) bool {
-					counter++
 					return flushIndexInMap(k, v)
 				})
 				// swap the empty prev map as the new current map.
@@ -148,6 +144,8 @@ func MustStartIndexWorker() {
 // flushIndexInMap flush the in-memory index to log streams.
 func flushIndexInMap(traceID, index any) bool {
 	idxEntry := index.(*indexEntry)
+	defer PutIndexEntry(idxEntry)
+
 	lmp, ok := logMessageProcessorMap[idxEntry.tenantID]
 	if !ok {
 		// init the lmp for the current tenant
@@ -189,4 +187,25 @@ func MustStopIndexWorker() {
 	for _, lmp := range logMessageProcessorMap {
 		lmp.MustClose()
 	}
+}
+
+var indexEntryPool = &sync.Pool{
+	New: func() any {
+		return &indexEntry{}
+	},
+}
+
+// GetIndexEntry return a *indexEntry from the pool.
+func GetIndexEntry() *indexEntry {
+	return indexEntryPool.Get().(*indexEntry)
+}
+
+// PutIndexEntry returns a *indexEntry back to the pool.
+func PutIndexEntry(x *indexEntry) {
+	// reset all the fields
+	x.tenantID.Reset()
+	x.startTimeNano.Store(int64Max)
+	x.endTimeNano.Store(0)
+
+	indexEntryPool.Put(x)
 }
