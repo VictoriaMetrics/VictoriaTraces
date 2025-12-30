@@ -357,8 +357,8 @@ func getCommonParams(r *http.Request, expectedProtocolVersion string) (*commonPa
 func checkProtocolVersion(r *http.Request, expectedProtocolVersion string) error {
 	version := r.FormValue("version")
 	if version != expectedProtocolVersion {
-		return fmt.Errorf("unexpected protocol version=%q; want %q; the most likely casue of this error is different versions of VictoriaLogs cluster components; "+
-			"make sure VictoriaLogs compoments have the same release version", version, expectedProtocolVersion)
+		return fmt.Errorf("unexpected protocol version=%q; want %q; the most likely cause of this error is different versions of VictoriaLogs cluster components; "+
+			"make sure VictoriaLogs components have the same release version", version, expectedProtocolVersion)
 	}
 	return nil
 }

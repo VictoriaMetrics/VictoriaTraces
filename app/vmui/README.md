@@ -11,18 +11,17 @@ Web UI for VictoriaTraces
 
 Run the following command from the root of VictoriaTraces repository for building `vmui` static contents:
 
-```
+```sh
 make vmui-build
 ```
 
 The built static contents is put into `app/vmui/packages/vmui/` directory.
 
-
 ### Updating vmui embedded into VictoriaTraces
 
 Run the following command from the root of VictoriaTraces repository for updating `vmui` embedded into VictoriaTraces:
 
-```
+```sh
 make vmui-update
 ```
 
@@ -30,13 +29,13 @@ This command should update `vmui` static files at `app/vtselect/vmui` directory.
 
 Then build VictoriaTraces with the following command:
 
-```
+```sh
 make victoria-traces
 ```
 
 Then run the built binary with the following command:
 
-```
+```sh
 bin/victoria-traces
 ```
 

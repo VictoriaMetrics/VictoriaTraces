@@ -36,6 +36,9 @@ Run vmalert with the following settings:
 > Note: By default, vmalert assumes all configured rules have `prometheus` type and will validate them accordingly.
 > For rules in [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) specify `type: vlogs` on [Group level](#groups).
 > Or set `-rule.defaultRuleType=vlogs` cmd-line flag to change the default rule type.
+> 
+> The `type` field in alerting rules is `vlogs` because VictoriaTraces uses LogsQL (the same query language as VictoriaLogs).
+> No extra VictoriaLogs setup is needed during the process.
 
 Each `-rule` file may contain arbitrary number of [groups](https://docs.victoriametrics.com/victoriametrics/vmalert/#groups).
 See examples in [Groups](#groups) section. See the full list of configuration flags and their descriptions in [configuration](#configuration) section.
@@ -104,7 +107,9 @@ Examples:
 ```yaml
 groups:
   - name: CountBySpanName
-    type: vlogs
+    # The use of `type: vlogs` is because VictoriaTraces uses LogsQL (the same query language as VictoriaLogs). 
+    # No extra VictoriaLogs setup is needed during the process.
+    type: vlogs 
     interval: 5m
     rules:
        - alert: TooManySpans
@@ -171,7 +176,7 @@ vmalert supports alerting and recording rules backfilling (aka replay) against V
 ```sh
 ./bin/vmalert -rule=path/to/your.rules \        # path to files with rules you usually use with vmalert
     -datasource.url=http://localhost:10428 \    # VictoriaTraces address
-    -rule.defaultRuleType=vlogs \               # Set default rule type to vlogs
+    -rule.defaultRuleType=vlogs \               # Set default rule type to vlogs, because VictoriaTraces uses LogsQL (the same query language as VictoriaLogs). 
     -remoteWrite.url=http://localhost:8428 \    # Remote write compatible storage to persist rules and alerts state info
     -replay.timeFrom=2021-05-11T07:21:43Z \     # to start replay from
     -replay.timeTo=2021-05-29T18:40:43Z         # to finish replay by, optional. By default, set to the current time

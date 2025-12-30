@@ -33,7 +33,7 @@ The OpenTelemetry provides detailed document and examples for various programmin
 
 You can send data to VictoriaTraces by HTTP or gRPC endpoints.
 
-### HTTP endpoint 
+### HTTP endpoint
 
 To send data by HTTP endpoint, specify the `EndpointURL` for http-exporter builder to `http://<victoria-traces>:10428/insert/opentelemetry/v1/traces`.
 
@@ -48,6 +48,7 @@ traceExporter, err := otlptracehttp.New(ctx,
 ### gRPC endpoint
 
 To send the trace data to VictoriaTraces gRPC trace service, you need to first enable the OTLP gRPC server on VictoriaTraces by:
+
 ```shell
 ./victoria-traces -otlpGRPCListenAddr=:4317 -otlpGRPC.tlsCertFile=<cert_file> -otlpGRPC.tlsKeyFile=<key_file>
 ```
@@ -57,6 +58,7 @@ To send the trace data to VictoriaTraces gRPC trace service, you need to first e
 After that, specify the `Endpoint` for grpc-exporter builder to `<victoria-traces>:4317`.
 
 Consider the following example for Go SDK:
+
 ```go
 traceExporter, err := otlptracegrpc.New(ctx,
     otlptracegrpc.WithEndpoint("<victoria-traces>:4317"),
@@ -100,9 +102,11 @@ exporters:
     headers:
       VT-Extra-Fields: foo=bar
 ```
+
 #### gRPC exporter
 
 To send the collected traces to VictoriaTraces gRPC trace service, you need to first enable the OTLP gRPC server on VictoriaTraces by:
+
 ```shell
 ./victoria-traces -otlpGRPCListenAddr=:4317 -otlpGRPC.tlsCertFile=<cert_file> -otlpGRPC.tlsKeyFile=<key_file>
 ```
@@ -110,6 +114,7 @@ To send the collected traces to VictoriaTraces gRPC trace service, you need to f
 > You can also **disable TLS** for incoming gRPC requests by setting `-otlpGRPC.tls=false`. TLS is recommended for production use, and disabling it should only be done when you're testing or aware of the potential risks.
 
 After that, specify endpoint for [OTLP/gRPC exporter](https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlpexporter/README.md):
+
 ```yaml
 exporters:
   # otlp exporter with TLS
@@ -128,6 +133,7 @@ exporters:
 > Optionally, you can specify the `compression` type to one of the following: `gzip` (default), `snappy`, `zstd`, and `none`.
 
 As same as HTTP endpoint, gRPC also support various HTTP headers. For example, the following configs add (or overwrites) `foo: bar` field to each trace span during data ingestion:
+
 ```yaml
 exporters:
   otlp/without-tls:
