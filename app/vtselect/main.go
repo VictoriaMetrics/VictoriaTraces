@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
@@ -28,8 +29,14 @@ var (
 		"limit is reached; see also -search.maxQueryDuration")
 	maxQueryDuration = flag.Duration("search.maxQueryDuration", time.Second*30, "The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg")
 
-	disableSelect   = flag.Bool("select.disable", false, "Whether to disable /select/* HTTP endpoints")
-	disableInternal = flag.Bool("internalselect.disable", false, "Whether to disable /internal/select/* HTTP endpoints")
+	disableSelect         = flag.Bool("select.disable", false, "Whether to disable /select/* HTTP endpoints")
+	disableInternalSelect = flag.Bool("internalselect.disable", false, "Whether to disable /internal/select/* HTTP endpoints")
+
+	enableDelete         = flag.Bool("delete.enable", false, "Whether to enable /delete/* HTTP endpoints")
+	enableInternalDelete = flag.Bool("internaldelete.enable", false, "Whether to enable /internal/delete/* HTTP endpoints, which are used by vtselect for deleting spans "+
+		"via delete API at vtstorage nodes")
+	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second,
+		"Log queries with execution time exceeding this value. Zero disables slow query logging")
 )
 
 func getDefaultMaxConcurrentRequests() int {
@@ -78,6 +85,15 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := strings.ReplaceAll(r.URL.Path, "//", "/")
 
+	if strings.HasPrefix(path, "/delete/") {
+		if !*enableDelete {
+			httpserver.Errorf(w, r, "requests to /delete/* are disabled; pass -delete.enable command-line flag for enabling them")
+			return true
+		}
+		deleteHandler(w, r, path)
+		return true
+	}
+
 	if strings.HasPrefix(path, "/select/") {
 		if *disableSelect {
 			httpserver.Errorf(w, r, "requests to /select/* are disabled with -select.disable command-line flag")
@@ -87,9 +103,22 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return selectHandler(w, r, path)
 	}
 
+	if strings.HasPrefix(path, "/internal/delete/") {
+		if !*enableInternalDelete {
+			httpserver.Errorf(w, r, "requests to /internal/delete/*` are disabled; pass -internaldelete.enable command-line flag for enabling them")
+			return true
+		}
+		internalselect.RequestHandler(r.Context(), w, r)
+		return true
+	}
+
 	if strings.HasPrefix(path, "/internal/select/") {
-		if *disableInternal || *disableSelect {
-			httpserver.Errorf(w, r, "requests to /internal/select/* are disabled with -internalselect.disable or -select.disable command-line flag")
+		if *disableInternalSelect {
+			httpserver.Errorf(w, r, "requests to /internal/select/* are disabled with -internalselect.disable command-line flag")
+			return true
+		}
+		if *disableSelect {
+			httpserver.Errorf(w, r, "requests to /internal/select/* are disabled with -select.disable command-line flag")
 			return true
 		}
 		internalselect.RequestHandler(r.Context(), w, r)
@@ -101,6 +130,27 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 	ctx := r.Context()
+
+	if path == "/select/buildinfo" {
+		httpserver.EnableCORS(w, r)
+
+		if r.Method != http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			fmt.Fprintf(w, `{"status":"error","msg":"method %q isn't allowed"}`, r.Method)
+			return true
+		}
+
+		v := buildinfo.ShortVersion()
+		if v == "" {
+			// buildinfo.ShortVersion() may return empty result for builds without tags
+			v = buildinfo.Version
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"status":"success","data":{"version":%q}}`, v)
+		return true
+	}
 
 	if path == "/select/vmui" {
 		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
@@ -151,6 +201,18 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 	ok := processSelectRequest(ctxWithTimeout, w, r, path)
 	if !ok {
 		return false
+	}
+
+	// Log slow queries
+	if *logSlowQueryDuration > 0 {
+		d := time.Since(startTime)
+		if d >= *logSlowQueryDuration {
+			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+			requestURI := httpserver.GetRequestURI(r)
+			logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
+				*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+			slowQueries.Inc()
+		}
 	}
 
 	logRequestErrorIfNeeded(ctxWithTimeout, w, r, startTime)

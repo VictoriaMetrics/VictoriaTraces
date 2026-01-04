@@ -5,11 +5,13 @@ import (
 	"flag"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 
 	vtinsert "github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/opentelemetry"
 	vtselect "github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/query"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
+	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
 var (
@@ -80,6 +82,11 @@ func GenerateServiceGraphTimeRange(ctx context.Context) {
 		return
 	}
 
+	commonFields := []logstorage.Field{
+		{Name: otelpb.ServiceGraphStreamName, Value: "-"},
+	}
+	commonFieldLen := len(commonFields)
+
 	// query and persist operations are executed sequentially, which helps not to consume excessive resources.
 	for _, tenantID := range tenantIDs {
 		// query service graph relations
@@ -91,9 +98,9 @@ func GenerateServiceGraphTimeRange(ctx context.Context) {
 		if len(rows) == 0 {
 			return
 		}
-
+		commonFields = commonFields[:commonFieldLen]
 		// persist service graph relations
-		err = vtinsert.PersistServiceGraph(ctx, tenantID, rows, endTime)
+		commonFields, err = vtinsert.PersistServiceGraph(ctx, tenantID, commonFields, rows, endTime)
 		if err != nil {
 			logger.Errorf("cannot persist service graph for time range [%d, %d]: %s", startTime.Unix(), endTime.Unix(), err)
 		}

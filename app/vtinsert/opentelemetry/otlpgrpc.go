@@ -88,14 +88,10 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	encoding := r.Header.Get("grpc-encoding")
 	err = protoparserutil.ReadUncompressedData(bb.NewReader(), encoding, maxRequestSize, func(data []byte) error {
 		var (
-			req         otelpb.ExportTraceServiceRequest
 			callbackErr error
 		)
 		lmp := cp.NewLogMessageProcessor("opentelemetry_traces_otlpgrpc", false)
-		if callbackErr = req.UnmarshalProtobuf(data); callbackErr != nil {
-			return fmt.Errorf("cannot unmarshal request from %d protobuf bytes: %w", len(data), callbackErr)
-		}
-		callbackErr = pushExportTraceServiceRequest(&req, lmp)
+		callbackErr = pushGRPCProtobufRequest(data, lmp)
 		lmp.MustClose()
 		return callbackErr
 	})
@@ -158,4 +154,15 @@ func writeExportTraceServiceResponse(w http.ResponseWriter, rejectedSpans int64,
 		logger.Errorf("unexpected write of %d bytes in replying OLTP export gRPC request, expected:%d", writtenLen, rb.Len())
 		return
 	}
+}
+
+// pushGRPCProtobufRequest push source data in []byte into log fields directly, without
+// further transforming it into *otelpb.ExportTraceServiceRequest.
+func pushGRPCProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor) error {
+	pushSpans := NewPushSpansCallbackFunc(lmp)
+	if err := decodeExportTraceServiceRequest(data, pushSpans); err != nil {
+		errorsGRPCTotal.Inc()
+		return fmt.Errorf("cannot decode LogsData request from %d bytes: %w", len(data), err)
+	}
+	return nil
 }

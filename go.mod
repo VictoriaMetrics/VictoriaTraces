@@ -1,17 +1,17 @@
 module github.com/VictoriaMetrics/VictoriaTraces
 
-go 1.25.4
+go 1.25.5
 
 require (
-	github.com/VictoriaMetrics/VictoriaLogs v1.38.0
-	github.com/VictoriaMetrics/VictoriaMetrics v1.130.0
-	github.com/VictoriaMetrics/easyproto v0.1.4
+	github.com/VictoriaMetrics/VictoriaLogs v1.43.1
+	github.com/VictoriaMetrics/VictoriaMetrics v1.132.0
+	github.com/VictoriaMetrics/easyproto v1.1.3
 	github.com/VictoriaMetrics/fastcache v1.13.2
 	github.com/VictoriaMetrics/metrics v1.40.2
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/google/go-cmp v0.7.0
-	github.com/klauspost/compress v1.18.1
-	github.com/valyala/fastjson v1.6.4
+	github.com/klauspost/compress v1.18.2
+	github.com/valyala/fastjson v1.6.7
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/quicktemplate v1.8.0
 	golang.org/x/time v0.14.0
@@ -24,6 +24,6 @@ require (
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/valyala/gozstd v1.24.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
-	golang.org/x/oauth2 v0.33.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/oauth2 v0.34.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
 )

@@ -405,7 +405,7 @@ func (s *Span) unmarshalProtobuf(src []byte) (err error) {
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
-			return fmt.Errorf("cannot read next field in Status: %w", err)
+			return fmt.Errorf("cannot read next field in Span: %w", err)
 		}
 		switch fc.FieldNum {
 		case 1:

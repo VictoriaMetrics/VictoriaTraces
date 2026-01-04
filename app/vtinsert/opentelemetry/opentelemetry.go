@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/fastcache"
 	"github.com/cespare/xxhash/v2"
 
@@ -122,14 +123,15 @@ func pushFieldsFromSpan(span *otelpb.Span, scopeCommonFields []logstorage.Field,
 	// During querying, if no index is found, the data must not exist.
 	if !traceIDCache.Has([]byte(span.TraceID)) {
 		lmp.AddRow(int64(span.StartTimeUnixNano), []logstorage.Field{
+			{Name: otelpb.TraceIDIndexStreamName, Value: strconv.FormatUint(xxhash.Sum64String(span.TraceID)%otelpb.TraceIDIndexPartitionCount, 10)},
 			{Name: "_msg", Value: msgFieldValue},
 			// todo: @jiekun the trace ID field MUST be the last field. add extra ways to secure it.
 			{Name: otelpb.TraceIDIndexFieldName, Value: span.TraceID},
-		}, []logstorage.Field{{Name: otelpb.TraceIDIndexStreamName, Value: strconv.FormatUint(xxhash.Sum64String(span.TraceID)%otelpb.TraceIDIndexPartitionCount, 10)}})
+		}, 1)
 		traceIDCache.Set([]byte(span.TraceID), nil)
 	}
 
-	lmp.AddRow(int64(span.EndTimeUnixNano), fields, nil)
+	lmp.AddRow(int64(span.EndTimeUnixNano), fields, -1)
 
 	return fields
 }
@@ -163,20 +165,52 @@ func appendKeyValuesWithPrefixSuffix(fields []logstorage.Field, kvs []*otelpb.Ke
 	return fields
 }
 
-func PersistServiceGraph(ctx context.Context, tenantID logstorage.TenantID, fields [][]logstorage.Field, timestamp time.Time) error {
+func PersistServiceGraph(ctx context.Context, tenantID logstorage.TenantID, commonFields []logstorage.Field, fields [][]logstorage.Field, timestamp time.Time) ([]logstorage.Field, error) {
 	cp := insertutil.CommonParams{
 		TenantID:   tenantID,
 		TimeFields: []string{"_time"},
 	}
 	lmp := cp.NewLogMessageProcessor("internalinsert_servicegraph", false)
-
+	commonFieldLen := len(commonFields)
 	for _, row := range fields {
-		f := append(row, logstorage.Field{
-			Name:  "_msg",
-			Value: "-",
-		})
-		lmp.AddRow(timestamp.UnixNano(), f, []logstorage.Field{{Name: otelpb.ServiceGraphStreamName, Value: "-"}})
+		commonFields = commonFields[:commonFieldLen]
+		commonFields = append(commonFields, row...)
+		commonFields = append(commonFields, logstorage.Field{Name: "_msg", Value: msgFieldValue})
+		lmp.AddRow(timestamp.UnixNano(), commonFields, commonFieldLen)
 	}
 	lmp.MustClose()
-	return nil
+	return commonFields, nil
+}
+
+func NewPushSpansCallbackFunc(lmp insertutil.LogMessageProcessor) func(timestamp int64, fields []logstorage.Field) {
+	return func(timestamp int64, fields []logstorage.Field) {
+		// search for traceID first. It should be at the tail of the fields.
+		var traceID string
+		for i := len(fields) - 1; i >= 0; i-- {
+			if fields[i].Name == otelpb.TraceIDField {
+				traceID = fields[i].Value
+				break
+			}
+		}
+		if traceID == "" {
+			// not a valid trace
+			logger.Errorf("cannot find traceID in span. skipping this span: %v", fields)
+			return
+		}
+
+		if !traceIDCache.Has([]byte(traceID)) {
+			// Create an entry in the trace-id-idx stream if this trace_id hasn't been seen before.
+			// The index entry must be written first to ensure that an index always exists for the data.
+			// During querying, if no index is found, the data must not exist.
+			lmp.AddRow(int64(timestamp), []logstorage.Field{
+				{Name: otelpb.TraceIDIndexStreamName, Value: strconv.FormatUint(xxhash.Sum64String(traceID)%otelpb.TraceIDIndexPartitionCount, 10)},
+				{Name: "_msg", Value: msgFieldValue},
+				// todo: @jiekun the trace ID field MUST be the last field. add extra ways to secure it.
+				{Name: otelpb.TraceIDIndexFieldName, Value: traceID},
+			}, 1)
+			traceIDCache.Set([]byte(traceID), nil)
+		}
+
+		lmp.AddRow(timestamp, fields, -1)
+	}
 }

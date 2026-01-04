@@ -1,7 +1,6 @@
 package insertutil
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -16,11 +15,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/metrics"
-)
-
-var (
-	defaultMsgValue = flag.String("defaultMsgValue", "missing _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field",
-		"Default value for _msg field if the ingested log entry doesn't contain it; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field")
 )
 
 // CommonParams contains common HTTP parameters used by log ingestion APIs.
@@ -172,10 +166,10 @@ func CanWriteData() error {
 type LogMessageProcessor interface {
 	// AddRow must add row to the LogMessageProcessor with the given timestamp and fields.
 	//
-	// If streamFields is non-nil, then the given streamFields must be used as log stream fields instead of pre-configured fields.
+	// If streamFieldsLen >= 0, then the given number of initial fields must be used as log stream fields instead of pre-configured fields.
 	//
 	// The LogMessageProcessor implementation cannot hold references to fields, since the caller can reuse them.
-	AddRow(timestamp int64, fields, streamFields []logstorage.Field)
+	AddRow(timestamp int64, fields []logstorage.Field, streamFieldsLen int)
 
 	// MustClose() must flush all the remaining fields and free up resources occupied by LogMessageProcessor.
 	MustClose()
@@ -224,7 +218,7 @@ func (lmp *logMessageProcessor) initPeriodicFlush() {
 // AddRow adds new log message to lmp with the given timestamp and fields.
 //
 // If streamFields is non-nil, then it is used as log stream fields instead of the pre-configured stream fields.
-func (lmp *logMessageProcessor) AddRow(timestamp int64, fields, streamFields []logstorage.Field) {
+func (lmp *logMessageProcessor) AddRow(timestamp int64, fields []logstorage.Field, streamFieldsLen int) {
 	lmp.rowsIngestedTotal.Inc()
 	n := logstorage.EstimatedJSONRowLen(fields)
 	lmp.bytesIngestedTotal.Add(n)
@@ -239,7 +233,7 @@ func (lmp *logMessageProcessor) AddRow(timestamp int64, fields, streamFields []l
 	lmp.mu.Lock()
 	defer lmp.mu.Unlock()
 
-	lmp.lr.MustAdd(lmp.cp.TenantID, timestamp, fields, streamFields)
+	lmp.lr.MustAdd(lmp.cp.TenantID, timestamp, fields, streamFieldsLen)
 
 	if lmp.cp.Debug {
 		s := lmp.lr.GetRowString(0)
@@ -313,7 +307,7 @@ func (lmp *logMessageProcessor) MustClose() {
 //
 // MustClose() must be called on the returned LogMessageProcessor when it is no longer needed.
 func (cp *CommonParams) NewLogMessageProcessor(protocolName string, isStreamMode bool) LogMessageProcessor {
-	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.DecolorizeFields, cp.ExtraFields, *defaultMsgValue)
+	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.DecolorizeFields, cp.ExtraFields, "-")
 	rowsIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vt_rows_ingested_total{type=%q}", protocolName))
 	bytesIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vt_bytes_ingested_total{type=%q}", protocolName))
 	flushDuration := metrics.GetOrCreateSummary(fmt.Sprintf("vt_insert_flush_duration_seconds{type=%q}", protocolName))

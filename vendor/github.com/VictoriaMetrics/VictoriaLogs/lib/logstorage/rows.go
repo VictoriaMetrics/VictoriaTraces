@@ -219,6 +219,16 @@ func (rs *rows) reset() {
 	rs.rows = rs.rows[:0]
 }
 
+func (rs *rows) hasNonEmptyRows() bool {
+	rows := rs.rows
+	for _, fields := range rows {
+		if len(fields) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // appendRows appends rows with the given timestamps to rs.
 func (rs *rows) appendRows(timestamps []int64, rows [][]Field) {
 	rs.timestamps = append(rs.timestamps, timestamps...)
@@ -293,10 +303,7 @@ func (rs *rows) skipRowsByDropFilter(dropFilter *partitionSearchOptions, dropFil
 
 		if dropFilterFields.MatchString("_time") {
 			bb.B = marshalTimestampISO8601String(bb.B[:0], srcTimestamp)
-			tmpFields.Fields = append(tmpFields.Fields, Field{
-				Name:  "_time",
-				Value: bytesutil.ToUnsafeString(bb.B),
-			})
+			tmpFields.Add("_time", bytesutil.ToUnsafeString(bb.B))
 		}
 
 		for _, f := range srcFields {
@@ -306,6 +313,19 @@ func (rs *rows) skipRowsByDropFilter(dropFilter *partitionSearchOptions, dropFil
 		if !dropFilter.filter.matchRow(tmpFields.Fields) {
 			dstTimestamps = append(dstTimestamps, srcTimestamp)
 			dstRows = append(dstRows, srcFields)
+		} else if i == 0 {
+			// The first row with the minimum timestamp is deleted.
+			// Replace it with an empty row with the original timestamp in order to keep valid the assumptions
+			// that blocks for the same log stream are sorted by their first (minimum) timestamps.
+			// Violating these assumptions leads to data loss during background merge
+			// when obtaining the next block to merge via blockStreamReadersHeap.Less.
+			//
+			// It is safe to use an empty row here, since it is treated as non-existing row
+			// during filtering because of VictoraLogs data model - https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model
+			//
+			// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/825
+			dstTimestamps = append(dstTimestamps, srcTimestamp)
+			dstRows = append(dstRows, nil)
 		}
 
 		clear(tmpFields.Fields[tmpFieldsBaseLen:])
@@ -346,6 +366,23 @@ type Fields struct {
 func (f *Fields) Reset() {
 	clear(f.Fields)
 	f.Fields = f.Fields[:0]
+}
+
+// ClearUpToCapacity clears f.Fields up to its' capacity.
+//
+// This function is useful in order to make sure f.Fields do not reference underlying byte slices,
+// so they could be freed by Go GC.
+func (f *Fields) ClearUpToCapacity() {
+	clear(f.Fields[:cap(f.Fields)])
+	f.Fields = f.Fields[:0]
+}
+
+// Add adds (name, value) field to f.
+func (f *Fields) Add(name, value string) {
+	f.Fields = append(f.Fields, Field{
+		Name:  name,
+		Value: value,
+	})
 }
 
 // GetFields returns an empty Fields from the pool.

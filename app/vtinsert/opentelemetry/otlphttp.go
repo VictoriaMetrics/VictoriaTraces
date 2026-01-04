@@ -74,16 +74,9 @@ func handleProtobufRequest(r *http.Request, w http.ResponseWriter) {
 
 	encoding := r.Header.Get("Content-Encoding")
 	err = protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
-		var (
-			req         otelpb.ExportTraceServiceRequest
-			callbackErr error
-		)
+		var callbackErr error
 		lmp := cp.NewLogMessageProcessor("opentelemetry_traces_otlphttp_protobuf", false)
-		if callbackErr = req.UnmarshalProtobuf(data); callbackErr != nil {
-			errorsProtobufTotal.Inc()
-			return fmt.Errorf("cannot unmarshal request from %d protobuf bytes: %w", len(data), callbackErr)
-		}
-		callbackErr = pushExportTraceServiceRequest(&req, lmp)
+		callbackErr = pushHTTPProtobufRequest(data, lmp)
 		lmp.MustClose()
 		return callbackErr
 	})
@@ -95,6 +88,17 @@ func handleProtobufRequest(r *http.Request, w http.ResponseWriter) {
 	// There is no need in updating requestProtobufDuration for request errors,
 	// since their timings are usually much smaller than the timing for successful request parsing.
 	requestProtobufDuration.UpdateDuration(startTime)
+}
+
+// pushProtobufRequest push source data in []byte into log fields directly, without
+// further transforming it into *otelpb.ExportTraceServiceRequest.
+func pushHTTPProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor) error {
+	pushSpans := NewPushSpansCallbackFunc(lmp)
+	if err := decodeExportTraceServiceRequest(data, pushSpans); err != nil {
+		errorsProtobufTotal.Inc()
+		return fmt.Errorf("cannot decode LogsData request from %d bytes: %w", len(data), err)
+	}
+	return nil
 }
 
 func handleJSONRequest(r *http.Request, w http.ResponseWriter) {
