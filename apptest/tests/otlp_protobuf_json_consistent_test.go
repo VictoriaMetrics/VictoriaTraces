@@ -89,16 +89,16 @@ func testProtobufJSONConsistency(tc *at.TestCase, sut1, sut2 at.VictoriaTracesWr
 	sort.Slice(response1.LogLines, func(i, j int) bool {
 		m1, m2 := make(map[string]string), make(map[string]string)
 
-		json.Unmarshal([]byte(response1.LogLines[i]), &m1)
-		json.Unmarshal([]byte(response1.LogLines[j]), &m2)
+		_ = json.Unmarshal([]byte(response1.LogLines[i]), &m1)
+		_ = json.Unmarshal([]byte(response1.LogLines[j]), &m2)
 
 		return m1["span_id"]+m1["trace_id_idx"] < m2["span_id"]+m2["trace_id_idx"]
 	})
 	sort.Slice(response2.LogLines, func(i, j int) bool {
 		m1, m2 := make(map[string]string), make(map[string]string)
 
-		json.Unmarshal([]byte(response2.LogLines[i]), &m1)
-		json.Unmarshal([]byte(response2.LogLines[j]), &m2)
+		_ = json.Unmarshal([]byte(response2.LogLines[i]), &m1)
+		_ = json.Unmarshal([]byte(response2.LogLines[j]), &m2)
 
 		return m1["span_id"]+m1["trace_id_idx"] < m2["span_id"]+m2["trace_id_idx"]
 	})
@@ -130,8 +130,8 @@ func testProtobufJSONConsistency(tc *at.TestCase, sut1, sut2 at.VictoriaTracesWr
 	for i := range response1.LogLines {
 		// let's try not to complicate the test and simply unmarshal them as key-value, and compare.
 		m1, m2 := make(map[string]string), make(map[string]string)
-		json.Unmarshal([]byte(response1.LogLines[i]), &m1)
-		json.Unmarshal([]byte(response2.LogLines[i]), &m2)
+		_ = json.Unmarshal([]byte(response1.LogLines[i]), &m1)
+		_ = json.Unmarshal([]byte(response2.LogLines[i]), &m2)
 		for k, v := range m2 {
 			if m1[k] != v {
 				if ignoreFields[k] || ignoreFieldPrefixes[k[:len(k)-2]] {

@@ -203,7 +203,6 @@ func (app *Vtsingle) OTLPHTTPExportTraces(t *testing.T, request *otelpb.ExportTr
 
 	pbData := request.MarshalProtobuf(nil)
 	app.OTLPHTTPExportRawTraces(t, pbData, opts)
-	return
 }
 
 // OTLPgRPCExportTraces is a test helper function that exports OTLP trace data
