@@ -12,6 +12,11 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.25.4 to Go1.25.5. See [the list of issues addressed in Go1.25.5](https://github.com/golang/go/issues?q=milestone%3AGo1.25.5%20label%3ACherryPickApproved).
+
+* FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.38.0 to v1.43.1](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.38.0...v1.43.1).
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtinsert in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): reduce CPU usage of the OpenTelemetry protobuf data ingestion in both OTLP/HTTP and OTLP/gRPC APIs. Thanks to @vadimalekseev for [the initial idea](https://github.com/VictoriaMetrics/VictoriaLogs/pull/720).
+
 ## [v0.5.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.5.1)
 
 Released at 2025-11-19
