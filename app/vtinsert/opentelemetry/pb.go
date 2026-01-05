@@ -197,21 +197,17 @@ func decodeInstrumentationScope(src []byte, fs *logstorage.Fields, fb *fmtBuffer
 	if err != nil {
 		return fmt.Errorf("cannot read name: %w", err)
 	}
-	name := "unknown"
 	if ok {
-		name = nameStr
+		fs.Add(pb.InstrumentationScopeName, nameStr)
 	}
-	fs.Add(pb.InstrumentationScopeName, name)
 
 	versionStr, ok, err := easyproto.GetString(src, 2)
 	if err != nil {
 		return fmt.Errorf("cannot read version: %w", err)
 	}
-	version := "unknown"
 	if ok {
-		version = versionStr
+		fs.Add(pb.InstrumentationScopeVersion, versionStr)
 	}
-	fs.Add(pb.InstrumentationScopeVersion, version)
 
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
@@ -623,6 +619,10 @@ func decodeAnyValue(src []byte, fs *logstorage.Fields, fb *fmtBuffer, fieldName,
 			stringValue, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read StringValue")
+			}
+			if stringValue == "" {
+				fs.Add(fullFieldName, "-")
+				continue
 			}
 			fs.Add(fullFieldName, stringValue)
 		case 2:
