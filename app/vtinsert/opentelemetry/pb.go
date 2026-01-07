@@ -25,7 +25,6 @@ func decodeExportTraceServiceRequest(src []byte, pushSpans pushSpansHandler) (er
 	//message ExportTraceServiceRequest {
 	//	repeated opentelemetry.proto.trace.v1.ResourceSpans resource_spans = 1;
 	//}
-
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
@@ -144,7 +143,6 @@ func decodeScopeSpans(src []byte, fs *logstorage.Fields, fb *fmtBuffer, pushSpan
 	//	repeated Span spans = 2;
 	//	string schema_url = 3;
 	//}
-
 	scopeData, ok, err := easyproto.GetMessageData(src, 1)
 	if err != nil {
 		return fmt.Errorf("cannot read InstrumentationScope: %w", err)
@@ -253,7 +251,6 @@ func decodeSpan(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (startTimeUnix
 	//	Status status = 15;
 	//  fixed32 flags = 16;
 	//}
-
 	var (
 		fc              easyproto.FieldContext
 		ok              bool

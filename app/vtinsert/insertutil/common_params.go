@@ -1,6 +1,7 @@
 package insertutil
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -15,6 +16,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	defaultMsgValue = flag.String("defaultMsgValue", "-",
+		"Default value for _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field")
 )
 
 // CommonParams contains common HTTP parameters used by log ingestion APIs.
@@ -307,7 +313,7 @@ func (lmp *logMessageProcessor) MustClose() {
 //
 // MustClose() must be called on the returned LogMessageProcessor when it is no longer needed.
 func (cp *CommonParams) NewLogMessageProcessor(protocolName string, isStreamMode bool) LogMessageProcessor {
-	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.DecolorizeFields, cp.ExtraFields, "-")
+	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.DecolorizeFields, cp.ExtraFields, *defaultMsgValue)
 	rowsIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vt_rows_ingested_total{type=%q}", protocolName))
 	bytesIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vt_bytes_ingested_total{type=%q}", protocolName))
 	flushDuration := metrics.GetOrCreateSummary(fmt.Sprintf("vt_insert_flush_duration_seconds{type=%q}", protocolName))
