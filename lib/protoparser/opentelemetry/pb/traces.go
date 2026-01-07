@@ -43,7 +43,7 @@ func (r *ExportTraceServiceRequest) marshalProtobuf(mm *easyproto.MessageMarshal
 }
 
 // UnmarshalProtobuf unmarshals r from protobuf message at src.
-// 
+//
 // Deprecated: protobuf data to log fields should use decodeExportTraceServiceRequest(src []byte, pushSpans pushSpansHandler),
 // instead of unmarshaling the []byte into *ExportTraceServiceRequest and then transform the *ExportTraceServiceRequest into log fields.
 // it should help with the performance. currently, this UnmarshalProtobuf is used in test only. please do not use it for
