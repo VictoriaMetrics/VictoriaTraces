@@ -77,7 +77,7 @@ func getDefaultIngestRequestAndAssertFunc(tc *at.TestCase, sut at.VictoriaTraces
 	// prepare test data
 	serviceName := "testKeyIngestQueryService"
 	spanName := "testKeyIngestQuerySpan"
-	traceID := "123456789"
+	traceID := "bda5886e99fffef35a847cb2d493fde0"
 	spanID := "987654321"
 	testTagValue := "testValue"
 	testTag := []*otelpb.KeyValue{
@@ -164,7 +164,7 @@ func getDefaultIngestRequestAndAssertFunc(tc *at.TestCase, sut at.VictoriaTraces
 			Spans: []at.Span{
 				{
 					Duration: 0,
-					TraceID:  hex.EncodeToString([]byte(traceID)),
+					TraceID:  traceID,
 					SpanID:   hex.EncodeToString([]byte(spanID)),
 					Logs: []at.Log{
 						{
@@ -180,7 +180,7 @@ func getDefaultIngestRequestAndAssertFunc(tc *at.TestCase, sut at.VictoriaTraces
 					ProcessID:     "p1",
 					References: []at.Reference{
 						{
-							TraceID: hex.EncodeToString([]byte(traceID)),
+							TraceID: traceID,
 							SpanID:  hex.EncodeToString([]byte(spanID)),
 							RefType: "FOLLOWS_FROM",
 						},
@@ -198,7 +198,7 @@ func getDefaultIngestRequestAndAssertFunc(tc *at.TestCase, sut at.VictoriaTraces
 					},
 				},
 			},
-			TraceID: hex.EncodeToString([]byte(traceID)),
+			TraceID: traceID,
 		},
 	}
 
@@ -254,7 +254,7 @@ func getDefaultIngestRequestAndAssertFunc(tc *at.TestCase, sut at.VictoriaTraces
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /select/jaeger/api/traces/<trace_id> response",
 			Got: func() any {
-				return sut.JaegerAPITrace(t, hex.EncodeToString([]byte(traceID)), at.QueryOpts{})
+				return sut.JaegerAPITrace(t, traceID, at.QueryOpts{})
 			},
 			Want: &at.JaegerAPITraceResponse{
 				Data: expectTraceData,
