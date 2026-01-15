@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
 
 	vtinsert "github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/opentelemetry"
 	vtselect "github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/query"
@@ -20,6 +21,11 @@ var (
 	serviceGraphTaskTimeout    = flag.Duration("servicegraph.taskTimeout", 30*time.Second, "The background task timeout duration for generating service graph data. It requires setting -servicegraph.enableTask=true.")
 	serviceGraphTaskLookbehind = flag.Duration("servicegraph.taskLookbehind", time.Minute, "The lookbehind window for each time service graph background task run. It requires setting -servicegraph.enableTask=true.")
 	serviceGraphTaskLimit      = flag.Uint64("servicegraph.taskLimit", 1000, "How many service graph relations each task could fetch for each tenant. It requires setting -servicegraph.enableTask=true.")
+)
+
+var (
+	taskExecutionErrorTotal = metrics.NewCounter(`vt_servicegraph_task_execution_error_total`)
+	taskDuration            = metrics.NewHistogram(`vt_servicegraph_task_duration_seconds`)
 )
 
 var (
@@ -73,12 +79,16 @@ func (sgt *serviceGraphTask) Stop() {
 }
 
 func GenerateServiceGraphTimeRange(ctx context.Context) {
+	taskStartTime := time.Now()
+	defer taskDuration.UpdateDuration(taskStartTime)
+
 	endTime := time.Now().Truncate(*serviceGraphTaskInterval)
 	startTime := endTime.Add(-*serviceGraphTaskLookbehind)
 
 	tenantIDs, err := vtstorage.GetTenantIDs(ctx, startTime.UnixNano(), endTime.UnixNano())
 	if err != nil {
 		logger.Errorf("cannot get tenant ids: %s", err)
+		taskExecutionErrorTotal.Inc()
 		return
 	}
 
@@ -87,22 +97,29 @@ func GenerateServiceGraphTimeRange(ctx context.Context) {
 	}
 	commonFieldLen := len(commonFields)
 
+	var hasError bool
 	// query and persist operations are executed sequentially, which helps not to consume excessive resources.
 	for _, tenantID := range tenantIDs {
 		// query service graph relations
 		rows, err := vtselect.GetServiceGraphTimeRange(ctx, tenantID, startTime, endTime, *serviceGraphTaskLimit)
 		if err != nil {
-			logger.Errorf("cannot get service graph for time range [%d, %d]: %s", startTime.Unix(), endTime.Unix(), err)
-			return
+			hasError = true
+			logger.Errorf("cannot get service graph for time range [%d, %d] of tenant %s: %s", startTime.Unix(), endTime.Unix(), tenantID.String(), err)
+			continue
 		}
 		if len(rows) == 0 {
-			return
+			continue
 		}
 		commonFields = commonFields[:commonFieldLen]
 		// persist service graph relations
 		commonFields, err = vtinsert.PersistServiceGraph(ctx, tenantID, commonFields, rows, endTime)
 		if err != nil {
-			logger.Errorf("cannot persist service graph for time range [%d, %d]: %s", startTime.Unix(), endTime.Unix(), err)
+			hasError = true
+			logger.Errorf("cannot persist service graph for time range [%d, %d] of tenant %s: %s", startTime.Unix(), endTime.Unix(), tenantID.String(), err)
 		}
+	}
+
+	if hasError {
+		taskExecutionErrorTotal.Inc()
 	}
 }
