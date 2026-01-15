@@ -2,9 +2,7 @@ package insertutil
 
 import (
 	"flag"
-	"fmt"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -166,24 +164,13 @@ func (w *indexWorker) run() {
 	}
 }
 
-var mm = sync.Mutex{}
-var testM = map[traceIDBuf]int{}
-
 // flushIndexInMap flush the in-memory index to log streams.
 func (w *indexWorker) flushIndexInMap(tb traceIDBuf, idxEntry indexEntry) bool {
-	mm.Lock()
-	if idx, ok := testM[tb]; ok {
-		fmt.Println(idx)
-		fmt.Println(w.idx)
-	} else {
-		testM[tb] = w.idx
-	}
-	mm.Unlock()
 	bb := bytebufferpool.Get()
 	defer bytebufferpool.Put(bb)
 
 	bb.Write(tb[:])
-	traceID := strings.Clone(bb.String())
+	traceID := bb.String()
 
 	lmp, ok := w.logMessageProcessorMap[idxEntry.tenantID]
 	if !ok {
