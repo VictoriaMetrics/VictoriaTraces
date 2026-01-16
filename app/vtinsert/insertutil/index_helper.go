@@ -20,8 +20,6 @@ var (
 		"Each trace ID must wait in the queue for -insert.indexFlushInterval, continuously updating its start and end times before being flushed into the index.")
 )
 
-const int64Max = int64(1<<63 - 1)
-
 type indexEntry struct {
 	tenantID      logstorage.TenantID
 	startTimeNano int64
@@ -170,7 +168,7 @@ func (w *indexWorker) flushIndexInMap(tb traceIDBuf, idxEntry indexEntry) bool {
 	bb := bytebufferpool.Get()
 	defer bytebufferpool.Put(bb)
 
-	bb.Write(tb[:])
+	_, _ = bb.Write(tb[:])
 	traceID := bb.String()
 
 	lmp, ok := w.logMessageProcessorMap[idxEntry.tenantID]
