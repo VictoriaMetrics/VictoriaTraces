@@ -33,7 +33,7 @@ Released at 2025-11-08
 
 * SECURITY: upgrade Go builder from Go1.25.2 to Go1.25.3. See [the list of issues addressed in Go1.25.3](https://github.com/golang/go/issues?q=milestone%3AGo1.25.3%20label%3ACherryPickApproved).
 
-* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc) data ingestion. It requires `-otlpGRPCListenAddr` flag to be set on Single-node VictoriaTraces or vtinsert. See [this doc](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry) for details. Thanks to @JayiceZ for the [pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/59).
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support [OTLP/gRPC](https://opentelemetry.io/docs/specs/otlp/#otlpgrpc) data ingestion. It requires `-otlpGRPCListenAddr` flag to be set on Single-node VictoriaTraces or vtinsert. See [this doc](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/) for details. Thanks to @JayiceZ for the [pull request](https://github.com/VictoriaMetrics/VictoriaTraces/pull/59).
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return the correct error message and the total number when searching by trace ID yields no hits in the result. Thank @huan89983 for [the bug report](https://github.com/VictoriaMetrics/VictoriaTraces/issues/77).
 
