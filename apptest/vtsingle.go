@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"testing"
@@ -30,6 +31,8 @@ type Vtsingle struct {
 	jaegerAPITracesURL       string
 	jaegerAPITraceURL        string
 	jaegerAPIDependenciesURL string
+
+	logsQLQueryURL string
 
 	otlpTracesURL     string
 	otlpGRPCTracesURL string
@@ -75,6 +78,8 @@ func StartVtsingle(instance string, flags []string, cli *Client) (*Vtsingle, err
 		jaegerAPITracesURL:       fmt.Sprintf("http://%s/select/jaeger/api/traces", stderrExtracts[1]),
 		jaegerAPITraceURL:        fmt.Sprintf("http://%s/select/jaeger/api/traces/%%s", stderrExtracts[1]),
 		jaegerAPIDependenciesURL: fmt.Sprintf("http://%s/select/jaeger/api/dependencies", stderrExtracts[1]),
+
+		logsQLQueryURL: fmt.Sprintf("http://%s/select/logsql/query", stderrExtracts[1]),
 
 		otlpTracesURL:     fmt.Sprintf("http://%s/insert/opentelemetry/v1/traces", stderrExtracts[1]),
 		otlpGRPCTracesURL: fmt.Sprintf("http://%s/opentelemetry.proto.collector.trace.v1.TraceService/Export", stderrExtracts[2]),
@@ -170,17 +175,36 @@ func (app *Vtsingle) JaegerAPIDependencies(t *testing.T, param JaegerDependencie
 	return NewJaegerAPIDependenciesResponse(t, res)
 }
 
-// OTLPExportTraces is a test helper function that exports OTLP trace data
+func (app *Vtsingle) LogsQLQuery(t *testing.T, LogsQL string, opts QueryOpts) *LogsQLQueryResponse {
+	t.Helper()
+
+	q := url.Values{}
+	q.Add("query", LogsQL)
+
+	if opts.Limit != "" {
+		q.Add("limit", opts.Limit)
+	}
+	if opts.Start != "" {
+		q.Add("start", opts.Start)
+	}
+	if opts.End != "" {
+		q.Add("end", opts.End)
+	}
+	res, statusCode := app.cli.Post(t, app.logsQLQueryURL, "application/x-www-form-urlencoded", []byte(q.Encode()))
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code from %s: %d; want %d", app.logsQLQueryURL, statusCode, http.StatusOK)
+	}
+	return NewLogsQLQueryResponse(t, res)
+}
+
+// OTLPHTTPExportTraces is a test helper function that exports OTLP trace data
 // by sending an HTTP POST request to /insert/opentelemetry/v1/traces
 // Vtsingle endpoint.
-func (app *Vtsingle) OTLPHTTPExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, _ QueryOpts) {
+func (app *Vtsingle) OTLPHTTPExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, opts QueryOpts) {
 	t.Helper()
 
 	pbData := request.MarshalProtobuf(nil)
-	body, code := app.cli.Post(t, app.otlpTracesURL, "application/x-protobuf", pbData)
-	if code != 200 {
-		t.Fatalf("got %d, expected 200. body: %s", code, body)
-	}
+	app.OTLPHTTPExportRawTraces(t, pbData, opts)
 }
 
 // OTLPgRPCExportTraces is a test helper function that exports OTLP trace data
@@ -205,6 +229,23 @@ func (app *Vtsingle) OTLPgRPCExportTraces(t *testing.T, request *otelpb.ExportTr
 	}
 	if resp.StatusCode != 200 {
 		t.Fatalf("got %d, expected 200", resp.StatusCode)
+	}
+}
+
+// OTLPHTTPExportRawTraces is a test helper function that exports raw OTLP trace data in []byte
+// by sending an HTTP POST request to /insert/opentelemetry/v1/traces
+// Vtsingle endpoint.
+func (app *Vtsingle) OTLPHTTPExportRawTraces(t *testing.T, data []byte, opts QueryOpts) {
+	t.Helper()
+
+	contentType := "application/x-protobuf"
+	if opts.HTTPHeaders != nil && opts.HTTPHeaders["Content-Type"] != "" {
+		contentType = opts.HTTPHeaders["Content-Type"]
+	}
+
+	body, code := app.cli.Post(t, app.otlpTracesURL, contentType, data)
+	if code != 200 {
+		t.Fatalf("got %d, expected 200. body: %s", code, body)
 	}
 }
 

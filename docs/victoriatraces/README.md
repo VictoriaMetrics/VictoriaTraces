@@ -346,7 +346,11 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -blockcache.missesBeforeCaching int
     	The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
   -defaultMsgValue string
-    	Default value for _msg field if the ingested log entry doesn't contain it; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field (default "missing _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field")
+    	Default value for _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field (default "-")
+  -defaultParallelReaders int
+    	Default number of parallel data readers to use for executing every query; higher number of readers may help increasing query performance on high-latency storage such as NFS or S3 at the cost of higher RAM usage; see https://docs.victoriametrics.com/victorialogs/logsql/#parallel_readers-query-option (default 16)
+  -delete.enable
+    	Whether to enable /delete/* HTTP endpoints
   -enableTCP6
     	Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -369,6 +373,8 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	Flag value can be read from the given http/https url when using -forceMergeAuthKey=http://host/path or -forceMergeAuthKey=https://host/path
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -fs.maxConcurrency int
+    	The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 128)
   -futureRetention value
     	Log entries with timestamps bigger than now+futureRetention are rejected during data ingestion; see https://docs.victoriametrics.com/victoriatraces/#retention
     	The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 2d)
@@ -403,7 +409,7 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -httpListenAddr array
     	TCP address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -httpListenAddr.useProxyProtocol array
     	Whether to use proxy protocol for connections accepted at the given -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
     	Supports array of values separated by comma or specified via multiple flags.
@@ -426,6 +432,8 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
     	The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
+  -internaldelete.enable
+    	Whether to enable /internal/delete/* HTTP endpoints, which are used by vtselect for deleting spans via delete API at vtstorage nodes
   -internalinsert.disable
     	Whether to disable /internal/insert HTTP endpoint. See https://docs.victoriametrics.com/victoriatraces/cluster/#security
   -internalinsert.maxRequestSize size
@@ -437,6 +445,10 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	Whether to log all the ingested trace spans; this can be useful for debugging of data ingestion; see https://docs.victoriametrics.com/victoriatraces/data-ingestion/ ; see also -logNewStreams
   -logNewStreams
     	Whether to log creation of new streams; this can be useful for debugging of high cardinality issues with log streams; see https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields ; see also -logIngestedRows
+  -logNewStreamsAuthKey value
+    	authKey, which must be passed in query string to /internal/log_new_streams . It overrides -httpAuth.* . See https://docs.victoriametrics.com/victorialogs/#logging-new-streams
+    	Flag value can be read from the given file when using -logNewStreamsAuthKey=file:///abs/path/to/file or -logNewStreamsAuthKey=file://./relative/path/to/file.
+    	Flag value can be read from the given http/https url when using -logNewStreamsAuthKey=http://host/path or -logNewStreamsAuthKey=https://host/path
   -loggerDisableTimestamps
     	Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -455,6 +467,9 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
     	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
+  -maxBackfillAge value
+    	Trace spans with timestamps older than now-maxBackfillAge are rejected during data ingestion; see https://docs.victoriametrics.com/victorialogs/#backfilling
+    	The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -maxConcurrentInserts int
     	The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 16)
   -memory.allowedBytes size
@@ -472,21 +487,19 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	The maximum size in bytes of a single OpenTelemetry trace export request.
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -otlpGRPC.tls
-    	Whether to enable TLS for incoming gRPC request at the given -otlpGRPCListenAddr. -otlpGRPC.tlsCertFile and -otlpGRPC.tlsKeyFile must be set if -otlpGRPC.tls is set.
+    	Enable TLS for incoming gRPC request at the given -otlpGRPCListenAddr. It's set to true by default, and -otlpGRPC.tlsCertFile and -otlpGRPC.tlsKeyFile must be set. It could be configured to false to allow insecure connection. (default true)
   -otlpGRPC.tlsCertFile string
-    	Path to file with TLS certificate for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated.
+    	Path to file with TLS certificate for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is not set to false. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated.
   -otlpGRPC.tlsCipherSuites array
-    	Optional TLS cipher suites for incoming requests over HTTPS if -otlpGRPC.tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+    	Optional TLS cipher suites for incoming requests over HTTPS if -otlpGRPC.tls is not set to false. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -otlpGRPC.tlsKeyFile string
-    	Path to file with TLS key for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated.
+    	Path to file with TLS key for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is not set to false. The provided key file is automatically re-read every second, so it can be dynamically updated.
   -otlpGRPC.tlsMinVersion string
-    	Optional minimum TLS version to use for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. Supported values: TLS10, TLS11, TLS12, TLS13.
+    	Optional minimum TLS version to use for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is not set to false. Supported values: TLS10, TLS11, TLS12, TLS13.
   -otlpGRPCListenAddr string
     	TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317".
-  -otlpGRPCListenAddr.useProxyProtocol
-    	Whether to use proxy protocol for connections accepted at -otlpGRPCListenAddr. See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -partitionManageAuthKey value
     	authKey, which must be passed in query string to /internal/partition/* . It overrides -httpAuth.* . See https://docs.victoriametrics.com/victoriatraces/#partitions-lifecycle
     	Flag value can be read from the given file when using -partitionManageAuthKey=file:///abs/path/to/file or -partitionManageAuthKey=file://./relative/path/to/file.
@@ -500,17 +513,17 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -pushmetrics.extraLabel array
     	Optional labels to add to metrics pushed to every -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to every -pushmetrics.url
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pushmetrics.header array
     	Optional HTTP request header to send to every -pushmetrics.url . For example, -pushmetrics.header='Authorization: Basic foobar' adds 'Authorization: Basic foobar' header to every request to every -pushmetrics.url
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -pushmetrics.interval duration
     	Interval for pushing metrics to every -pushmetrics.url (default 10s)
   -pushmetrics.url array
     	Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -retention.maxDiskSpaceUsageBytes size
     	The maximum disk space usage at -storageDataPath before older per-day partitions are automatically dropped; see https://docs.victoriametrics.com/victoriatraces/#retention-by-disk-space-usage ; see also -retentionPeriod
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -520,7 +533,9 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	Trace spans with timestamps older than now-retentionPeriod are automatically deleted; trace spans with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/victoriatraces/#retention ; see also -retention.maxDiskSpaceUsageBytes and -retention.maxDiskUsagePercent
     	The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
   -search.allowPartialResponse
-    	Whether to allow returning partial responses when some of vtstorage nodes from the -storageNode list are unavailable for querying. This flag works only for cluster setup of VictoriaTraces. See https://docs.victoriametrics.com/victorialogs/querying/#partial-responses
+    	Whether to allow returning partial responses when some of vtstorage nodes from the -storageNode list are unavailable for querying. This flag works only for cluster setup of VictoriaLogs. See https://docs.victoriametrics.com/victorialogs/querying/#partial-responses
+  -search.logSlowQueryDuration duration
+    	Log queries with execution time exceeding this value. Zero disables slow query logging (default 5s)
   -search.maxConcurrentRequests int
     	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 8)
   -search.maxQueryDuration duration
@@ -540,6 +555,10 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	Splits the [0, now] time range into many small time ranges by -search.traceSearchStep when searching for spans by trace_id. Once it finds spans in a time range, it performs an additional search according to -search.traceMaxDurationWindow and then stops. It affects Jaeger's /api/traces/<trace_id> API. (default 24h0m0s)
   -search.traceServiceAndSpanNameLookbehind duration
     	The time range of searching for service name and span name. It affects Jaeger's /api/services and /api/services/*/operations APIs. (default 72h0m0s)
+  -secret.flags array
+    	Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -select.disable
     	Whether to disable /select/* HTTP endpoints
   -select.disableCompression
@@ -562,23 +581,23 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -storageNode array
     	Comma-separated list of TCP addresses for storage nodes to route the ingested spans to and to send select queries to. If the list is empty, then the ingested spans are stored and queried locally from -storageDataPath
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode.bearerToken array
     	Optional bearer auth token to use for the corresponding -storageNode
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode.bearerTokenFile array
     	Optional path to bearer token file to use for the corresponding -storageNode. The token is re-read from the file every second
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode.password array
     	Optional basic auth password to use for the corresponding -storageNode
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode.passwordFile array
     	Optional path to basic auth password to use for the corresponding -storageNode. The file is re-read every second
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode.tls array
     	Whether to use TLS (HTTPS) protocol for communicating with the corresponding -storageNode. By default communication is performed via HTTP
     	Supports array of values separated by comma or specified via multiple flags.
@@ -586,11 +605,11 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -storageNode.tlsCAFile array
     	Optional path to TLS CA file to use for verifying connections to the corresponding -storageNode. By default, system CA is used
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode.tlsCertFile array
     	Optional path to client-side TLS certificate file to use when connecting to the corresponding -storageNode
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode.tlsInsecureSkipVerify array
     	Whether to skip tls verification when connecting to the corresponding -storageNode
     	Supports array of values separated by comma or specified via multiple flags.
@@ -598,15 +617,19 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -storageNode.tlsKeyFile array
     	Optional path to client-side TLS certificate key to use when connecting to the corresponding -storageNode
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode.tlsServerName array
     	Optional TLS server name to use for connections to the corresponding -storageNode. By default, the server name from -storageNode is used
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -storageNode.username array
     	Optional basic auth username to use for the corresponding -storageNode
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -storageNode.usernameFile array
+    	Optional path to basic auth username to use for the corresponding -storageNode. The file is re-read every second
+    	Supports an array of values separated by comma or specified via multiple flags.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tls array
     	Whether to enable TLS for incoming HTTP requests at the given -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set. See also -mtls
     	Supports array of values separated by comma or specified via multiple flags.
@@ -614,19 +637,19 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -tlsCertFile array
     	Path to file with TLS certificate for the corresponding -httpListenAddr if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsCipherSuites array
     	Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsKeyFile array
     	Path to file with TLS key for the corresponding -httpListenAddr if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated. See also -tlsAutocertHosts
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -tlsMinVersion array
     	Optional minimum TLS version to use for the corresponding -httpListenAddr if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
     	Supports an array of values separated by comma or specified via multiple flags.
-    	Value can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+    	Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -version
     	Show VictoriaMetrics version
 ```

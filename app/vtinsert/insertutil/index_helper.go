@@ -72,6 +72,7 @@ func mustPushIndex(tenantID logstorage.TenantID, traceID string, startTime, endT
 	h := hashpool.Get()
 	defer hashpool.Put(h)
 
+	// todo: need a better hashing here
 	worker := workers[int(tb[31])%len(workers)]
 
 	worker.mu.Lock()
@@ -191,15 +192,13 @@ func (w *indexWorker) flushIndexInMap(tb traceIDBuf, idxEntry indexEntry) bool {
 	lmp.AddRow(startTimestamp,
 		// fields
 		[]logstorage.Field{
+			{Name: otelpb.TraceIDIndexStreamName, Value: strconv.FormatUint(xxhash.Sum64String(traceID)%otelpb.TraceIDIndexPartitionCount, 10)},
 			{Name: "_msg", Value: "-"},
 			{Name: otelpb.TraceIDIndexFieldName, Value: traceID},
 			{Name: otelpb.TraceIDIndexStartTimeFieldName, Value: strconv.FormatInt(startTimestamp, 10)},
 			{Name: otelpb.TraceIDIndexEndTimeFieldName, Value: strconv.FormatInt(endTimestamp, 10)},
 		},
-		// stream fields
-		[]logstorage.Field{
-			{Name: otelpb.TraceIDIndexStreamName, Value: strconv.FormatUint(xxhash.Sum64String(traceID)%otelpb.TraceIDIndexPartitionCount, 10)},
-		},
+		1,
 	)
 	return true
 }

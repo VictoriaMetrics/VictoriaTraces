@@ -55,13 +55,13 @@ See how to [write](#write-data) or [read](#read-data) from VictoriaTraces.
 - Download the correct binary for your OS and architecture from [GitHub](https://github.com/VictoriaMetrics/VictoriaTraces/releases/). Here's an example for `Linux/amd64`:
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaTraces/releases/download/v0.5.1/victoria-traces-linux-amd64-v0.5.1.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaTraces/releases/download/v0.6.0/victoria-traces-linux-amd64-v0.6.0.tar.gz
 ```
 
 - Extract the archive by running:
 
 ```sh
-tar -xvf victoria-traces-linux-amd64-v0.5.1.tar.gz
+tar -xvf victoria-traces-linux-amd64-v0.6.0.tar.gz
 ```
 
 - Go to the binary's folder and start VictoriaTraces:

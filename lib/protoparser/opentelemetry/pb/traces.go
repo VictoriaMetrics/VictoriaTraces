@@ -43,6 +43,11 @@ func (r *ExportTraceServiceRequest) marshalProtobuf(mm *easyproto.MessageMarshal
 }
 
 // UnmarshalProtobuf unmarshals r from protobuf message at src.
+//
+// Deprecated: protobuf data to log fields should use decodeExportTraceServiceRequest(src []byte, pushSpans pushSpansHandler),
+// instead of unmarshaling the []byte into *ExportTraceServiceRequest and then transform the *ExportTraceServiceRequest into log fields.
+// it should help with the performance. currently, this UnmarshalProtobuf is used in test only. please do not use it for
+// further development.
 func (r *ExportTraceServiceRequest) UnmarshalProtobuf(src []byte) (err error) {
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
@@ -405,7 +410,7 @@ func (s *Span) unmarshalProtobuf(src []byte) (err error) {
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
-			return fmt.Errorf("cannot read next field in Status: %w", err)
+			return fmt.Errorf("cannot read next field in Span: %w", err)
 		}
 		switch fc.FieldNum {
 		case 1:

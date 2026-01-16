@@ -53,7 +53,7 @@ func (cp *CommonParams) NewTraceProcessor(protocolName string, isStreamMode bool
 // It also creates index if the current process is a storage node (VictoriaTraces Single-node).
 //
 // If streamFields is non-nil, then it is used as log stream fields instead of the pre-configured stream fields.
-func (tsp *traceSpanProcessor) AddRow(timestamp int64, fields, streamFields []logstorage.Field) {
+func (tsp *traceSpanProcessor) AddRow(timestamp int64, fields []logstorage.Field, streamFieldsLen int) {
 	if logRowsStorage.IsLocalStorage() {
 		if !tsp.pushTraceToIndexQueue(tsp.lmp.cp.TenantID, fields) {
 			// This should not happen because:
@@ -64,7 +64,7 @@ func (tsp *traceSpanProcessor) AddRow(timestamp int64, fields, streamFields []lo
 			return
 		}
 	}
-	tsp.lmp.AddRow(timestamp, fields, streamFields)
+	tsp.lmp.AddRow(timestamp, fields, streamFieldsLen)
 }
 
 func (tsp *traceSpanProcessor) MustClose() {

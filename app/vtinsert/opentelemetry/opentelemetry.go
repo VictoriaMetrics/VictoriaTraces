@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
@@ -109,8 +110,7 @@ func pushFieldsFromSpan(span *otelpb.Span, scopeCommonFields []logstorage.Field,
 		logstorage.Field{Name: otelpb.TraceIDField, Value: span.TraceID},
 	)
 
-	tsp.AddRow(int64(span.EndTimeUnixNano), fields, nil)
-
+	tsp.AddRow(int64(span.EndTimeUnixNano), fields, -1)
 	return fields
 }
 
@@ -143,20 +143,25 @@ func appendKeyValuesWithPrefixSuffix(fields []logstorage.Field, kvs []*otelpb.Ke
 	return fields
 }
 
-func PersistServiceGraph(ctx context.Context, tenantID logstorage.TenantID, fields [][]logstorage.Field, timestamp time.Time) error {
+func PersistServiceGraph(ctx context.Context, tenantID logstorage.TenantID, commonFields []logstorage.Field, fields [][]logstorage.Field, timestamp time.Time) ([]logstorage.Field, error) {
 	cp := insertutil.CommonParams{
 		TenantID:   tenantID,
 		TimeFields: []string{"_time"},
 	}
 	lmp := cp.NewLogMessageProcessor("internalinsert_servicegraph", false)
-
+	commonFieldLen := len(commonFields)
 	for _, row := range fields {
-		f := append(row, logstorage.Field{
-			Name:  "_msg",
-			Value: "-",
-		})
-		lmp.AddRow(timestamp.UnixNano(), f, []logstorage.Field{{Name: otelpb.ServiceGraphStreamName, Value: "-"}})
+		commonFields = commonFields[:commonFieldLen]
+		commonFields = append(commonFields, row...)
+		commonFields = append(commonFields, logstorage.Field{Name: "_msg", Value: msgFieldValue})
+		lmp.AddRow(timestamp.UnixNano(), commonFields, commonFieldLen)
 	}
 	lmp.MustClose()
-	return nil
+	return commonFields, nil
+}
+
+func NewPushSpansCallbackFunc(lmp insertutil.LogMessageProcessor) func(timestamp int64, fields []logstorage.Field) {
+	return func(timestamp int64, fields []logstorage.Field) {
+		lmp.AddRow(timestamp, fields, -1)
+	}
 }

@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/logsql"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 )
 
 // ---------------------------- LogsQL Dependency-----------------------------
@@ -55,8 +57,21 @@ var (
 	logsqlStreamsRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/logsql/streams"}`)
 	logsqlStreamsDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/logsql/streams"}`)
 
+	tenantIDsRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/tenant_ids"}`)
+	tenantIDsDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tenant_ids"}`)
+
 	// no need to track duration for tail requests, as they usually take long time
 	logsqlTailRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/logsql/tail"}`)
+
+	// no need to track the duration for query_time_range requests, since they are instant
+	logsqlQueryTimeRangeRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/logsql/query_time_range"}`)
+
+	// no need to track duration for /delete/* requests, because they are asynchornous
+	deleteRunTaskRequests     = metrics.NewCounter(`vt_http_requests_total{path="/delete/run_task"}`)
+	deleteStopTaskRequests    = metrics.NewCounter(`vt_http_requests_total{path="/delete/stop_task"}`)
+	deleteActiveTasksRequests = metrics.NewCounter(`vt_http_requests_total{path="/delete/active_tasks"}`)
+
+	slowQueries = metrics.NewCounter(`vt_slow_queries_total`)
 )
 
 func logRequestErrorIfNeeded(ctx context.Context, w http.ResponseWriter, r *http.Request, startTime time.Time) {
@@ -82,6 +97,10 @@ func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 	httpserver.EnableCORS(w, r)
 	startTime := time.Now()
 	switch path {
+	case "/select/logsql/query_time_range":
+		logsqlQueryTimeRangeRequests.Inc()
+		logsql.ProcessQueryTimeRangeRequest(ctx, w, r)
+		return true
 	case "/select/logsql/facets":
 		logsqlFacetsRequests.Inc()
 		logsql.ProcessFacetsRequest(ctx, w, r)
@@ -137,7 +156,87 @@ func processSelectRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		logsql.ProcessStreamsRequest(ctx, w, r)
 		logsqlStreamsDuration.UpdateDuration(startTime)
 		return true
+	case "/select/tenant_ids":
+		tenantIDsRequests.Inc()
+		logsql.ProcessTenantIDsRequest(ctx, w, r)
+		tenantIDsDuration.UpdateDuration(startTime)
+		return true
 	default:
 		return false
 	}
+}
+
+func deleteHandler(w http.ResponseWriter, r *http.Request, path string) {
+	ctx := r.Context()
+
+	switch path {
+	case "/delete/run_task":
+		deleteRunTaskRequests.Inc()
+		processDeleteRunTaskRequest(ctx, w, r)
+	case "/delete/stop_task":
+		deleteStopTaskRequests.Inc()
+		processDeleteStopTaskRequest(ctx, w, r)
+	case "/delete/active_tasks":
+		deleteActiveTasksRequests.Inc()
+		processDeleteActiveTasksRequest(ctx, w, r)
+	default:
+		httpserver.Errorf(w, r, "unsupported path requested: %q", path)
+	}
+}
+
+func processDeleteRunTaskRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	tenantID, err := logstorage.GetTenantIDFromRequest(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot obtain tenantID: %s", err)
+		return
+	}
+
+	fStr := r.FormValue("filter")
+	f, err := logstorage.ParseFilter(fStr)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot parse filter [%s]: %s", fStr, err)
+		return
+	}
+
+	// Generate taskID from the current timestamp in nanoseconds
+	timestamp := time.Now().UnixNano()
+	taskID := fmt.Sprintf("%d", timestamp)
+
+	tenantIDs := []logstorage.TenantID{tenantID}
+	if err := vtstorage.DeleteRunTask(ctx, taskID, timestamp, tenantIDs, f); err != nil {
+		httpserver.Errorf(w, r, "cannot run delete task: %s", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"task_id":%q}`, taskID)
+}
+
+func processDeleteStopTaskRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	taskID := r.FormValue("task_id")
+	if taskID == "" {
+		httpserver.Errorf(w, r, "missing task_id arg")
+		return
+	}
+
+	if err := vtstorage.DeleteStopTask(ctx, taskID); err != nil {
+		httpserver.Errorf(w, r, "cannot stop task with task_id=%q: %s", taskID, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"status":"ok"}`)
+}
+
+func processDeleteActiveTasksRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	tasks, err := vtstorage.DeleteActiveTasks(ctx)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot obtain active delete tasks: %s", err)
+		return
+	}
+
+	data := logstorage.MarshalDeleteTasksToJSON(tasks)
+
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, "%s", data)
 }
