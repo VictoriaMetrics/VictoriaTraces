@@ -59,6 +59,20 @@ func (fb *fmtBuffer) formatSubFieldName(prefix, fieldName string) string {
 	return bytesutil.ToUnsafeString(fb.buf[n:])
 }
 
+func (fb *fmtBuffer) formatPrefixAndSuffixName(prefix, fieldName, suffix string) string {
+	if prefix == "" && suffix == "" {
+		// There is no prefix and suffix, so just return the suffix as is.
+		return fieldName
+	}
+
+	n := len(fb.buf)
+	fb.buf = append(fb.buf, prefix...)
+	fb.buf = append(fb.buf, fieldName...)
+	fb.buf = append(fb.buf, suffix...)
+
+	return bytesutil.ToUnsafeString(fb.buf[n:])
+}
+
 func (fb *fmtBuffer) formatHex(src []byte) string {
 	n := len(fb.buf)
 	fb.buf = hex.AppendEncode(fb.buf, src)

@@ -9,7 +9,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/cespare/xxhash/v2"
-	"github.com/valyala/bytebufferpool"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/hashpool"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
@@ -171,12 +170,6 @@ func (w *indexWorker) run() {
 
 // flushIndexInMap flush the in-memory index to log streams.
 func (w *indexWorker) flushIndexInMap(tb traceIDBuf, idxEntry indexEntry) bool {
-	bb := bytebufferpool.Get()
-	defer bytebufferpool.Put(bb)
-
-	_, _ = bb.Write(tb[:])
-	traceID := bb.String()
-
 	lmp, ok := w.logMessageProcessorMap[idxEntry.tenantID]
 	if !ok {
 		// init the lmp for the current tenant
@@ -196,9 +189,9 @@ func (w *indexWorker) flushIndexInMap(tb traceIDBuf, idxEntry indexEntry) bool {
 	lmp.AddRow(startTimestamp,
 		// fields
 		[]logstorage.Field{
-			{Name: otelpb.TraceIDIndexStreamName, Value: strconv.FormatUint(xxhash.Sum64String(traceID)%otelpb.TraceIDIndexPartitionCount, 10)},
+			{Name: otelpb.TraceIDIndexStreamName, Value: strconv.FormatUint(xxhash.Sum64(tb[:])%otelpb.TraceIDIndexPartitionCount, 10)},
 			{Name: "_msg", Value: "-"},
-			{Name: otelpb.TraceIDIndexFieldName, Value: traceID},
+			{Name: otelpb.TraceIDIndexFieldName, Value: string(tb[:])},
 			{Name: otelpb.TraceIDIndexStartTimeFieldName, Value: strconv.FormatInt(startTimestamp, 10)},
 			{Name: otelpb.TraceIDIndexEndTimeFieldName, Value: strconv.FormatInt(endTimestamp, 10)},
 		},

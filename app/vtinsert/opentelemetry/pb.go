@@ -604,7 +604,7 @@ func decodeAnyValue(src []byte, fs *logstorage.Fields, fb *fmtBuffer, fieldName,
 	//   }
 	// }
 
-	fullFieldName := prefix + fieldName + suffix
+	fullFieldName := fb.formatPrefixAndSuffixName(prefix, fieldName, suffix)
 	var fc easyproto.FieldContext
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
