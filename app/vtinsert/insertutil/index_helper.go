@@ -79,6 +79,8 @@ func mustPushIndex(tenantID logstorage.TenantID, traceID string, startTime, endT
 	worker.mu.Lock()
 	defer worker.mu.Unlock()
 
+	// find the (potential) existing indexEntry in both map.
+	// if found, update the startTime and endTime for this trace.
 	idxEntry, ok := worker.traceIDIndexMapCur[*tb]
 	if ok {
 		idxEntry.startTimeNano = min(startTime, idxEntry.startTimeNano)
@@ -95,6 +97,7 @@ func mustPushIndex(tenantID logstorage.TenantID, traceID string, startTime, endT
 		return
 	}
 
+	// this trace is new, compose an indexEntry and put it to the current map.
 	idxEntry = indexEntry{}
 	idxEntry.tenantID = tenantID
 	idxEntry.startTimeNano = startTime
