@@ -61,6 +61,9 @@ func pushIndexToQueue(tenantID logstorage.TenantID, traceID string, startTime, e
 	return true
 }
 
+// mustPushIndex compose an (or update an existing) indexEntry with tenantID, startTime and endTime for a trace,
+// and put it to the traceIDIndex map.
+// The indexEntry should indicate the real min(startTime) and max(endTime) of a trace, and be flushed to disk later.
 func mustPushIndex(tenantID logstorage.TenantID, traceID string, startTime, endTime int64) {
 	tb := GetTraceIDBuf()
 	defer PutTraceIDBuf(tb)
