@@ -13,6 +13,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 ## tip
 
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): add duration and error metrics for service graph background tasks. Thank @chenlujjj for [the pull request #100](https://github.com/VictoriaMetrics/VictoriaTraces/pull/100).
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): add accurate start time and end time to the trace ID index. This should help with the trace lookup by ID, and will free user from configuring `-search.traceMaxDurationWindow` to avoid missing the spans. See [the pull request #81](https://github.com/VictoriaMetrics/VictoriaTraces/pull/81).
 
 ## [v0.6.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.6.0)
 

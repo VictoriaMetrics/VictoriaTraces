@@ -422,6 +422,8 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	Whether to disable /insert/* HTTP endpoints
   -insert.disableCompression
     	Whether to disable compression when sending the ingested data to -storageNode nodes. Disabled compression reduces CPU usage at the cost of higher network usage
+  -insert.indexFlushInterval duration
+    	Amount of time after which the index of a trace is flushed. VictoriaTraces creates an index for each trace ID based on its start and end times.Each trace ID must wait in the queue for -insert.indexFlushInterval, continuously updating its start and end times before being flushed into the index. (default 30s)
   -insert.maxFieldsPerLine int
     	The maximum number of log fields per line, which can be read by /insert/* handlers; see https://docs.victoriametrics.com/victorialogs/faq/#how-many-fields-a-single-log-entry-may-contain (default 1000)
   -insert.maxQueueDuration duration
@@ -534,6 +536,8 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	The following optional suffixes are supported: s (second), h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
   -search.allowPartialResponse
     	Whether to allow returning partial responses when some of vtstorage nodes from the -storageNode list are unavailable for querying. This flag works only for cluster setup of VictoriaLogs. See https://docs.victoriametrics.com/victorialogs/querying/#partial-responses
+  -search.latencyOffset duration
+    	The time when a trace become visible in query results after the collection. see -insert.traceMaxDuration as well. (default 30s) (default 30s)
   -search.logSlowQueryDuration duration
     	Log queries with execution time exceeding this value. Zero disables slow query logging (default 5s)
   -search.maxConcurrentRequests int
@@ -546,7 +550,7 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -search.maxQueueDuration duration
     	The maximum time the search request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
   -search.traceMaxDurationWindow duration
-    	The window of searching for the rest trace spans after finding one span.It allows extending the search start time and end time by -search.traceMaxDurationWindow to make sure all spans are included.It affects both Jaeger's /api/traces and /api/traces/<trace_id> APIs. (default 45s)
+    	The window of searching for the rest trace spans after finding one span.It allows extending the search start time and end time by -search.traceMaxDurationWindow to make sure all spans are included.It affects both Jaeger's /api/traces and /api/traces/<trace_id> APIs. (default 1m0s)
   -search.traceMaxServiceNameList uint
     	The maximum number of service name can return in a get service name request. This limit affects Jaeger's /api/services API. (default 1000)
   -search.traceMaxSpanNameList uint
