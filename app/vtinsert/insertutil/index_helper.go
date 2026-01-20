@@ -33,7 +33,7 @@ type indexWorker struct {
 	mu                  sync.Mutex
 	traceIDIndexMapCur  map[[32]byte]indexEntry
 	traceIDIndexMapPrev map[[32]byte]indexEntry
-	
+
 	// logMessageProcessorMap holds lmp for different tenants.
 	logMessageProcessorMap map[logstorage.TenantID]LogMessageProcessor
 }
