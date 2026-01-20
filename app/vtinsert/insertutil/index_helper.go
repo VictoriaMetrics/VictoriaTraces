@@ -10,7 +10,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/cespare/xxhash/v2"
 
-	"github.com/VictoriaMetrics/VictoriaTraces/lib/hashpool"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
@@ -26,15 +25,15 @@ type indexEntry struct {
 }
 
 type indexWorker struct {
-	idx int
 	// traceIDIndexMapCur and traceIDIndexMapPrev holds the index data *indexEntry for each traceID, before they could be persisted.
-	// it mainly tracks the start time and end time of a trace, which could be edited before they're persisted.
+	// it mainly tracks the start time and end time of a trace, which is keep changing before they're persisted.
 	//
-	// - The cur map can accept new traceID and *indexEntry.
-	// - The prev map only serves for fast lookup of existing *indexEntry.
+	// - The cur map can accept new traceID and indexEntry.
+	// - The prev map only serves for fast lookup of existing indexEntry.
 	mu                  sync.Mutex
-	traceIDIndexMapCur  map[traceIDBuf]indexEntry
-	traceIDIndexMapPrev map[traceIDBuf]indexEntry
+	traceIDIndexMapCur  map[[32]byte]indexEntry
+	traceIDIndexMapPrev map[[32]byte]indexEntry
+	
 	// logMessageProcessorMap holds lmp for different tenants.
 	logMessageProcessorMap map[logstorage.TenantID]LogMessageProcessor
 }
@@ -64,35 +63,30 @@ func pushIndexToQueue(tenantID logstorage.TenantID, traceID string, startTime, e
 // and put it to the traceIDIndex map.
 // The indexEntry should indicate the real min(startTime) and max(endTime) of a trace, and be flushed to disk later.
 func mustPushIndex(tenantID logstorage.TenantID, traceID string, startTime, endTime int64) {
-	tb := GetTraceIDBuf()
-	defer PutTraceIDBuf(tb)
-
+	tb := [32]byte{}
 	copy(tb[:], traceID)
 
-	h := hashpool.Get()
-	defer hashpool.Put(h)
-
 	// todo: need a better hashing here
-	worker := workers[int(tb[31])%len(workers)]
+	worker := workers[int(tb[7]+tb[15]+tb[23]+tb[31])%len(workers)]
 
 	worker.mu.Lock()
 	defer worker.mu.Unlock()
 
 	// find the (potential) existing indexEntry in both map.
 	// if found, update the startTime and endTime for this trace.
-	idxEntry, ok := worker.traceIDIndexMapCur[*tb]
+	idxEntry, ok := worker.traceIDIndexMapCur[tb]
 	if ok {
 		idxEntry.startTimeNano = min(startTime, idxEntry.startTimeNano)
 		idxEntry.endTimeNano = max(endTime, idxEntry.endTimeNano)
-		worker.traceIDIndexMapCur[*tb] = idxEntry
+		worker.traceIDIndexMapCur[tb] = idxEntry
 		return
 	}
 
-	idxEntry, ok = worker.traceIDIndexMapPrev[*tb]
+	idxEntry, ok = worker.traceIDIndexMapPrev[tb]
 	if ok {
 		idxEntry.startTimeNano = min(startTime, idxEntry.startTimeNano)
 		idxEntry.endTimeNano = max(endTime, idxEntry.endTimeNano)
-		worker.traceIDIndexMapPrev[*tb] = idxEntry
+		worker.traceIDIndexMapPrev[tb] = idxEntry
 		return
 	}
 
@@ -102,7 +96,7 @@ func mustPushIndex(tenantID logstorage.TenantID, traceID string, startTime, endT
 	idxEntry.startTimeNano = startTime
 	idxEntry.endTimeNano = endTime
 
-	worker.traceIDIndexMapCur[*tb] = idxEntry
+	worker.traceIDIndexMapCur[tb] = idxEntry
 }
 
 // MustStartIndexWorker starts a single goroutine indexWorker that reads from traceIDCh and write the index entry to storage.
@@ -111,10 +105,9 @@ func MustStartIndexWorker() {
 	workers = make([]*indexWorker, n)
 	for i := 0; i < n; i++ {
 		workers[i] = &indexWorker{
-			idx:                    i,
 			mu:                     sync.Mutex{},
-			traceIDIndexMapCur:     make(map[traceIDBuf]indexEntry),
-			traceIDIndexMapPrev:    make(map[traceIDBuf]indexEntry),
+			traceIDIndexMapCur:     make(map[[32]byte]indexEntry),
+			traceIDIndexMapPrev:    make(map[[32]byte]indexEntry),
 			logMessageProcessorMap: make(map[logstorage.TenantID]LogMessageProcessor),
 		}
 
@@ -158,7 +151,7 @@ func (w *indexWorker) run() {
 			n := len(w.traceIDIndexMapPrev)
 
 			// drop the previous map and create a new one
-			w.traceIDIndexMapPrev = make(map[traceIDBuf]indexEntry, n)
+			w.traceIDIndexMapPrev = make(map[[32]byte]indexEntry, n)
 
 			// swap the previous map and current map
 			w.traceIDIndexMapCur, w.traceIDIndexMapPrev = w.traceIDIndexMapPrev, w.traceIDIndexMapCur
@@ -169,7 +162,7 @@ func (w *indexWorker) run() {
 }
 
 // flushIndexInMap flush the in-memory index to log streams.
-func (w *indexWorker) flushIndexInMap(tb traceIDBuf, idxEntry indexEntry) bool {
+func (w *indexWorker) flushIndexInMap(tb [32]byte, idxEntry indexEntry) bool {
 	lmp, ok := w.logMessageProcessorMap[idxEntry.tenantID]
 	if !ok {
 		// init the lmp for the current tenant
@@ -205,21 +198,4 @@ func MustStopIndexWorker() {
 
 	// wait until all the index workers exit
 	indexWorkerWg.Wait()
-}
-
-var traceIDBufPool sync.Pool
-
-type traceIDBuf [32]byte
-
-func GetTraceIDBuf() *traceIDBuf {
-	v := traceIDBufPool.Get()
-	if v == nil {
-		v = &traceIDBuf{}
-	}
-	return v.(*traceIDBuf)
-}
-
-func PutTraceIDBuf(buf *traceIDBuf) {
-	// todo reset
-	traceIDBufPool.Put(buf)
 }

@@ -424,13 +424,13 @@ func decodeEvent(src []byte, fs *logstorage.Fields, fb *fmtBuffer, eventIdx int)
 			if !ok {
 				return fmt.Errorf("cannot read span event timestamp")
 			}
-			fs.Add(pb.EventPrefix+pb.EventTimeUnixNanoField+eventFieldSuffix, strconv.FormatUint(ts, 10))
+			fs.Add(fb.formatPrefixAndSuffixName(pb.EventPrefix, pb.EventTimeUnixNanoField, eventFieldSuffix), strconv.FormatUint(ts, 10))
 		case 2:
 			name, ok := fc.String()
 			if !ok {
 				return fmt.Errorf("cannot read span event name")
 			}
-			fs.Add(pb.EventPrefix+pb.EventNameField+eventFieldSuffix, name)
+			fs.Add(fb.formatPrefixAndSuffixName(pb.EventPrefix, pb.EventNameField, eventFieldSuffix), name)
 		case 3:
 			data, ok := fc.MessageData()
 			if !ok {
@@ -444,7 +444,7 @@ func decodeEvent(src []byte, fs *logstorage.Fields, fb *fmtBuffer, eventIdx int)
 			if !ok {
 				return fmt.Errorf("cannot read span event dropped attributes count")
 			}
-			fs.Add(pb.EventPrefix+pb.EventDroppedAttributesCountField+eventFieldSuffix, strconv.FormatUint(uint64(droppedAttributesCount), 10))
+			fs.Add(fb.formatPrefixAndSuffixName(pb.EventPrefix, pb.EventDroppedAttributesCountField, eventFieldSuffix), strconv.FormatUint(uint64(droppedAttributesCount), 10))
 		}
 	}
 	return nil
