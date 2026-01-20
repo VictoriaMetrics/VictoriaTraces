@@ -61,7 +61,7 @@ func (fb *fmtBuffer) formatSubFieldName(prefix, fieldName string) string {
 
 func (fb *fmtBuffer) formatPrefixAndSuffixName(prefix, fieldName, suffix string) string {
 	if prefix == "" && suffix == "" {
-		// There is no prefix and suffix, so just return the suffix as is.
+		// There is no prefix and suffix, so just return the fieldName as is.
 		return fieldName
 	}
 

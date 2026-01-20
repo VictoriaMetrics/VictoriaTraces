@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	traceMaxDuration = flag.Duration("insert.indexFlushInterval", 30*time.Second, "Amount of time after which the index of a trace is flushed. VictoriaTraces creates an index for each trace ID based on its start and end times."+
+	indexFlushInterval = flag.Duration("insert.indexFlushInterval", 30*time.Second, "Amount of time after which the index of a trace is flushed. VictoriaTraces creates an index for each trace ID based on its start and end times."+
 		"Each trace ID must wait in the queue for -insert.indexFlushInterval, continuously updating its start and end times before being flushed into the index.")
 )
 
@@ -119,14 +119,14 @@ func MustStartIndexWorker() {
 func (w *indexWorker) run() {
 	defer indexWorkerWg.Done()
 
-	ticker := time.NewTicker(*traceMaxDuration / 2)
+	ticker := time.NewTicker(*indexFlushInterval / 2)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-stopCh:
 			// persist all the index in the queue,
-			// even though they're still fresh (haven't waited for *traceMaxDuration).
+			// even though they're still fresh (haven't waited for *indexFlushInterval).
 			w.mu.Lock()
 			for k, v := range w.traceIDIndexMapPrev {
 				w.flushIndexInMap(k, v)

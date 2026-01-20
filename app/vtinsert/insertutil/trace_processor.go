@@ -60,6 +60,7 @@ func (tsp *traceSpanProcessor) AddRow(timestamp int64, fields []logstorage.Field
 			// 1. AddRow is called by HTTP handler.
 			// 2. During shutdown, main HTTP server should be closed first, and then the index worker.
 			// 3. `false` only return when index worker is exited.
+			metrics.GetOrCreateCounter("vt_traceid_index_push_error_total").Inc()
 			logger.Errorf("cannot push index for a trace to the queue: %v", fields)
 			return
 		}
@@ -135,6 +136,8 @@ func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID,
 func (tsp *traceSpanProcessor) AddInsertRow(r *logstorage.InsertRow) {
 	// create index <traceID, startTimeNano, endTimeNano> if the current process is a storage node (VictoriaTraces single-node, or vtstorage).
 	if logRowsStorage.IsLocalStorage() && !tsp.pushNativeRowToIndexQueue(r) {
+		metrics.GetOrCreateCounter("vt_traceid_index_push_error_total").Inc()
+		logger.Errorf("cannot push index for a native insert trace to the queue: %v", r.Fields)
 		return
 	}
 	tsp.lmp.AddInsertRow(r)
