@@ -9,7 +9,7 @@ vmui-run-npm-command: vmui-package-base-image
 		--mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \
 		-w /build/packages/vmui \
 		--entrypoint=/bin/bash \
-		vmui-builder-image -c "npm ci && $(NPM_COMMAND)"
+		vmui-builder-image -c "npm i && $(NPM_COMMAND)"
 
 vmui-build:
 	NPM_COMMAND="npm run build" $(MAKE) vmui-run-npm-command
