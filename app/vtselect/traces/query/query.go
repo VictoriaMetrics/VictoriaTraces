@@ -490,9 +490,8 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 			// this could be the old format index, which records trace ID and the approximate timestamp only.
 			// to transform this into new format (start time & end time), use [t-traceWindow, t+traceWindow].
 			// this code should be deprecated in the future.
-			timestamp, _ := strconv.ParseInt(timeStr, 10, 64)
-			return time.Unix(timestamp/int64(time.Second), timestamp%int64(time.Second)).Add(-*traceMaxDurationWindow),
-				time.Unix(timestamp/int64(time.Second), timestamp%int64(time.Second)).Add(*traceMaxDurationWindow), nil
+			timestamp, _ := time.Parse(time.RFC3339, timeStr)
+			return timestamp.Add(-*traceMaxDurationWindow), timestamp.Add(*traceMaxDurationWindow), nil
 		}
 
 		traceIDStartTime, _ := strconv.ParseInt(traceIDStartTimeStr, 10, 64)
