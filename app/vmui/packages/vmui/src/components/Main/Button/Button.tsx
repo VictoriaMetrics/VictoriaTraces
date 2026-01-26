@@ -1,4 +1,4 @@
-import { FC, MouseEvent as ReactMouseEvent, ReactNode } from "preact/compat";
+import { FC, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import classNames from "classnames";
 import "./style.scss";
 

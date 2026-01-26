@@ -1,4 +1,4 @@
-import { FC, useRef } from "preact/compat";
+import { FC, useRef } from "react";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import "./style.scss";
 import Switch from "../../Main/Switch/Switch";

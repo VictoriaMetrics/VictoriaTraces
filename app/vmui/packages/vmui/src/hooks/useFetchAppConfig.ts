@@ -1,5 +1,5 @@
 import { useAppDispatch } from "../state/common/StateContext";
-import { useEffect, useState } from "preact/compat";
+import { useEffect, useState } from "react";
 import { ErrorTypes } from "../types";
 
 const useFetchFlags = () => {

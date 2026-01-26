@@ -1,6 +1,6 @@
-import { FC, memo, useMemo, useCallback, useState } from "preact/compat";
+import { FC, memo, useMemo, useCallback, useState } from "react";
 import DownloadLogsButton from "../../../DownloadLogsButton/DownloadLogsButton";
-import { createPortal } from "preact/compat";
+import { createPortal } from "react-dom"
 import "./style.scss";
 import { ViewProps } from "../../types";
 import useStateSearchParams from "../../../../../hooks/useStateSearchParams";

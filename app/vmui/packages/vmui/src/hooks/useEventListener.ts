@@ -1,4 +1,4 @@
-import { RefObject, useEffect, useRef } from "preact/compat";
+import { RefObject, useEffect, useRef } from "react";
 
 // MediaQueryList Event based useEventListener interface
 function useEventListener<K extends keyof MediaQueryListEventMap>(

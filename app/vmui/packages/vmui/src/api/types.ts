@@ -1,5 +1,5 @@
 import uPlot from "uplot";
-import { ReactNode } from "preact/compat";
+import { ReactNode } from "react";
 
 export interface MetricBase {
   group: number;

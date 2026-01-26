@@ -1,4 +1,4 @@
-import { FC, useRef } from "preact/compat";
+import { FC, ReactNode, useRef } from "react";
 import { ArrowDownIcon, SettingsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 import Modal from "../../Main/Modal/Modal";
@@ -17,7 +17,12 @@ export interface ChildComponentHandle {
   handleApply: () => void;
 }
 
-const GlobalSettings: FC = () => {
+interface GlobalSettingsProps {
+  extraControls?: { show: boolean; component: ReactNode }[];
+  onApplyExtra?: () => void;
+}
+
+const GlobalSettings: FC<GlobalSettingsProps> = ({ extraControls = [], onApplyExtra }) => {
   const { isMobile } = useDeviceDetect();
 
   const appModeEnable = getAppModeEnable();
@@ -36,6 +41,7 @@ const GlobalSettings: FC = () => {
     serverSettingRef.current && serverSettingRef.current.handleApply();
     limitsSettingRef.current && limitsSettingRef.current.handleApply();
     timezoneSettingRef.current && timezoneSettingRef.current.handleApply();
+    onApplyExtra?.();
     handleClose();
   };
 
@@ -47,7 +53,8 @@ const GlobalSettings: FC = () => {
     {
       show: !appModeEnable,
       component: <ThemeControl/>
-    }
+    },
+    ...extraControls,
   ].filter(control => control.show);
 
   return <>

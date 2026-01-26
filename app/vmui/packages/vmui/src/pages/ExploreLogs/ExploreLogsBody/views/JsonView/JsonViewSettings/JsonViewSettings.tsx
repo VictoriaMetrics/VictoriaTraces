@@ -1,17 +1,17 @@
-import { FC, useMemo, useRef, useState, useEffect, useCallback } from "preact/compat";
+import { FC, useMemo, useRef, useState, useEffect, useCallback } from "react";
 import Button from "../../../../../../components/Main/Button/Button";
 import { SettingsIcon, SortArrowDownIcon, SortArrowUpIcon, SortIcon } from "../../../../../../components/Main/Icons";
 import Tooltip from "../../../../../../components/Main/Tooltip/Tooltip";
 import Select from "../../../../../../components/Main/Select/Select";
 import useBoolean from "../../../../../../hooks/useBoolean";
 import Modal from "../../../../../../components/Main/Modal/Modal";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import "./style.scss";
 import { SortDirection } from "../types";
 
+
 const title = "JSON settings";
 const directionList = ["asc", "desc"];
-
 interface JsonSettingsProps {
   fields: string[];
   sortQueryParamName: string;

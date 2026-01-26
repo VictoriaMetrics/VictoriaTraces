@@ -1,9 +1,9 @@
-import { FC, memo, useCallback, useEffect, useState } from "preact/compat";
+import { FC, memo, useCallback, useEffect, useState } from "react";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import Button from "../../../components/Main/Button/Button";
 import { CopyIcon, StorageIcon, VisibilityIcon } from "../../../components/Main/Icons";
 import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { LOGS_GROUP_BY, LOGS_URL_PARAMS } from "../../../constants/logs";
 
 interface Props {

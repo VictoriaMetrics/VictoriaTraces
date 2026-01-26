@@ -1,0 +1,4 @@
+.BreakableText {
+  display: inline-block;
+  white-space: pre;
+}

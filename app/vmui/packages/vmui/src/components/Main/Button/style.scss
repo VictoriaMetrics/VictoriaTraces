@@ -128,8 +128,8 @@ $button-radius: 6px;
   );
 
   @each $name, $color in $button-colors {
-    @include contained-button($name, $color, if($name == white, $color-black, $color-white));
-    @include outlined-button($name, $color, if($name == white, $color-white, $color));
-    @include text-button($name, if($name == white, $color-white, $color));
+    @include contained-button($name, $color, if(sass($name == white): $color-black; else: $color-white));
+    @include outlined-button($name, $color, if(sass($name == white): $color-white; else: $color));
+    @include text-button($name, if(sass($name == white): $color-white; else: $color));
   }
 }

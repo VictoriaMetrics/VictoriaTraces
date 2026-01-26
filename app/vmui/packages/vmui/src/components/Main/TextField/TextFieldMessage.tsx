@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useRef, useState } from "react";
 import useEventListener from "../../../hooks/useEventListener";
 import classNames from "classnames";
 import "./style.scss";

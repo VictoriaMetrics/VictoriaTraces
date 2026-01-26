@@ -1,9 +1,10 @@
-import { FC, useEffect, useRef, useState, RefObject, ChangeEvent, KeyboardEvent } from "preact/compat";
+import { FC, useEffect, useRef, useState, RefObject, ChangeEvent, KeyboardEvent } from "react";
 import { CalendarIcon } from "../../Icons";
 import DatePicker from "../DatePicker";
 import Button from "../../Button/Button";
 import { DATE_TIME_FORMAT } from "../../../../constants/date";
 import InputMask from "react-input-mask";
+import { IMaskInput } from "react-imask";
 import dayjs from "dayjs";
 import classNames from "classnames";
 import "./style.scss";
@@ -13,7 +14,7 @@ const formatStringDate = (val: string) => {
 };
 
 interface DateTimeInputProps {
-  value?:  string;
+  value?: string;
   label: string;
   pickerLabel: string;
   pickerRef: RefObject<HTMLDivElement>;
@@ -37,8 +38,8 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
   const [awaitChangeForEnter, setAwaitChangeForEnter] = useState(false);
   const error = dayjs(maskedValue).isValid() ? "" : "Invalid date format";
 
-  const handleMaskedChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setMaskedValue(e.currentTarget.value);
+  const handleMaskedChangeValue = (value: string) => {
+    setMaskedValue(value);
   };
 
   const handleBlur = () => {
@@ -85,16 +86,32 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
       })}
     >
       <label>{label}</label>
-      <InputMask
-        tabIndex={1}
-        inputRef={setInputRef}
-        mask="9999-99-99 99:99:99"
+      <IMaskInput
+        // 你原来的 mask 等价写法：0 表示数字
+        mask={"0000-00-00 00:00:00"}
+        // 想要“maskChar={null}”那种体验（不显示占位符），用 lazy
+        lazy={true}
+        // placeholder 仍然可以保留
         placeholder="YYYY-MM-DD HH:mm:ss"
+
+        // 受控值：用 unmasked 或 value 都行；这里用 value（带分隔符）
         value={maskedValue}
-        autoCapitalize={"none"}
-        inputMode={"numeric"}
-        maskChar={null}
-        onChange={handleMaskedChange}
+
+        // 你的 inputRef：react-imask 用 inputRef
+        inputRef={setInputRef}
+
+        tabIndex={1}
+        autoCapitalize="none"
+        inputMode="numeric"
+
+        // react-imask 推荐用 onAccept（值变化时触发）
+        onAccept={(value) => {
+          // value 是格式化后的字符串：YYYY-MM-DD HH:mm:ss
+          // 你原来的 handleMaskedChange 如果吃 event，就改成吃 string
+          handleMaskedChangeValue(String(value));
+        }}
+
+        // 这些原生事件可以直接挂
         onBlur={handleBlur}
         onKeyUp={handleKeyUp}
       />
@@ -109,7 +126,7 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
           variant="text"
           color="gray"
           size="small"
-          startIcon={<CalendarIcon/>}
+          startIcon={<CalendarIcon />}
           ariaLabel="calendar"
         />
       </div>

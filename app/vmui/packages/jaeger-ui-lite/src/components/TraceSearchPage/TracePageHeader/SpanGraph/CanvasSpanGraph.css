@@ -1,0 +1,6 @@
+.CanvasSpanGraph {
+  /* background: var(--surface-primary); */
+  height: 60px;
+  position: absolute;
+  width: 100%;
+}

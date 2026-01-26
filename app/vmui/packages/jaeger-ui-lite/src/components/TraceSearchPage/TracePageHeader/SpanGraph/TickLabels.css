@@ -1,0 +1,11 @@
+.TickLabels {
+  height: 1rem;
+  position: relative;
+}
+
+.TickLabels--label {
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  position: absolute;
+  user-select: none;
+}

@@ -1,4 +1,4 @@
-import { FC, useEffect, useState } from "preact/compat";
+import { FC, useEffect, useState } from "react";
 import "./style.scss";
 import Tooltip from "../Tooltip/Tooltip";
 import Button from "../Button/Button";

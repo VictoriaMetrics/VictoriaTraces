@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo, useState } from "preact/compat";
+import { FC, useEffect, useMemo, useState } from "react";
 import ExploreLogsBody from "./ExploreLogsBody/ExploreLogsBody";
 import useStateSearchParams from "../../hooks/useStateSearchParams";
 import useSearchParamsFromObject from "../../hooks/useSearchParamsFromObject";
@@ -14,7 +14,7 @@ import ExploreLogsBarChart from "./ExploreLogsBarChart/ExploreLogsBarChart";
 import { useFetchLogHits } from "./hooks/useFetchLogHits";
 import { LOGS_ENTRIES_LIMIT } from "../../constants/logs";
 import { getTimeperiodForDuration, relativeTimeOptions } from "../../utils/time";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { useQueryDispatch, useQueryState } from "../../state/query/QueryStateContext";
 import { getUpdatedHistory } from "../../components/QueryHistory/utils";
 import { useDebounceCallback } from "../../hooks/useDebounceCallback";

@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef, useState, useMemo } from "preact/compat";
+import { FC, useEffect, useRef, useState, useMemo } from "react";
 import Button from "../../Main/Button/Button";
 import { SearchIcon, SettingsIcon } from "../../Main/Icons";
 import "./style.scss";
@@ -10,7 +10,7 @@ import classNames from "classnames";
 import useBoolean from "../../../hooks/useBoolean";
 import TextField, { TextFieldKeyboardEvent } from "../../Main/TextField/TextField";
 import Modal from "../../Main/Modal/Modal";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 const title = "Table settings";
 
