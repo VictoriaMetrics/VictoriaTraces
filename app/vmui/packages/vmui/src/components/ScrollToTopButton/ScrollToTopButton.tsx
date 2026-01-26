@@ -1,4 +1,4 @@
-import { FC, useEffect, useState, useCallback } from "preact/compat";
+import { FC, useEffect, useState, useCallback } from "react";
 import Button from "../Main/Button/Button";
 import Tooltip from "../Main/Tooltip/Tooltip";
 import { ScrollToTopIcon } from "../Main/Icons";

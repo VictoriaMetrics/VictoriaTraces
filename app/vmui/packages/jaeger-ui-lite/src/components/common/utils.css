@@ -1,0 +1,85 @@
+.u-width-100 {
+  width: 100%;
+}
+
+.u-flex-1 {
+  flex: 1;
+}
+
+.u-mt-vast {
+  margin-top: 13rem;
+}
+
+.u-cursor-pointer {
+  cursor: pointer;
+}
+
+.u-tx-muted {
+  color: var(--text-muted);
+}
+
+.u-tx-inherit {
+  color: inherit;
+}
+
+.u-tx-ellipsis {
+  text-overflow: ellipsis;
+}
+
+.u-align-icon {
+  margin: -0.2rem 0.25rem 0 0;
+}
+
+.u-simple-card {
+  background-color: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  padding: 1rem;
+}
+
+/* simple-scrollbars */
+.u-simple-scrollbars::-webkit-scrollbar {
+  -webkit-appearance: none;
+  width: 8px;
+  height: 8px;
+}
+
+.u-simple-scrollbars::-webkit-scrollbar-track {
+  background: var(--surface-secondary);
+}
+
+.u-simple-scrollbars::-webkit-scrollbar-track:vertical {
+  border-left: 1px solid var(--border-component-subtle);
+}
+
+.u-simple-scrollbars::-webkit-scrollbar-track:horizontal {
+  border-top: 1px solid var(--border-component-subtle);
+}
+
+.u-simple-scrollbars::-webkit-scrollbar-thumb {
+  background: var(--control-subtle-default);
+}
+
+.u-simple-scrollbars:hover::-webkit-scrollbar-thumb {
+  background: var(--control-subtle-hover);
+}
+
+.u-simple-scrollbars::-webkit-scrollbar-thumb:window-inactive {
+  background: var(--control-subtle-muted);
+}
+
+/* Remove the padding around ant-design's popover, unfortunate but very handy */
+.u-rm-popover-title-padding .ant-popover-title,
+.u-rm-popover-content-padding .ant-popover-inner-content {
+  padding: 0;
+}
+
+/* minimap for plexus */
+
+.u-miniMap {
+  align-items: flex-end;
+  bottom: 1rem;
+  display: flex;
+  left: 1rem;
+  position: absolute;
+  z-index: 1;
+}

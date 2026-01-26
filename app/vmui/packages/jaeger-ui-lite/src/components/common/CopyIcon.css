@@ -1,0 +1,11 @@
+.CopyIcon,
+.CopyIcon:hover {
+  background-color: transparent;
+  border: none;
+  color: inherit;
+  height: 100%;
+  overflow: hidden;
+  padding: 1px;
+  font-size: 13px;
+  margin-left: 5px;
+}

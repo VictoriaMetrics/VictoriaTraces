@@ -1,4 +1,4 @@
-import react from "eslint-plugin-react";
+import eslintReact from "@eslint-react/eslint-plugin";
 import typescriptEslint from "@typescript-eslint/eslint-plugin";
 import globals from "globals";
 import tsParser from "@typescript-eslint/parser";
@@ -18,11 +18,9 @@ const compat = new FlatCompat({
 
 export default [...compat.extends(
   "eslint:recommended",
-  "plugin:react/recommended",
   "plugin:@typescript-eslint/recommended",
-), {
+), eslintReact.configs["recommended-typescript"], {
   plugins: {
-    react,
     "@typescript-eslint": typescriptEslint,
     "unused-imports": unusedImports,
   },
@@ -43,18 +41,6 @@ export default [...compat.extends(
     },
   },
 
-  settings: {
-    react: {
-      pragma: "React",
-      version: "detect",
-    },
-
-    linkComponents: ["Hyperlink", {
-      name: "Link",
-      linkAttribute: "to",
-    }],
-  },
-
   rules: {
     "@typescript-eslint/no-unused-expressions": ["error", {
       allowShortCircuit: true,
@@ -72,13 +58,6 @@ export default [...compat.extends(
     
     "unused-imports/no-unused-imports": "error",
 
-    "react/jsx-closing-bracket-location": [1, "line-aligned"],
-
-    "react/jsx-max-props-per-line": [1, {
-      maximum: 1,
-    }],
-
-    "react/jsx-first-prop-new-line": [1, "multiline"],
     "object-curly-spacing": [2, "always"],
 
     indent: ["error", 2, {
@@ -88,8 +67,5 @@ export default [...compat.extends(
     "linebreak-style": ["error", "unix"],
     quotes: ["error", "double"],
     semi: ["error", "always"],
-    "react/prop-types": 0,
-    "react/react-in-jsx-scope": "off",
-
   },
 }];

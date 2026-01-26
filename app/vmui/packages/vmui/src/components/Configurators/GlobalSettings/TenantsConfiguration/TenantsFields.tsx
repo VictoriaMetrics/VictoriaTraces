@@ -1,4 +1,4 @@
-import { FC, useRef, useEffect } from "preact/compat";
+import { FC, useRef, useEffect } from "react";
 import { useTimeDispatch } from "../../../../state/time/TimeStateContext";
 import { ArrowDownIcon, QuestionIcon, StorageIcon } from "../../../Main/Icons";
 import Button from "../../../Main/Button/Button";
@@ -12,7 +12,7 @@ import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import TextField from "../../../Main/TextField/TextField";
 import useBoolean from "../../../../hooks/useBoolean";
 import useStateSearchParams from "../../../../hooks/useStateSearchParams";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 const TenantsFields: FC = () => {
   const appModeEnable = getAppModeEnable();

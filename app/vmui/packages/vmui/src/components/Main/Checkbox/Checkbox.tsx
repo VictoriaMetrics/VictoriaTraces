@@ -1,6 +1,6 @@
 import classNames from "classnames";
 import "./style.scss";
-import { FC } from "preact/compat";
+import { FC } from "react";
 import { DoneIcon } from "../Icons";
 
 interface CheckboxProps {

@@ -1,4 +1,5 @@
-import { FC, useEffect, useMemo, useRef, useState, Fragment, createPortal, ReactNode } from "preact/compat";
+import { FC, useEffect, useMemo, useRef, useState, Fragment, ReactNode } from "react";
+import { createPortal } from "react-dom"
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
@@ -22,7 +23,7 @@ const Tooltip: FC<TooltipProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const [popperSize, setPopperSize] = useState({ width: 0, height: 0 });
 
-  const buttonRef = useRef<ReactNode>(null);
+  const buttonRef = useRef<HTMLSpanElement | null>(null);
   const popperRef = useRef<HTMLDivElement>(null);
 
   const onScrollWindow = () => setIsOpen(false);
@@ -111,11 +112,11 @@ const Tooltip: FC<TooltipProps> = ({
 
   return (
     <>
-      <Fragment
+      <span
         ref={buttonRef}
       >
         {children}
-      </Fragment>
+      </span>
 
       {!isMobile && isOpen && createPortal((
         <div

@@ -1,4 +1,4 @@
-import { useCallback } from "preact/compat";
+import { useCallback } from "react";
 import useEventListener from "./useEventListener";
 import { useQueryDispatch } from "../state/query/QueryStateContext";
 

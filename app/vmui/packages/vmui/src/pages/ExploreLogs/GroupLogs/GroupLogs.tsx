@@ -1,4 +1,5 @@
-import { createPortal, FC, useCallback, useEffect, useMemo, useState, RefObject } from "preact/compat";
+import { FC, useCallback, useEffect, useMemo, useState, RefObject } from "react";
+import { createPortal } from "react-dom"
 import "./style.scss";
 import { Logs } from "../../../api/types";
 import Accordion from "../../../components/Main/Accordion/Accordion";
@@ -7,7 +8,7 @@ import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import GroupLogsItem from "./GroupLogsItem";
 import Button from "../../../components/Main/Button/Button";
 import { CollapseIcon, ExpandIcon } from "../../../components/Main/Icons";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { getStreamPairs } from "../../../utils/logs";
 import GroupLogsConfigurators
   from "../../../components/LogsConfigurators/GroupLogsConfigurators/GroupLogsConfigurators";

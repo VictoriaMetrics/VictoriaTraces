@@ -1,4 +1,4 @@
-import { Component, FC, Ref } from "preact/compat";
+import { Component, FC, Ref } from "react";
 import classNames from "classnames";
 import { getCssVariable } from "../../../utils/theme";
 import { TabItemType } from "./Tabs";

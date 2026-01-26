@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "preact/compat";
+import { useCallback, useEffect, useState } from "react";
 import useEventListener from "./useEventListener";
 
 export interface ElementSize {

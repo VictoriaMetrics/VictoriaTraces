@@ -1,4 +1,4 @@
-import { Component, FC, useRef, useState, ReactNode, useEffect } from "preact/compat";
+import { Component, FC, useRef, useState, ReactNode, useEffect } from "react";
 import { getCssVariable } from "../../../utils/theme";
 import TabItem from "./TabItem";
 import "./style.scss";

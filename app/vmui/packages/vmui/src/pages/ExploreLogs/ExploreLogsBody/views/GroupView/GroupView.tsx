@@ -1,4 +1,4 @@
-import { FC, memo } from "preact/compat";
+import { FC, memo } from "react";
 import GroupLogs from "../../../GroupLogs/GroupLogs";
 import { ViewProps } from "../../types";
 import EmptyLogs from "../components/EmptyLogs/EmptyLogs";

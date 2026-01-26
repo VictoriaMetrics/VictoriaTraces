@@ -1,4 +1,4 @@
-import { FC, useMemo, useEffect, useRef, useState } from "preact/compat";
+import { FC, useMemo, useEffect, useRef, useState } from "react";
 import "./style.scss";
 import Table from "../../../components/Table/Table";
 import { Logs } from "../../../api/types";

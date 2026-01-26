@@ -1,4 +1,4 @@
-import { createContext, FC, useContext, useEffect, useState, ReactNode } from "preact/compat";
+import { createContext, FC, useContext, useEffect, useState, ReactNode } from "react";
 import Alert from "../components/Main/Alert/Alert";
 import useDeviceDetect from "../hooks/useDeviceDetect";
 import classNames from "classnames";

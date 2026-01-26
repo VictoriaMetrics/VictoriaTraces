@@ -1,5 +1,5 @@
 import { Logs } from "../../../api/types";
-import { RefObject } from "preact/compat";
+import { RefObject } from "react";
 
 export interface ViewProps {
   data: Logs[];

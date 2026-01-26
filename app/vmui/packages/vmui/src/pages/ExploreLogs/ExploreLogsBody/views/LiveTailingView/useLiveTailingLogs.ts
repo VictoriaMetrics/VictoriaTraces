@@ -1,4 +1,4 @@
-import { Dispatch, MutableRefObject, SetStateAction, useCallback, useEffect, useRef, useState } from "preact/compat";
+import { Dispatch, MutableRefObject, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import { ErrorTypes } from "../../../../../types";
 import { Logs } from "../../../../../api/types";
 import { useAppState } from "../../../../../state/common/StateContext";

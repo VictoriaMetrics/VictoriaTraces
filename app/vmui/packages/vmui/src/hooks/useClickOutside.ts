@@ -1,5 +1,5 @@
 import useEventListener from "./useEventListener";
-import { useCallback, RefObject } from "preact/compat";
+import { useCallback, RefObject } from "react";
 
 type Event = MouseEvent | TouchEvent;
 

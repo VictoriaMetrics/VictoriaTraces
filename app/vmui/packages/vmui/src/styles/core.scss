@@ -13,7 +13,16 @@ html, body, #root {
 }
 
 body {
-  overflow: auto;
+  // overflow: auto;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+html, body {
+  overflow: hidden; /* 关键：禁止 window 滚动 */
 }
 
 * {
@@ -119,10 +128,6 @@ input[type=number]::-webkit-outer-spin-button {
       transform: translateY(0);
     }
   }
-}
-
-svg {
-  width: 100%;
 }
 
 /* Works on Firefox */
