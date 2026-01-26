@@ -2,11 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "types": ["vite/client", "vitest/globals"],
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -20,17 +16,8 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "preact",
     "downlevelIteration": true,
-    "noUnusedLocals": true,
-    "paths": {
-      "react": ["./node_modules/preact/compat/"],
-      "react/jsx-runtime": ["./node_modules/preact/jsx-runtime"],
-      "react-dom": ["./node_modules/preact/compat/"],
-      "react-dom/*": ["./node_modules/preact/compat/*"]
-    }
+    "noUnusedLocals": true
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

@@ -1,4 +1,4 @@
-import { createContext, FC, useContext, useMemo, useReducer, Dispatch } from "preact/compat";
+import { createContext, FC, useContext, useMemo, useReducer, Dispatch } from "react";
 import { Action, AppState, initialState, reducer } from "./reducer";
 import { getQueryStringValue } from "../../utils/query-string";
 

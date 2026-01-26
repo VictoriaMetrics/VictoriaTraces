@@ -1,4 +1,4 @@
-import { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "react";
 import { RouterOptions, routerOptions, RouterOptionsHeader } from "../../../router";
 import { useLocation } from "react-router-dom";
 import {

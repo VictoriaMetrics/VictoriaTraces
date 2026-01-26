@@ -1,4 +1,4 @@
-import { FC, useState, useEffect } from "preact/compat";
+import { FC, useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import "./style.scss";
 import NavItem from "./NavItem";

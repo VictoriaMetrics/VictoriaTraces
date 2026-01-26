@@ -1,10 +1,12 @@
-import { FC, useCallback, useEffect, createPortal, ReactNode, MouseEvent } from "preact/compat";
+import { FC, useCallback, useEffect, ReactNode, MouseEvent } from "react";
+import { createPortal } from "react-dom"
 import { CloseIcon } from "../Icons";
 import Button from "../Button/Button";
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { useNavigate } from "../../../router/useNavigate";
 import useEventListener from "../../../hooks/useEventListener";
 
 interface ModalProps {

@@ -1,5 +1,7 @@
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useCallback } from "preact/compat";
+import { useNavigate } from "../router/useNavigate";
+import { useSearchParams } from "../router/useSearchParams";
+import { useCallback } from "react";
+
 
 
 const useSearchParamsFromObject = () => {

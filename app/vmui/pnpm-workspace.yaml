@@ -1,0 +1,3 @@
+packages:
+  - "packages/vmui"
+  - "packages/jaeger-ui-lite"

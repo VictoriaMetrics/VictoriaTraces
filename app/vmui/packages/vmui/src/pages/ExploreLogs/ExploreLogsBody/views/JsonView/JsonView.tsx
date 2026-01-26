@@ -1,10 +1,11 @@
-import { FC, useMemo, useCallback, createPortal, memo } from "preact/compat";
+import { FC, useMemo, useCallback, memo } from "react";
+import { createPortal } from "react-dom"
 import DownloadLogsButton from "../../../DownloadLogsButton/DownloadLogsButton";
 import JsonViewComponent from "../../../../../components/Views/JsonView/JsonView";
 import { ViewProps } from "../../types";
 import EmptyLogs from "../components/EmptyLogs/EmptyLogs";
 import JsonViewSettings from "./JsonViewSettings/JsonViewSettings";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "../../../../../router/useSearchParams";
 import orderby from "lodash.orderby";
 import "./style.scss";
 import { Logs } from "../../../../../api/types";

@@ -1,4 +1,4 @@
-import { FC, useRef } from "preact/compat";
+import { FC, useRef } from "react";
 import { ArrowDownIcon, SettingsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 import Modal from "../../Main/Modal/Modal";

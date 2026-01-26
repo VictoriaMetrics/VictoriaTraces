@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useMemo, useRef, useState, JSX, RefObject } from "preact/compat";
+import { FC, useCallback, useEffect, useMemo, useRef, useState, JSX, RefObject } from "react";
 import classNames from "classnames";
 import Popper from "../Popper/Popper";
 import "./style.scss";

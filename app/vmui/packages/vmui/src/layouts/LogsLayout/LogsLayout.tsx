@@ -1,6 +1,6 @@
-import { FC, useEffect } from "preact/compat";
+import { FC, useEffect } from "react";
 import Header from "../Header/Header";
-import { Outlet, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import "./style.scss";
 import { getAppModeEnable } from "../../utils/app-mode";
 import classNames from "classnames";
@@ -10,7 +10,7 @@ import useDeviceDetect from "../../hooks/useDeviceDetect";
 import ControlsLogsLayout from "./ControlsLogsLayout";
 import { footerLinksToLogs } from "../../constants/footerLinks";
 
-const LogsLayout: FC = () => {
+const LogsLayout: FC<{ children?: any }> = ({ children }) => {
   const appModeEnable = getAppModeEnable();
   const { isMobile } = useDeviceDetect();
   const { pathname } = useLocation();
@@ -18,24 +18,31 @@ const LogsLayout: FC = () => {
   const setDocumentTitle = () => {
     const defaultTitle = "UI for VictoriaTraces";
     const routeTitle = routerOptions[router.home]?.title;
-    document.title = routeTitle ? `${routeTitle} - ${defaultTitle}` : defaultTitle;
+
+    document.title = routeTitle
+      ? `${routeTitle} - ${defaultTitle}`
+      : defaultTitle;
   };
 
   useEffect(setDocumentTitle, [pathname]);
 
-  return <section className="vm-container">
-    <Header controlsComponent={ControlsLogsLayout}/>
-    <div
-      className={classNames({
-        "vm-container-body": true,
-        "vm-container-body_mobile": isMobile,
-        "vm-container-body_app": appModeEnable
-      })}
-    >
-      <Outlet/>
-    </div>
-    {!appModeEnable && <Footer links={footerLinksToLogs}/>}
-  </section>;
+  return (
+    <section className="vm-container">
+      <Header controlsComponent={ControlsLogsLayout} />
+
+      <div
+        className={classNames({
+          "vm-container-body": true,
+          "vm-container-body_mobile": isMobile,
+          "vm-container-body_app": appModeEnable,
+        })}
+      >
+        {children}
+      </div>
+
+      {!appModeEnable && <Footer links={footerLinksToLogs} />}
+    </section>
+  );
 };
 
 export default LogsLayout;

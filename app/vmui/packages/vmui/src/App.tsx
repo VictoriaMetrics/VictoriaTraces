@@ -1,36 +1,38 @@
-import { FC, useState } from "preact/compat";
-import { HashRouter, Route, Routes } from "react-router-dom";
+import { FC, useState } from "react";
+import { HashRouter, Route, Switch } from "react-router-dom";
+import { CompatRouter } from 'react-router-dom-v5-compat';
 import AppContextProvider from "./contexts/AppContextProvider";
 import ThemeProvider from "./components/Main/ThemeProvider/ThemeProvider";
-import ExploreLogs from "./pages/ExploreLogs/ExploreLogs";
-import LogsLayout from "./layouts/LogsLayout/LogsLayout";
+import TracesLayout from "./layouts/TracesLayout/TracesLayout";
 import "./constants/markedPlugins";
+import JaegerRoutesInVmui from "./jaeger/JaegerRoutesInVmui";
 
 const App: FC = () => {
   const [loadedTheme, setLoadedTheme] = useState(false);
 
-  return <>
+  return (
     <HashRouter>
-      <AppContextProvider>
-        <>
-          <ThemeProvider onLoaded={setLoadedTheme}/>
-          {loadedTheme && (
-            <Routes>
-              <Route
-                path={"/"}
-                element={<LogsLayout/>}
-              >
+      <CompatRouter>
+        <AppContextProvider>
+          <>
+            <ThemeProvider onLoaded={setLoadedTheme} />
+            {loadedTheme && (
+              <Switch>
                 <Route
-                  path={"/"}
-                  element={<ExploreLogs/>}
+                  path="/"
+                  render={() => (
+                    <TracesLayout>
+                      <JaegerRoutesInVmui />
+                    </TracesLayout>
+                  )}
                 />
-              </Route>
-            </Routes>
-          )}
-        </>
-      </AppContextProvider>
+              </Switch>
+            )}
+          </>
+        </AppContextProvider>
+      </CompatRouter>
     </HashRouter>
-  </>;
+  );
 };
 
 export default App;

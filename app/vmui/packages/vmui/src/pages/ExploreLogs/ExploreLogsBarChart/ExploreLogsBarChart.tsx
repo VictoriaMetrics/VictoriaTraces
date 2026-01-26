@@ -1,4 +1,4 @@
-import { FC, useCallback, useMemo } from "preact/compat";
+import { FC, useCallback, useMemo } from "react";
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
@@ -10,7 +10,7 @@ import BarHitsChart from "../../../components/Chart/BarHitsChart/BarHitsChart";
 import Alert from "../../../components/Main/Alert/Alert";
 import { TimeParams } from "../../../types";
 import LineLoader from "../../../components/Main/LineLoader/LineLoader";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "../../../router/useSearchParams";
 import { getHitsTimeParams } from "../../../utils/logs";
 
 interface Props {

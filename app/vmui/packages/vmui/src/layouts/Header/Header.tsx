@@ -1,5 +1,5 @@
-import { FC, useMemo, ComponentType } from "preact/compat";
-import { useNavigate } from "react-router-dom";
+import { FC, useMemo, ComponentType } from "react";
+import { useNavigate } from "../../router/useNavigate";
 import router from "../../router";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
 import { LogoTracesIcon } from "../../components/Main/Icons";

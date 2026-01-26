@@ -1,5 +1,5 @@
-import { Dispatch, useState, useEffect, SetStateAction } from "preact/compat";
-import { useSearchParams } from "react-router-dom";
+import { Dispatch, useState, useEffect, SetStateAction } from "react";
+import { useSearchParams } from "../router/useSearchParams";
 
 const useStateSearchParams = <T>(defaultState: T, key: string): [T, Dispatch<SetStateAction<T>>] => {
   const [searchParams] = useSearchParams();

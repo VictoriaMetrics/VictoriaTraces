@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "preact/compat";
+import { useEffect, useRef } from "react";
 
 function usePrevious<T>(value: T): T | undefined {
   const ref = useRef<T>();

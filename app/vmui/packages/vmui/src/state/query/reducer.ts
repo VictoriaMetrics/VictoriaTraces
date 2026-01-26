@@ -47,7 +47,7 @@ export function reducer(state: QueryState, action: QueryAction): QueryState {
         query: action.payload.map(q => q)
       };
     case "SET_QUERY_HISTORY":
-      setQueriesToStorage(action.payload.key, action.payload.history);
+      // setQueriesToStorage(action.payload.key, action.payload.history);
       return {
         ...state,
         queryHistory: action.payload.history
@@ -59,7 +59,7 @@ export function reducer(state: QueryState, action: QueryAction): QueryState {
         queryHistory: state.queryHistory
       };
     case "TOGGLE_AUTOCOMPLETE":
-      saveToStorage("AUTOCOMPLETE", !state.autocomplete);
+      // saveToStorage("AUTOCOMPLETE", !state.autocomplete);
       return {
         ...state,
         autocomplete: !state.autocomplete

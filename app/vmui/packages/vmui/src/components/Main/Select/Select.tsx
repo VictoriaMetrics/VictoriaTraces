@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo, useRef, useState, RefObject, FormEvent, MouseEvent } from "preact/compat";
+import { FC, useEffect, useMemo, useRef, useState, RefObject, FormEvent, MouseEvent } from "react";
 import classNames from "classnames";
 import { ArrowDropDownIcon, CloseIcon } from "../Icons";
 import Autocomplete from "../Autocomplete/Autocomplete";

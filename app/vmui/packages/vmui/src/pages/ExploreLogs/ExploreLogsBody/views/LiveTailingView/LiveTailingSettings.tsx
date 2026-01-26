@@ -1,4 +1,5 @@
-import { FC, RefObject, useCallback, useRef, createPortal } from "preact/compat";
+import { FC, RefObject, useCallback, useRef } from "react";
+import { createPortal } from "react-dom"
 import DownloadLogsButton from "../../../DownloadLogsButton/DownloadLogsButton";
 import Button from "../../../../../components/Main/Button/Button";
 import SelectLimit from "../../../../../components/Main/Pagination/SelectLimit/SelectLimit";
