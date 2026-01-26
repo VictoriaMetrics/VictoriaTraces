@@ -8,7 +8,7 @@ import {
   MouseEvent,
   HTMLInputTypeAttribute,
   ReactNode
-} from "preact/compat";
+} from "react";
 import classNames from "classnames";
 import { useAppState } from "../../../state/common/StateContext";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";

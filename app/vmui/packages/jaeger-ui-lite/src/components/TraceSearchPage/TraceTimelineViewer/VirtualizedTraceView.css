@@ -1,0 +1,13 @@
+.VirtualizedTraceView--spans {
+  /* padding-top: 38px; */
+  /* position: relative;
+  z-index: 1; */
+}
+
+.VirtualizedTraceView--rowsWrapper {
+  width: 100%;
+}
+
+.VirtualizedTraceView--row {
+  width: 100%;
+}

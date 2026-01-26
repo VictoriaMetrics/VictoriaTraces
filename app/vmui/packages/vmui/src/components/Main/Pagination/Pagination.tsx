@@ -1,5 +1,5 @@
 import { ArrowDownIcon } from "../Icons";
-import { FC, useMemo } from "preact/compat";
+import { FC, useMemo } from "react";
 import classNames from "classnames";
 import "./style.scss";
 

@@ -119,7 +119,7 @@ describe("useLiveTailingLogs", () => {
     expect(result.current.logs).toHaveLength(0);
   });
 
-  it("should process high load of logs incoming at 100k logs per second", async () => {
+  it("should process high load of logs incoming at 100k logs per second", { timeout: 9000 }, async () => {
     const query = "*";
     const limit = 1000;
     const logCount = 10000; // High log rate
@@ -143,5 +143,5 @@ describe("useLiveTailingLogs", () => {
     expect(result.current.logs[0].log).toStrictEqual("log message 9200");
     expect(result.current.logs[799].log).toStrictEqual("log message 9999");
     expect(result.current.isLimitedLogsPerUpdate).toBeTruthy();
-  }, { timeout: 9000 });
+  });
 });

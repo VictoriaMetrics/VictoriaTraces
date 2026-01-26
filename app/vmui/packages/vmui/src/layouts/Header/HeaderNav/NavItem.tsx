@@ -1,5 +1,5 @@
-import { FC } from "preact/compat";
-import { NavLink } from "react-router-dom";
+import { FC } from "react";
+import { NavLink } from "react-router";
 import classNames from "classnames";
 import { NavigationItemType } from "../../../router/navigation";
 

@@ -1,5 +1,5 @@
-import { FC, useState, useEffect } from "preact/compat";
-import { useLocation } from "react-router-dom";
+import { FC, useState, useEffect } from "react";
+import { useLocation } from "react-router";
 import "./style.scss";
 import NavItem from "./NavItem";
 import NavSubItem from "./NavSubItem";

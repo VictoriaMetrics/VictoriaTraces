@@ -1,6 +1,6 @@
 import { MinMax } from "../../types";
 import { limitsDurations } from "../../utils/time";
-import { useEffect, useState } from "preact/compat";
+import { useEffect, useState } from "react";
 import { TimeParams } from "../../types";
 import dayjs from "dayjs";
 

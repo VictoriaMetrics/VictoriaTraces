@@ -1,4 +1,4 @@
-import { ReactNode } from "preact/compat";
+import { ReactNode } from "react";
 
 // Define a specific interface for the ANSI style properties.
 interface AnsiStyles {

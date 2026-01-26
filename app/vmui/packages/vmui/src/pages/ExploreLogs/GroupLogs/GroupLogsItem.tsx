@@ -1,4 +1,4 @@
-import { FC, memo, useMemo, useCallback, useEffect, useState, ReactNode } from "preact/compat";
+import { FC, memo, useMemo, useCallback, useEffect, useState, ReactNode } from "react";
 import { Logs } from "../../../api/types";
 import "./style.scss";
 import useBoolean from "../../../hooks/useBoolean";
@@ -8,7 +8,7 @@ import { useLogsState } from "../../../state/logsPanel/LogsStateContext";
 import dayjs from "dayjs";
 import { useTimeState } from "../../../state/time/TimeStateContext";
 import { marked } from "marked";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { LOGS_DATE_FORMAT, LOGS_URL_PARAMS } from "../../../constants/logs";
 import { parseAnsiToHtml } from "../../../utils/ansiParser";
 import GroupLogsFields from "./GroupLogsFields";

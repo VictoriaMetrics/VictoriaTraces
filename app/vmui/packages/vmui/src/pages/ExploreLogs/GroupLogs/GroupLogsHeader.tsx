@@ -1,6 +1,6 @@
-import { FC, MouseEvent, useCallback, useEffect, useRef, useState } from "preact/compat";
+import { FC, MouseEvent, useCallback, useEffect, useRef, useState } from "react";
 import classNames from "classnames";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import { useAppState } from "../../../state/common/StateContext";
 import useEventListener from "../../../hooks/useEventListener";
 import Popper from "../../../components/Main/Popper/Popper";

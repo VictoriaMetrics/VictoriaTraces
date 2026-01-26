@@ -1,5 +1,5 @@
-import { FC, useRef, useState, useEffect } from "preact/compat";
-import { useLocation } from "react-router-dom";
+import { FC, useRef, useState, useEffect } from "react";
+import { useLocation } from "react-router";
 import classNames from "classnames";
 import { ArrowDropDownIcon } from "../../../components/Main/Icons";
 import Popper from "../../../components/Main/Popper/Popper";

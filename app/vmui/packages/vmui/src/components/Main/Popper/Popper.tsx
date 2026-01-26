@@ -7,16 +7,16 @@ import {
   useRef,
   useState,
   useCallback,
-  createPortal,
   RefObject
-} from "preact/compat";
+} from "react";
+import { createPortal } from "react-dom"
 import classNames from "classnames";
 import "./style.scss";
 import useClickOutside from "../../../hooks/useClickOutside";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Button from "../Button/Button";
 import { CloseIcon } from "../Icons";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import useEventListener from "../../../hooks/useEventListener";
 
 interface PopperProps {

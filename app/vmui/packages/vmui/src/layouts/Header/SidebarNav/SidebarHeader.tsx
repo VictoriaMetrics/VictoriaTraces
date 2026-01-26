@@ -1,5 +1,5 @@
-import { FC, useEffect, useRef } from "preact/compat";
-import { useLocation } from "react-router-dom";
+import { FC, useEffect, useRef } from "react";
+import { useLocation } from "react-router";
 import classNames from "classnames";
 import HeaderNav from "../HeaderNav/HeaderNav";
 import useClickOutside from "../../../hooks/useClickOutside";

@@ -1,5 +1,7 @@
-import { createContext, FC, useContext, useMemo, useReducer, Dispatch } from "preact/compat";
+import { createContext, FC, useContext, useMemo, useReducer, useEffect, Dispatch } from "react";
 import { QueryAction, QueryState, initialQueryState, reducer } from "./reducer";
+import { setQueriesToStorage } from "../../components/QueryHistory/utils";
+import { saveToStorage } from "../../utils/storage";
 
 type QueryStateContextType = { state: QueryState, dispatch: Dispatch<QueryAction> };
 
@@ -14,6 +16,16 @@ export const QueryStateProvider: FC = ({ children }) => {
   const contextValue = useMemo(() => {
     return { state, dispatch };
   }, [state, dispatch]);
+
+  useEffect(() => {
+    // 每次 queryHistory 变化，落盘
+    setQueriesToStorage('LOGS_QUERY_HISTORY', state.queryHistory);
+  }, [state.queryHistory]);
+
+  useEffect(() => {
+    // 每次 autocomplete 变化，落盘
+    saveToStorage("AUTOCOMPLETE", state.autocomplete);
+  }, [state.autocomplete]);
 
   return <QueryStateContext.Provider value={contextValue}>
     {children}

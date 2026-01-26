@@ -1,5 +1,5 @@
-import { useMemo } from "preact/compat";
-import { useSearchParams } from "react-router-dom";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router";
 
 export const useTenant = () => {
   const [searchParams] = useSearchParams();

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "preact/compat";
+import { useEffect, useRef } from "react";
 
 export function useUnmount(fn: () => void) {
   const fnRef = useRef(fn);

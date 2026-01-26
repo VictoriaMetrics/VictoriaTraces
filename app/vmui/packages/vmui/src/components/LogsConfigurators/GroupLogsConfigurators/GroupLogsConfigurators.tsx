@@ -1,4 +1,4 @@
-import { FC, useMemo, useState } from "preact/compat";
+import { FC, useMemo, useState } from "react";
 import useBoolean from "../../../hooks/useBoolean";
 import { RestartIcon, SettingsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
@@ -6,7 +6,7 @@ import Modal from "../../Main/Modal/Modal";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import { Logs } from "../../../api/types";
 import Select from "../../Main/Select/Select";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 import "./style.scss";
 import Switch from "../../Main/Switch/Switch";
 import TextField from "../../Main/TextField/TextField";
