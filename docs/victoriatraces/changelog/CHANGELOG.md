@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: dashboards/single-node](https://grafana.com/grafana/dashboards/24136), [dashboards/cluster](https://grafana.com/grafana/dashboards/24134): add clickable source code links to the `Logging rate` panel in `Overview`. Users can use it to navigate directly to the source code location that generated those logs, making debugging and code exploration easier. See [#](todo).
+
 ## [v0.7.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.7.1)
 
 Released at 2026-01-24
