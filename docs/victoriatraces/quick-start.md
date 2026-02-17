@@ -46,7 +46,7 @@ This command will make VictoriaTraces run in the foreground, and store the inges
 ...
 ```
 
-After VictoriaTraces is running, verify VMUI is working by going to `http://<victoria-traces>:10428/vmui`.
+After VictoriaTraces is running, verify VMUI is working by going to `http://<victoria-traces>:10428/select/vmui`.
 
 See how to [write](#write-data) or [read](#read-data) from VictoriaTraces.
 
@@ -72,7 +72,7 @@ tar -xvf victoria-traces-linux-amd64-v0.7.1.tar.gz
 
 This command will make VictoriaTraces run in the foreground, and store the ingested data to the `victoria-traces-data` directory by default.
 
-After VictoriaTraces is running, verify VMUI is working by going to `http://<victoria-traces>:10428/vmui`.
+After VictoriaTraces is running, verify VMUI is working by going to `http://<victoria-traces>:10428/select/vmui`.
 
 See how to [write](#write-data) or [read](#read-data) from VictoriaTraces.
 
@@ -121,7 +121,7 @@ See more details about how to send data to VictoriaTraces from **an instrumented
 
 ### Read data
 
-[VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) has built-in VMUI for browsing data by span at `http://<victoria-traces>:10428/vmui`.
+[VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) has built-in VMUI for browsing data by span at `http://<victoria-traces>:10428/select/vmui`.
 
 [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) also provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json).
 It allows users to visualize trace data on Grafana, by simply adding a [Jaeger datasource](https://grafana.com/docs/grafana/latest/datasources/jaeger/) with VictoriaTraces URL:
