@@ -115,7 +115,7 @@ docker run \
 
 Simply open `http://127.0.0.1:8080/`, click any button to generate traces.
 
-After that, you can check the data in VMUI at `http://<victoria-traces>:10428/vmui`.
+After that, you can check the data in VMUI at `http://<victoria-traces>:10428/select/vmui`.
 
 See more details about how to send data to VictoriaTraces from **an instrumented application** or **an OpenTelemetry collector** [in this doc](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/).
 
