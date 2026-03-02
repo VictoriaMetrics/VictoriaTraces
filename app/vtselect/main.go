@@ -5,6 +5,7 @@ import (
 	"embed"
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/tempo"
 	"net/http"
 	"strings"
 	"time"
@@ -196,6 +197,8 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 		// Jaeger HTTP APIs for distributed tracing.
 		// Could be used by Grafana Jaeger datasource, Jaeger UI, and more.
 		return jaeger.RequestHandler(ctxWithTimeout, w, r)
+	} else if strings.HasPrefix(path, "/select/tempo/") {
+		return tempo.RequestHandler(ctxWithTimeout, w, r)
 	}
 
 	ok := processSelectRequest(ctxWithTimeout, w, r, path)

@@ -428,7 +428,7 @@ func writeJSONResponse(w http.ResponseWriter, response any) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(responseBody)
+	_, _ = w.Write(responseBody)
 }
 
 // Storage implements insertutil.LogRowsStorage interface

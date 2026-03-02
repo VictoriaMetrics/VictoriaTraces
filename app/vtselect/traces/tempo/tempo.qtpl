@@ -1,0 +1,130 @@
+{% import (
+	"sort"
+) %}
+
+{% stripspace %}
+
+{% func SearchTagsResponse(resourceTagList, spanTagList, eventTagList, linkTagList, instrumentationScopeTagList []string) %}
+{
+	{% code
+	    sort.Slice(resourceTagList, func(i, j int) bool { return resourceTagList[i] < resourceTagList[j] })
+	    sort.Slice(spanTagList, func(i, j int) bool { return spanTagList[i] < spanTagList[j] })
+	    sort.Slice(eventTagList, func(i, j int) bool { return eventTagList[i] < eventTagList[j] })
+	    sort.Slice(linkTagList, func(i, j int) bool { return linkTagList[i] < linkTagList[j] })
+	    sort.Slice(instrumentationScopeTagList, func(i, j int) bool { return instrumentationScopeTagList[i] < instrumentationScopeTagList[j] })
+	%}
+	"scopes":[
+	    {
+            "name": "resource",
+            "tags": [
+                {% if len(resourceTagList) > 0 %}
+                    {%q= resourceTagList[0] %}
+                    {% for _, tag := range resourceTagList[1:] %}
+                        ,{%q= tag %}
+                    {% endfor %}
+                {% endif %}
+            ]
+        },
+	    {
+            "name": "span",
+            "tags": [
+	            {% if len(spanTagList) > 0 %}
+                    {%q= spanTagList[0] %}
+                    {% for _, tag := range spanTagList[1:] %}
+                        ,{%q= tag %}
+                    {% endfor %}
+                {% endif %}
+            ]
+        },
+	    {
+            "name": "event",
+            "tags": [
+	            {% if len(eventTagList) > 0 %}
+                    {%q= eventTagList[0] %}
+                    {% for _, tag := range eventTagList[1:] %}
+                        ,{%q= tag %}
+                    {% endfor %}
+                {% endif %}
+            ]
+        },
+	    {
+            "name": "link",
+            "tags": [
+                {% if len(linkTagList) > 0 %}
+                    {%q= linkTagList[0] %}
+                    {% for _, tag := range linkTagList[1:] %}
+                        ,{%q= tag %}
+                    {% endfor %}
+                {% endif %}
+            ]
+        },
+	    {
+            "name": "instrumentation",
+            "tags": [
+	            {% if len(instrumentationScopeTagList) > 0 %}
+                    {%q= instrumentationScopeTagList[0] %}
+                    {% for _, tag := range instrumentationScopeTagList[1:] %}
+                        ,{%q= tag %}
+                    {% endfor %}
+                {% endif %}
+            ]
+        }
+	],
+	"metrics": {
+	    "inspectedBytes": "0"
+	}
+}
+{% endfunc %}
+
+{% func SearchTagValuesResponse(tagValueList []string) %}
+{
+	{% code
+	    sort.Slice(tagValueList, func(i, j int) bool { return tagValueList[i] < tagValueList[j] })
+	%}
+	"tagValues":[
+        {% if len(tagValueList) > 0 %}
+            {
+                "type": "string",
+                "value": {%q= tagValueList[0] %}
+            }
+        {% endif %}
+        {% if len(tagValueList) > 1 %}
+            {% for _, tag := range tagValueList[1:] %}
+                ,{
+                    "type": "string",
+                    "value": {%q= tag %}
+                }
+            {% endfor %}
+        {% endif %}
+    ],
+	"metrics": {
+	    "inspectedBytes": "0"
+	}
+}
+{% endfunc %}
+
+{% func SearchResponse(summaryList []traceSummary) %}
+{
+	"traces": [
+        {% if len(summaryList) > 0 %}
+            {%= summaryJson(summaryList[0]) %}
+            {% for _, summary := range summaryList[1:] %}
+                ,{%= summaryJson(summary) %}
+            {% endfor %}
+        {% endif %}
+    ]
+}
+{% endfunc %}
+
+{% func summaryJson(summary traceSummary) %}
+{
+	"traceID":{%q= summary.traceID %},
+	"rootServiceName":{%q= summary.rootServiceName %},
+	"rootTraceName":{%q= summary.rootTraceName %},
+	"startTimeUnixNano":{%dl= summary.startTimeUnixNano %},
+	"durationMs":{%dl= (summary.endTimeUnixNano - summary.startTimeUnixNano) / 1e6 %},
+	"spanSets": []
+}
+{% endfunc %}
+
+{% endstripspace %}

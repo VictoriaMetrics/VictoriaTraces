@@ -3,10 +3,7 @@ package query
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
-	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,70 +14,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/cespare/xxhash/v2"
 
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/tracecommon"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 	vtstoragecommon "github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/common"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
-
-var (
-	traceMaxDurationWindow = flag.Duration("search.traceMaxDurationWindow", 1*time.Minute, "The window of searching for the rest trace spans after finding one span."+
-		"It allows extending the search start time and end time by -search.traceMaxDurationWindow to make sure all spans are included."+
-		"It affects both Jaeger's /api/traces and /api/traces/<trace_id> APIs.")
-	traceServiceAndSpanNameLookbehind = flag.Duration("search.traceServiceAndSpanNameLookbehind", 3*24*time.Hour, "The time range of searching for service name and span name. "+
-		"It affects Jaeger's /api/services and /api/services/*/operations APIs.")
-	traceSearchStep = flag.Duration("search.traceSearchStep", 24*time.Hour, "Splits the [0, now] time range into many small time ranges by -search.traceSearchStep "+
-		"when searching for spans by trace_id. Once it finds spans in a time range, it performs an additional search according to -search.traceMaxDurationWindow and then stops. "+
-		"It affects Jaeger's /api/traces/<trace_id> API.")
-	traceMaxServiceNameList = flag.Uint64("search.traceMaxServiceNameList", 1000, "The maximum number of service name can return in a get service name request. "+
-		"This limit affects Jaeger's /api/services API.")
-	traceMaxSpanNameList = flag.Uint64("search.traceMaxSpanNameList", 1000, "The maximum number of span name can return in a get span name request. "+
-		"This limit affects Jaeger's /api/services/*/operations API.")
-
-	latencyOffset = flag.Duration("search.latencyOffset", 30*time.Second, "The time when a trace become visible in query results after the collection. see -insert.traceMaxDuration as well. (default 30s)")
-)
-
-var (
-	traceIDRegex = regexp.MustCompile(`^[a-zA-Z0-9_\-.:]*$`)
-)
-
-// CommonParams common query params that shared by all requests.
-type CommonParams struct {
-	TenantIDs []logstorage.TenantID
-	Query     *logstorage.Query
-
-	// Whether to disable compression of the response sent to the vtselect.
-	DisableCompression bool
-
-	// Whether to allow partial response when some of vtstorage nodes are unavailable.
-	AllowPartialResponse bool
-
-	// Optional list of log fields or log field prefixes ending with *, which must be hidden during query execution.
-	HiddenFieldsFilters []string
-
-	// qs contains execution statistics for the Query.
-	qs logstorage.QueryStats
-}
-
-func (cp *CommonParams) NewQueryContext(ctx context.Context) *logstorage.QueryContext {
-	return logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query, cp.AllowPartialResponse, cp.HiddenFieldsFilters)
-}
-
-func (cp *CommonParams) UpdatePerQueryStatsMetrics() {
-	vtstorage.UpdatePerQueryStatsMetrics(&cp.qs)
-}
-
-// GetCommonParams get common params from request for all traces query APIs.
-func GetCommonParams(r *http.Request) (*CommonParams, error) {
-	tenantID, err := logstorage.GetTenantIDFromRequest(r)
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain tenantID: %w", err)
-	}
-	tenantIDs := []logstorage.TenantID{tenantID}
-	cp := &CommonParams{
-		TenantIDs: tenantIDs,
-	}
-	return cp, nil
-}
 
 // TraceQueryParam is the parameters for querying a batch of traces.
 type TraceQueryParam struct {
@@ -94,15 +32,9 @@ type TraceQueryParam struct {
 	Limit        int
 }
 
-// Row represent the query result of a trace span.
-type Row struct {
-	Timestamp int64
-	Fields    []logstorage.Field
-}
-
 // GetServiceNameList returns all unique service names within *traceServiceAndSpanNameLookbehind window.
 // todo: cache of recent result.
-func GetServiceNameList(ctx context.Context, cp *CommonParams) ([]string, error) {
+func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]string, error) {
 	currentTime := time.Now()
 
 	// query: _time:[start, end] *
@@ -111,13 +43,13 @@ func GetServiceNameList(ctx context.Context, cp *CommonParams) ([]string, error)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
-	q.AddTimeFilter(currentTime.Add(-*traceServiceAndSpanNameLookbehind).UnixNano(), currentTime.UnixNano())
+	q.AddTimeFilter(currentTime.Add(-*tracecommon.TraceServiceAndSpanNameLookbehind).UnixNano(), currentTime.UnixNano())
 
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	serviceHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.ResourceAttrServiceName, *traceMaxServiceNameList)
+	serviceHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.ResourceAttrServiceName, *tracecommon.TraceMaxServiceNameList)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
@@ -131,7 +63,7 @@ func GetServiceNameList(ctx context.Context, cp *CommonParams) ([]string, error)
 
 // GetSpanNameList returns all unique span names for a service within *traceServiceAndSpanNameLookbehind window.
 // todo: cache of recent result.
-func GetSpanNameList(ctx context.Context, cp *CommonParams, serviceName string) ([]string, error) {
+func GetSpanNameList(ctx context.Context, cp *tracecommon.CommonParams, serviceName string) ([]string, error) {
 	currentTime := time.Now()
 
 	// query: _time:[start, end] {"resource_attr:service.name"=serviceName}
@@ -140,13 +72,13 @@ func GetSpanNameList(ctx context.Context, cp *CommonParams, serviceName string) 
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
-	q.AddTimeFilter(currentTime.Add(-*traceServiceAndSpanNameLookbehind).UnixNano(), currentTime.UnixNano())
+	q.AddTimeFilter(currentTime.Add(-*tracecommon.TraceServiceAndSpanNameLookbehind).UnixNano(), currentTime.UnixNano())
 
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	spanNameHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.NameField, *traceMaxSpanNameList)
+	spanNameHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.NameField, *tracecommon.TraceMaxSpanNameList)
 	if err != nil {
 		return nil, fmt.Errorf("get span name hits error: %s", err)
 	}
@@ -162,7 +94,7 @@ func GetSpanNameList(ctx context.Context, cp *CommonParams, serviceName string) 
 // It searches in the index stream for start_time and end_time.
 // If found:
 // - search for span in time range [start_time, end_time].
-func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, error) {
+func GetTrace(ctx context.Context, cp *tracecommon.CommonParams, traceID string) ([]*tracecommon.Row, error) {
 	currentTime := time.Now()
 
 	// possible partition
@@ -204,7 +136,7 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 // 1. input time range: [00:00, 09:00]
 // 2. found 20 trace id, and adjust time range to: [08:00, 09:00]
 // 3. find spans on time range: [08:00-traceMaxDurationWindow, 09:00+traceMaxDurationWindow]
-func GetTraceList(ctx context.Context, cp *CommonParams, param *TraceQueryParam) ([]string, []*Row, error) {
+func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, param *TraceQueryParam) ([]string, []*tracecommon.Row, error) {
 	currentTime := time.Now()
 
 	// query 1: * AND filter_conditions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
@@ -224,7 +156,7 @@ func GetTraceList(ctx context.Context, cp *CommonParams, param *TraceQueryParam)
 	}
 
 	// adjust start time and end time with max duration window to make sure all spans are included.
-	q.AddTimeFilter(startTime.Add(-*traceMaxDurationWindow).UnixNano(), param.StartTimeMax.Add(*traceMaxDurationWindow).UnixNano())
+	q.AddTimeFilter(startTime.Add(-*tracecommon.TraceMaxDurationWindow).UnixNano(), param.StartTimeMax.Add(*tracecommon.TraceMaxDurationWindow).UnixNano())
 
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	cp.Query = q
@@ -233,7 +165,7 @@ func GetTraceList(ctx context.Context, cp *CommonParams, param *TraceQueryParam)
 
 	// search for trace spans and write to `rows []*Row`
 	var rowsLock sync.Mutex
-	var rows []*Row
+	var rows []*tracecommon.Row
 	var missingTimeColumn atomic.Bool
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		if missingTimeColumn.Load() {
@@ -264,7 +196,7 @@ func GetTraceList(ctx context.Context, cp *CommonParams, param *TraceQueryParam)
 			}
 
 			rowsLock.Lock()
-			rows = append(rows, &Row{
+			rows = append(rows, &tracecommon.Row{
 				Timestamp: timestamp,
 				Fields:    fields,
 			})
@@ -283,7 +215,7 @@ func GetTraceList(ctx context.Context, cp *CommonParams, param *TraceQueryParam)
 
 // getTraceIDList returns traceIDs according to the search params.
 // It also returns the earliest start time of these traces, to help reducing the time range for spans search.
-func getTraceIDList(ctx context.Context, cp *CommonParams, param *TraceQueryParam) ([]string, time.Time, error) {
+func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, param *TraceQueryParam) ([]string, time.Time, error) {
 	currentTime := time.Now()
 	// query: * AND <filter> | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
 	qStr := "* "
@@ -314,7 +246,7 @@ func getTraceIDList(ctx context.Context, cp *CommonParams, param *TraceQueryPara
 
 	// adjust the max start time, because fresh traces may not be completed.
 	// they should wait for *latencyOffset before being visible.
-	maxStartTime := time.Now().Add(-*latencyOffset)
+	maxStartTime := time.Now().Add(-*tracecommon.LatencyOffset)
 	if param.StartTimeMax.After(maxStartTime) {
 		param.StartTimeMax = maxStartTime
 	}
@@ -329,7 +261,7 @@ func getTraceIDList(ctx context.Context, cp *CommonParams, param *TraceQueryPara
 // findTraceIDsSplitTimeRange try to search from the nearest time range of the end time.
 // if the result already met requirement of `limit`, return.
 // otherwise, amplify the time range to 5x and search again, until the start time exceed the input.
-func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *CommonParams, startTime, endTime time.Time, limit int) ([]string, time.Time, error) {
+func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, startTime, endTime time.Time, limit int) ([]string, time.Time, error) {
 	currentTime := time.Now()
 
 	step := time.Minute
@@ -416,7 +348,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *Co
 //
 // If the span with this trace_id never reach VictoriaTraces, the index search will go through the whole time range within
 // the retention period, and returns an ErrOutOfRetention.
-func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *CommonParams) (time.Time, time.Time, error) {
+func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams) (time.Time, time.Time, error) {
 	var (
 		traceIDStartTimeStr, traceIDEndTimeStr string
 		// for compatible with old data
@@ -467,7 +399,7 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 	}
 
 	currentTime := time.Now()
-	startTime := currentTime.Add(-*traceSearchStep)
+	startTime := currentTime.Add(-*tracecommon.TraceSearchStep)
 	endTime := currentTime
 	for startTime.UnixNano() > 0 {
 		qq := q.CloneWithTimeFilter(currentTime.UnixNano(), startTime.UnixNano(), endTime.UnixNano())
@@ -481,7 +413,7 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 		// no hit in this time range, continue with step.
 		if timeStr == "" {
 			endTime = startTime
-			startTime = startTime.Add(-*traceSearchStep)
+			startTime = startTime.Add(-*tracecommon.TraceSearchStep)
 			continue
 		}
 
@@ -491,7 +423,7 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 			// to transform this into new format (start time & end time), use [t-traceWindow, t+traceWindow].
 			// this code should be deprecated in the future.
 			timestamp, _ := time.Parse(time.RFC3339, timeStr)
-			return timestamp.Add(-*traceMaxDurationWindow), timestamp.Add(*traceMaxDurationWindow), nil
+			return timestamp.Add(-*tracecommon.TraceMaxDurationWindow), timestamp.Add(*tracecommon.TraceMaxDurationWindow), nil
 		}
 
 		traceIDStartTime, _ := strconv.ParseInt(traceIDStartTimeStr, 10, 64)
@@ -503,7 +435,7 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 }
 
 // findSpansByTraceIDAndTime search for spans in given time range.
-func findSpansByTraceIDAndTime(ctx context.Context, cp *CommonParams, traceID string, startTime, endTime time.Time) ([]*Row, error) {
+func findSpansByTraceIDAndTime(ctx context.Context, cp *tracecommon.CommonParams, traceID string, startTime, endTime time.Time) ([]*tracecommon.Row, error) {
 	// query: trace_id:traceID
 	qStr := fmt.Sprintf(otelpb.TraceIDField+": %q", traceID)
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, endTime.UnixNano())
@@ -517,7 +449,7 @@ func findSpansByTraceIDAndTime(ctx context.Context, cp *CommonParams, traceID st
 
 	// search for trace spans and write to `rows []*Row`
 	var rowsLock sync.Mutex
-	var rows []*Row
+	var rows []*tracecommon.Row
 	var missingTimeColumn atomic.Bool
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		if missingTimeColumn.Load() {
@@ -551,7 +483,7 @@ func findSpansByTraceIDAndTime(ctx context.Context, cp *CommonParams, traceID st
 			}
 
 			rowsLock.Lock()
-			rows = append(rows, &Row{
+			rows = append(rows, &tracecommon.Row{
 				Timestamp: timestamp,
 				Fields:    fields,
 			})
@@ -574,7 +506,7 @@ func findSpansByTraceIDAndTime(ctx context.Context, cp *CommonParams, traceID st
 func checkTraceIDList(traceIDList []string) []string {
 	result := make([]string, 0, len(traceIDList))
 	for i := range traceIDList {
-		if traceIDRegex.MatchString(traceIDList[i]) {
+		if tracecommon.TraceIDRegex.MatchString(traceIDList[i]) {
 			result = append(result, traceIDList[i])
 		}
 	}
@@ -590,7 +522,7 @@ type ServiceGraphQueryParameters struct {
 //
 // TODO: currently this function can only handle request from Jaeger dependencies API. Since Tempo provides similar service graph
 // feature, it would be great to add support for Tempo service graph API as well.
-func GetServiceGraphList(ctx context.Context, cp *CommonParams, param *ServiceGraphQueryParameters) ([]*Row, error) {
+func GetServiceGraphList(ctx context.Context, cp *tracecommon.CommonParams, param *ServiceGraphQueryParameters) ([]*tracecommon.Row, error) {
 	// {trace_service_graph_stream="-"} | fields parent, child, callCount | stats by (parent, child) sum(callCount) as callCount
 	qStr := fmt.Sprintf(`{%s="-"} | fields %s, %s, %s | stats by (%s, %s) sum(%s) as %s`,
 		otelpb.ServiceGraphStreamName,
@@ -614,7 +546,7 @@ func GetServiceGraphList(ctx context.Context, cp *CommonParams, param *ServiceGr
 	qctx := cp.NewQueryContext(ctx)
 
 	var rowsLock sync.Mutex
-	var rows []*Row
+	var rows []*tracecommon.Row
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		columns := db.Columns
 		if len(columns) == 0 {
@@ -643,7 +575,7 @@ func GetServiceGraphList(ctx context.Context, cp *CommonParams, param *ServiceGr
 				)
 			}
 			rowsLock.Lock()
-			rows = append(rows, &Row{
+			rows = append(rows, &tracecommon.Row{
 				Fields: fields,
 			})
 			rowsLock.Unlock()
@@ -660,7 +592,7 @@ func GetServiceGraphList(ctx context.Context, cp *CommonParams, param *ServiceGr
 // GetServiceGraphTimeRange is an internal function used by service graph background task.
 // It calculates the service graph relation within the time range in (parent, child, callCount) format for specific tenant.
 func GetServiceGraphTimeRange(ctx context.Context, tenantID logstorage.TenantID, startTime, endTime time.Time, limit uint64) ([][]logstorage.Field, error) {
-	cp := &CommonParams{
+	cp := &tracecommon.CommonParams{
 		TenantIDs: []logstorage.TenantID{tenantID},
 	}
 

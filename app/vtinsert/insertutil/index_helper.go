@@ -187,6 +187,7 @@ func (w *indexWorker) flushIndexInMap(tb [32]byte, idxEntry indexEntry) bool {
 			{Name: otelpb.TraceIDIndexFieldName, Value: string(tb[:])},
 			{Name: otelpb.TraceIDIndexStartTimeFieldName, Value: strconv.FormatInt(startTimestamp, 10)},
 			{Name: otelpb.TraceIDIndexEndTimeFieldName, Value: strconv.FormatInt(endTimestamp, 10)},
+			{Name: otelpb.TraceIDIndexDuration, Value: strconv.FormatInt(endTimestamp-startTimestamp, 10)},
 		},
 		1,
 	)
