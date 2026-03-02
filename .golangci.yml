@@ -20,6 +20,7 @@ linters:
       - third_party$
       - builtin$
       - examples$
+      - lib/traceql # ignore for now
 formatters:
   exclusions:
     generated: lax

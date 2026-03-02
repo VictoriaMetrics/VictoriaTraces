@@ -307,22 +307,22 @@ func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr st
 		linkTagList:                 []string{},
 	}
 	for i := range fieldNames {
-		if strings.HasPrefix(fieldNames[i], otelpb.EventPrefix+otelpb.EventAttrPrefix) {
-			// todo wait until LogsQL support search across fields.
-			continue
-			//lIdx := strings.LastIndex(fieldNames[i], ":")
-			//result.eventTagList = appendNoExceedN(result.eventTagList, fieldNames[i][len(otelpb.EventPrefix+otelpb.EventAttrPrefix):lIdx], limit)
-		} else if strings.HasPrefix(fieldNames[i], otelpb.SpanAttrPrefixField) {
+		if strings.HasPrefix(fieldNames[i], otelpb.SpanAttrPrefixField) {
 			result.spanTagList = appendNoExceedN(result.spanTagList, fieldNames[i][len(otelpb.SpanAttrPrefixField):], limit)
 		} else if strings.HasPrefix(fieldNames[i], otelpb.ResourceAttrPrefix) {
 			result.resourceTagList = appendNoExceedN(result.resourceTagList, fieldNames[i][len(otelpb.ResourceAttrPrefix):], limit)
 		} else if strings.HasPrefix(fieldNames[i], otelpb.InstrumentationScopeAttrPrefix) {
 			result.instrumentationScopeTagList = appendNoExceedN(result.instrumentationScopeTagList, fieldNames[i][len(otelpb.InstrumentationScopeAttrPrefix):], limit)
-		} else if strings.HasPrefix(fieldNames[i], otelpb.LinkPrefix+otelpb.LinkAttrPrefix) {
-			// todo wait until LogsQL support search across fields.
-			continue
+		} else {
+			// strings.HasPrefix(fieldNames[i], otelpb.LinkPrefix+otelpb.LinkAttrPrefix) || strings.HasPrefix(fieldNames[i], otelpb.EventPrefix+otelpb.EventAttrPrefix)
 			//lIdx := strings.LastIndex(fieldNames[i], ":")
 			//result.linkTagList = appendNoExceedN(result.linkTagList, fieldNames[i][len(otelpb.LinkPrefix+otelpb.LinkAttrPrefix):lIdx], limit)
+
+			//lIdx := strings.LastIndex(fieldNames[i], ":")
+			//result.eventTagList = appendNoExceedN(result.eventTagList, fieldNames[i][len(otelpb.EventPrefix+otelpb.EventAttrPrefix):lIdx], limit)
+			// todo wait until LogsQL support search across fields.
+			continue
+
 		}
 	}
 	return result, nil
@@ -387,30 +387,6 @@ func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracec
 	}
 
 	return resultList, nil
-}
-
-type searchResponse struct {
-	traces []trace
-}
-
-type trace struct {
-	traceID           string
-	rootServiceName   string
-	startTimeUnixNano int64
-	durationMs        int64
-	spanSet           []span // TODO: it's actually spanSets in TempoAPI
-}
-
-type span struct {
-	spanID            string
-	startTimeUnixNano int64
-	durationNanos     int64
-	attributes        []kv
-}
-
-type kv struct {
-	key   string
-	value string
 }
 
 func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, start, end time.Time, limit int64) ([]traceSummary, error) {
