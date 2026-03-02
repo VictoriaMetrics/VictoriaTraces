@@ -47,7 +47,7 @@ func rowsToResourceSpans(rows []*tracecommon.Row) ([]*otelpb.ResourceSpans, erro
 			case otelpb.NameField:
 				sp.Name = field.Value
 			case otelpb.KindField:
-				v, err := strconv.Atoi(field.Value)
+				v, err := strconv.ParseInt(field.Value, 10, 32)
 				if err != nil {
 					return nil, err
 				}
@@ -74,7 +74,7 @@ func rowsToResourceSpans(rows []*tracecommon.Row) ([]*otelpb.ResourceSpans, erro
 			case otelpb.DurationField:
 
 			case otelpb.StatusCodeField:
-				statusCode, err := strconv.Atoi(field.Value)
+				statusCode, err := strconv.ParseInt(field.Value, 10, 32)
 				if err != nil {
 					return nil, fmt.Errorf("invalid status_code field: %s", err)
 				}
@@ -163,7 +163,7 @@ func rowsToResourceSpans(rows []*tracecommon.Row) ([]*otelpb.ResourceSpans, erro
 					case otelpb.LinkTraceStateField:
 						spanLink.TraceState = field.Value
 					case otelpb.LinkFlagsField:
-						intv, err := strconv.Atoi(field.Value)
+						intv, err := strconv.ParseInt(field.Value, 10, 32)
 						if err != nil {
 							return nil, fmt.Errorf("invalid link flags: %s", err)
 						}
