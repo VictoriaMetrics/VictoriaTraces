@@ -174,7 +174,7 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, param *Trac
 			return
 		}
 
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
@@ -280,7 +280,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 	defer cp.UpdatePerQueryStatsMetrics()
 
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
@@ -379,7 +379,7 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 			logger.Errorf("BUG: unexpected rowCount during trace ID index search. query: %s", q.String())
 		}
 
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
@@ -469,7 +469,7 @@ func findSpansByTraceIDAndTime(ctx context.Context, cp *tracecommon.CommonParams
 			return
 		}
 
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
@@ -561,7 +561,7 @@ func GetServiceGraphList(ctx context.Context, cp *tracecommon.CommonParams, para
 	var rowsLock sync.Mutex
 	var rows []*tracecommon.Row
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		if len(columns) == 0 {
 			return
 		}
@@ -662,7 +662,7 @@ func GetServiceGraphTimeRange(ctx context.Context, tenantID logstorage.TenantID,
 	var rowsLock sync.Mutex
 	var rows [][]logstorage.Field
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		if len(columns) == 0 {
 			return
 		}

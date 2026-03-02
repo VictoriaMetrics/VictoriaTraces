@@ -130,6 +130,18 @@ func parseStatsFuncFields(lex *lexer, funcName string) ([]string, error) {
 	return fields, nil
 }
 
+func parseStatsFuncArgs(lex *lexer, funcName string) ([]string, error) {
+	if !lex.isKeyword(funcName) {
+		return nil, fmt.Errorf("unexpected func; got %q; want %q", lex.token, funcName)
+	}
+	lex.nextToken()
+	fields, err := parseFieldNamesInParens(lex)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse %q args: %w", funcName, err)
+	}
+	return fields, nil
+}
+
 func parseStatsFuncFieldFilters(lex *lexer, funcName string) ([]string, error) {
 	if !lex.isKeyword(funcName) {
 		return nil, fmt.Errorf("unexpected func; got %q; want %q", lex.token, funcName)

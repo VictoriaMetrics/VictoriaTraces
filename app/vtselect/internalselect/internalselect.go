@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"net/http"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
@@ -24,10 +26,42 @@ import (
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/netselect"
 )
 
+var maxConcurrentRequests = flag.Int("internalselect.maxConcurrentRequests", 100, "The limit on the number of concurrent requests to /internal/select/* endpoints; "+
+	"other requests are put into the wait queue; see https://docs.victoriametrics.com/victorialogs/cluster/")
+
 // RequestHandler processes requests to /internal/select/*
 func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	startTime := time.Now()
 
+	select {
+	case concurrencyLimitCh <- struct{}{}:
+		if d := time.Since(startTime); d > 100*time.Millisecond {
+			// Measure the wait duration for requests, which hit the concurrency limit and waited for more than 100 milliseconds to be executed.
+			concurrentRequestsWaitDuration.Update(d.Seconds())
+		}
+		requestHandler(ctx, w, r, startTime)
+		<-concurrencyLimitCh
+	case <-ctx.Done():
+		// Unconditionally measure the wait time until the the request is canceled by the client.
+		concurrentRequestsWaitDuration.UpdateDuration(startTime)
+	}
+}
+
+// Init initializes internalselect package.
+func Init() {
+	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
+}
+
+// Stop stops vtselect
+func Stop() {
+	concurrencyLimitCh = nil
+}
+
+var concurrencyLimitCh chan struct{}
+
+var concurrentRequestsWaitDuration = metrics.NewSummary(`vt_concurrent_internalselect_requests_wait_duration`)
+
+func requestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, startTime time.Time) {
 	path := r.URL.Path
 	rh := requestHandlers[path]
 	if rh == nil {
@@ -52,6 +86,11 @@ var requestHandlers = map[string]func(ctx context.Context, w http.ResponseWriter
 	"/internal/select/stream_field_values": processStreamFieldValuesRequest,
 	"/internal/select/streams":             processStreamsRequest,
 	"/internal/select/stream_ids":          processStreamIDsRequest,
+	"/internal/select/tenant_ids":          processTenantIDsRequest,
+
+	"/internal/delete/run_task":     processDeleteRunTask,
+	"/internal/delete/stop_task":    processDeleteStopTask,
+	"/internal/delete/active_tasks": processDeleteActiveTasks,
 }
 
 func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
@@ -93,11 +132,10 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 
 	var bufs atomicutil.Slice[bytesutil.ByteBuffer]
 
-	var errGlobalLock sync.Mutex
-	var errGlobal error
+	var errGlobal atomic.Pointer[error]
 
 	writeBlock := func(workerID uint, db *logstorage.DataBlock) {
-		if errGlobal != nil {
+		if errGlobal.Load() != nil {
 			return
 		}
 
@@ -116,11 +154,7 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 
 		// Slow path - the bb must be sent to the client.
 		if err := sendBuf(bb); err != nil {
-			errGlobalLock.Lock()
-			if errGlobal != nil {
-				errGlobal = err
-			}
-			errGlobalLock.Unlock()
+			errGlobal.CompareAndSwap(nil, &err)
 		}
 	}
 
@@ -134,8 +168,8 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 		}
 		return err
 	}
-	if errGlobal != nil {
-		return errGlobal
+	if errP := errGlobal.Load(); errP != nil {
+		return *errP
 	}
 
 	// Send the remaining data
@@ -280,6 +314,101 @@ func processStreamIDsRequest(ctx context.Context, w http.ResponseWriter, r *http
 	return writeValuesWithHits(w, qctx, streamIDs, cp.DisableCompression)
 }
 
+func processDeleteRunTask(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	if err := checkProtocolVersion(r, netselect.DeleteRunTaskProtocolVersion); err != nil {
+		return err
+	}
+
+	// Parse query args
+	taskID := r.FormValue("task_id")
+	if taskID == "" {
+		return fmt.Errorf("missing task_id arg")
+	}
+
+	timestamp, err := getInt64FromRequest(r, "timestamp")
+	if err != nil {
+		return err
+	}
+
+	tenantIDsStr := r.FormValue("tenant_ids")
+	tenantIDs, err := logstorage.UnmarshalTenantIDsFromJSON([]byte(tenantIDsStr))
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal tenant_ids=%q: %w", tenantIDsStr, err)
+	}
+
+	fStr := r.FormValue("filter")
+	f, err := logstorage.ParseFilter(fStr)
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal filter=%q: %w", fStr, err)
+	}
+
+	// Execute the delete task
+	return vtstorage.DeleteRunTask(ctx, taskID, timestamp, tenantIDs, f)
+}
+
+func processDeleteStopTask(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	if err := checkProtocolVersion(r, netselect.DeleteStopTaskProtocolVersion); err != nil {
+		return err
+	}
+
+	taskID := r.FormValue("task_id")
+	if taskID == "" {
+		return fmt.Errorf("missing task_id arg")
+	}
+
+	return vtstorage.DeleteStopTask(ctx, taskID)
+}
+
+func processDeleteActiveTasks(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	if err := checkProtocolVersion(r, netselect.DeleteActiveTasksProtocolVersion); err != nil {
+		return err
+	}
+
+	tasks, err := vtstorage.DeleteActiveTasks(ctx)
+	if err != nil {
+		return err
+	}
+
+	data := logstorage.MarshalDeleteTasksToJSON(tasks)
+
+	w.Header().Set("Content-Type", "application/json")
+
+	if _, err := w.Write(data); err != nil {
+		return fmt.Errorf("cannot send response to the client: %w", err)
+	}
+
+	return nil
+}
+
+func processTenantIDsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	start, err := getInt64FromRequest(r, "start")
+	if err != nil {
+		return err
+	}
+	end, err := getInt64FromRequest(r, "end")
+	if err != nil {
+		return err
+	}
+
+	tenantIDs, err := vtstorage.GetTenantIDs(ctx, start, end)
+	if err != nil {
+		return fmt.Errorf("cannot obtain tenant IDs: %w", err)
+	}
+
+	// Marshal tenantIDs at first
+	data, err := json.Marshal(tenantIDs)
+	if err != nil {
+		return fmt.Errorf("cannot marshal tenantIDs: %w", err)
+	}
+
+	// Send the marshaled tenantIDs to the client
+	w.Header().Set("Content-Type", "application/json")
+	if _, err := w.Write(data); err != nil {
+		return fmt.Errorf("cannot send response to the client: %w", err)
+	}
+	return nil
+}
+
 type commonParams struct {
 	TenantIDs []logstorage.TenantID
 	Query     *logstorage.Query
@@ -397,6 +526,9 @@ func marshalQueryStatsBlock(dst []byte, qctx *logstorage.QueryContext) []byte {
 
 func getInt64FromRequest(r *http.Request, argName string) (int64, error) {
 	s := r.FormValue(argName)
+	if s == "" {
+		return 0, fmt.Errorf("missing the required arg %s", argName)
+	}
 	n, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse %s=%q: %w", argName, s, err)

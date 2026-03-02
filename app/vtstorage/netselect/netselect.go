@@ -17,15 +17,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/contextutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/common"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 const (
@@ -171,7 +169,7 @@ func (sn *storageNode) runQuery(qctx *logstorage.QueryContext, processBlock func
 		if !sn.s.disableCompression {
 			bufLen := len(buf)
 			var err error
-			buf, err = zstd.Decompress(buf, buf)
+			buf, err = encoding.DecompressZSTD(buf, buf)
 			if err != nil {
 				return fmt.Errorf("cannot decompress data block: %w", err)
 			}
@@ -310,7 +308,7 @@ func (sn *storageNode) getResponseForPathAndArgs(ctx context.Context, path strin
 	}
 
 	bbLen := len(bb.B)
-	bb.B, err = zstd.Decompress(bb.B, bb.B)
+	bb.B, err = encoding.DecompressZSTD(bb.B, bb.B)
 	if err != nil {
 		return nil, err
 	}
@@ -414,17 +412,14 @@ func (s *Storage) runQuery(stopCh <-chan struct{}, qctx *logstorage.QueryContext
 	errs := make([]error, len(s.sns))
 
 	var wg sync.WaitGroup
-	for i := range s.sns {
-		wg.Add(1)
-		go func(nodeIdx int) {
-			defer wg.Done()
-
+	for nodeIdx := range s.sns {
+		wg.Go(func() {
 			sn := s.sns[nodeIdx]
 			err := sn.runQuery(qctxLocal, func(db *logstorage.DataBlock) {
 				writeBlock(uint(nodeIdx), db)
 			})
 			errs[nodeIdx] = sn.handleError(ctxWithCancel, cancel, err, qctx.AllowPartialResponse)
-		}(i)
+		})
 	}
 	wg.Wait()
 
@@ -495,22 +490,19 @@ func (s *Storage) DeleteRunTask(ctx context.Context, taskID string, timestamp in
 	errs := make([]error, len(s.sns))
 
 	// Return an error to the caller when at least a single storage node is unavailable.
-	// This improves awareness of the caller about unavailable storage nodes.
-	// If some storage node is unavailable, then the deletion task
+	// This improves awarenes of the caller about unavailable storage nodes.
+	// If some storage node is unavailable, then the deletetion task
 	// can start on arbitrary number of the remaining available nodes.
 	// It is OK to re-run the delete task in this case.
 	allowPartialResponse := false
 
 	var wg sync.WaitGroup
-	for i := range s.sns {
-		wg.Add(1)
-		go func(nodeIdx int) {
-			defer wg.Done()
-
+	for nodeIdx := range s.sns {
+		wg.Go(func() {
 			sn := s.sns[nodeIdx]
 			err := sn.deleteRunTask(ctxWithCancel, taskID, timestamp, tenantIDs, f)
 			errs[nodeIdx] = sn.handleError(ctxWithCancel, cancel, err, allowPartialResponse)
-		}(i)
+		})
 	}
 	wg.Wait()
 
@@ -525,21 +517,18 @@ func (s *Storage) DeleteStopTask(ctx context.Context, taskID string) error {
 	errs := make([]error, len(s.sns))
 
 	// Return an error to the caller when at least a single storage node is unavailable.
-	// This improves awareness of the caller about unavailable storage nodes.
+	// This improves awarenes of the caller about unavailable storage nodes.
 	// If some storage node is unavailable, then the deletion task can remain uncanceled on such nodes.
 	// It is OK to stop the delete task multiple times in this case.
 	allowPartialResponse := false
 
 	var wg sync.WaitGroup
-	for i := range s.sns {
-		wg.Add(1)
-		go func(nodeIdx int) {
-			defer wg.Done()
-
+	for nodeIdx := range s.sns {
+		wg.Go(func() {
 			sn := s.sns[nodeIdx]
 			err := sn.deleteStopTask(ctxWithCancel, taskID)
 			errs[nodeIdx] = sn.handleError(ctxWithCancel, cancel, err, allowPartialResponse)
-		}(i)
+		})
 	}
 	wg.Wait()
 
@@ -559,16 +548,13 @@ func (s *Storage) DeleteActiveTasks(ctx context.Context) ([]*logstorage.DeleteTa
 	allowPartialResponse := false
 
 	var wg sync.WaitGroup
-	for i := range s.sns {
-		wg.Add(1)
-		go func(nodeIdx int) {
-			defer wg.Done()
-
+	for nodeIdx := range s.sns {
+		wg.Go(func() {
 			sn := s.sns[nodeIdx]
 			tasks, err := sn.deleteActiveTasks(ctxWithCancel)
 			results[nodeIdx] = tasks
 			errs[nodeIdx] = sn.handleError(ctxWithCancel, cancel, err, allowPartialResponse)
-		}(i)
+		})
 	}
 	wg.Wait()
 
@@ -612,11 +598,8 @@ func (s *Storage) getTenantIDs(ctx context.Context, start, end int64) ([]logstor
 	allowPartialResponse := false
 
 	var wg sync.WaitGroup
-	for i := range s.sns {
-		wg.Add(1)
-		go func(nodeIdx int) {
-			defer wg.Done()
-
+	for nodeIdx := range s.sns {
+		wg.Go(func() {
 			sn := s.sns[nodeIdx]
 			tenantIDs, err := sn.getTenantIDs(ctxWithCancel, start, end)
 			results[nodeIdx] = tenantIDs
@@ -626,7 +609,7 @@ func (s *Storage) getTenantIDs(ctx context.Context, start, end int64) ([]logstor
 				// Cancel the remaining parallel requests
 				cancel()
 			}
-		}(i)
+		})
 	}
 	wg.Wait()
 
@@ -660,16 +643,13 @@ func (s *Storage) getValuesWithHits(qctx *logstorage.QueryContext, limit uint64,
 	errs := make([]error, len(s.sns))
 
 	var wg sync.WaitGroup
-	for i := range s.sns {
-		wg.Add(1)
-		go func(nodeIdx int) {
-			defer wg.Done()
-
+	for nodeIdx := range s.sns {
+		wg.Go(func() {
 			sn := s.sns[nodeIdx]
 			vhs, err := callback(ctxWithCancel, sn)
 			results[nodeIdx] = vhs
 			errs[nodeIdx] = sn.handleError(ctxWithCancel, cancel, err, qctx.AllowPartialResponse)
-		}(i)
+		})
 	}
 	wg.Wait()
 

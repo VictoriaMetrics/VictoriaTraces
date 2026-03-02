@@ -79,7 +79,7 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery
 			return
 		}
 
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
@@ -199,7 +199,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 	defer cp.UpdatePerQueryStatsMetrics()
 
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
@@ -298,7 +298,7 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 			logger.Errorf("BUG: unexpected rowCount during trace ID index search. query: %s", q.String())
 		}
 
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
@@ -399,7 +399,7 @@ func findSpansByTraceIDAndTime(ctx context.Context, cp *tracecommon.CommonParams
 			return
 		}
 
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)

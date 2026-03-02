@@ -5,15 +5,16 @@ import (
 	"embed"
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/tempo"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/tempo"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 
@@ -57,10 +58,15 @@ func getDefaultMaxConcurrentRequests() int {
 // Init initializes vtselect
 func Init() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
+
+	internalselect.Init()
 }
 
 // Stop stops vtselect
 func Stop() {
+	internalselect.Stop()
+
+	concurrencyLimitCh = nil
 }
 
 var concurrencyLimitCh chan struct{}
@@ -106,7 +112,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	if strings.HasPrefix(path, "/internal/delete/") {
 		if !*enableInternalDelete {
-			httpserver.Errorf(w, r, "requests to /internal/delete/*` are disabled; pass -internaldelete.enable command-line flag for enabling them")
+			httpserver.Errorf(w, r, "requests to /internal/delete/* are disabled; pass -internaldelete.enable command-line flag for enabling them; "+
+				"see https://docs.victoriametrics.com/victorialogs/#how-to-delete-logs")
 			return true
 		}
 		internalselect.RequestHandler(r.Context(), w, r)
@@ -184,7 +191,11 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 
 	// Limit the number of concurrent queries, which can consume big amounts of CPU time.
 	startTime := time.Now()
-	d := getMaxQueryDuration(r)
+	d, err := getMaxQueryDuration(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "%s", err)
+		return true
+	}
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, d)
 	defer cancel()
 
@@ -263,14 +274,18 @@ func decRequestConcurrency() {
 }
 
 // getMaxQueryDuration returns the maximum duration for query from r.
-func getMaxQueryDuration(r *http.Request) time.Duration {
-	dms, err := httputil.GetDuration(r, "timeout", 0)
-	if err != nil {
-		dms = 0
+func getMaxQueryDuration(r *http.Request) (time.Duration, error) {
+	s := r.FormValue("timeout")
+	if s == "" {
+		s = "0s"
 	}
-	d := time.Duration(dms) * time.Millisecond
+	nsecs, ok := logstorage.TryParseDuration(s)
+	if !ok {
+		return 0, fmt.Errorf("cannot parse duration at 'timeout=%s' arg", s)
+	}
+	d := time.Duration(nsecs)
 	if d <= 0 || d > *maxQueryDuration {
 		d = *maxQueryDuration
 	}
-	return d
+	return d, nil
 }

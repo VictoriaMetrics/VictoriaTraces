@@ -366,7 +366,7 @@ func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLS
 func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, limit int64) ([]string, error) {
 	resultList := make([]string, 0, limit)
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		if len(columns) != 1 {
 			logger.Panicf("BUG: unexpected column(s) returned for singleFieldQueryHelper: %v", columns)
 		}
