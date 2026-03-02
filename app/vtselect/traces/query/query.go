@@ -159,6 +159,8 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, param *Trac
 	q.AddTimeFilter(startTime.Add(-*tracecommon.TraceMaxDurationWindow).UnixNano(), param.StartTimeMax.Add(*tracecommon.TraceMaxDurationWindow).UnixNano())
 
 	ctxWithCancel, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctxWithCancel)
 	defer cp.UpdatePerQueryStatsMetrics()
@@ -268,6 +270,8 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 	currentStartTime := endTime.Add(-step)
 
 	var traceIDListLock sync.Mutex
+	var startTimeLock sync.Mutex
+
 	traceIDList := make([]string, 0, limit)
 	maxStartTimeStr := endTime.Format(time.RFC3339)
 
@@ -290,11 +294,13 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 				}
 				traceIDListLock.Unlock()
 			case "_time":
+				startTimeLock.Lock()
 				for _, v := range columns[i].Values {
 					if v < maxStartTimeStr {
 						maxStartTimeStr = strings.Clone(v)
 					}
 				}
+				startTimeLock.Unlock()
 			}
 		}
 	}
@@ -352,7 +358,8 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 	var (
 		traceIDStartTimeStr, traceIDEndTimeStr string
 		// for compatible with old data
-		timeStr string
+		timeStr   string
+		valueLock sync.Mutex
 	)
 
 	ctxWithCancel, cancel := context.WithCancel(ctx)
@@ -377,6 +384,10 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
+
+		// There should be only a few lines in result, so it's safe to lock the whole block.
+		valueLock.Lock()
+		defer valueLock.Unlock()
 
 		for _, c := range columns {
 			switch c.Name {
@@ -443,6 +454,8 @@ func findSpansByTraceIDAndTime(ctx context.Context, cp *tracecommon.CommonParams
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
 	ctxWithCancel, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctxWithCancel)
 	defer cp.UpdatePerQueryStatsMetrics()
