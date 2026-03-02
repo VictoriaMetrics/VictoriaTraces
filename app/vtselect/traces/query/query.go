@@ -37,6 +37,8 @@ var (
 		"This limit affects Jaeger's /api/services/*/operations API.")
 
 	latencyOffset = flag.Duration("search.latencyOffset", 30*time.Second, "The time when a trace become visible in query results after the collection. see -insert.traceMaxDuration as well. (default 30s)")
+	recentTraceFallbackWindow = flag.Duration("search.recentTraceFallbackWindow", 5*time.Minute, "The time window for searching span data directly when the trace ID index has not been flushed yet. "+
+		"It affects Jaeger's /api/traces/<trace_id> API.")
 )
 
 var (
@@ -183,8 +185,10 @@ func GetTrace(ctx context.Context, cp *CommonParams, traceID string) ([]*Row, er
 	q.AddPipeOffsetLimit(0, 10)
 	traceStartTime, traceEndTime, err := findTraceIDTimeSplitTimeRange(ctx, q, cp)
 	if err != nil && errors.Is(err, vtstoragecommon.ErrOutOfRetention) {
-		// no hit in the retention period, simply returns empty.
-		return nil, nil
+		// The trace ID index may not have been flushed yet, but span data is already queryable.
+		// Fall back to searching span data directly over a recent time window.
+		recentStart := currentTime.Add(-*recentTraceFallbackWindow)
+		return findSpansByTraceIDAndTime(ctx, cp, traceID, recentStart, currentTime)
 	}
 	if err != nil {
 		// something wrong when trying to find the trace_id's start and end time.
