@@ -537,8 +537,8 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse limit: %s", limit)
 		}
-		// Let's limit this to 1000 to prevent users from specifying an excessively large value.
-		p.limit = min(1000, l)
+		// Let's limit this to [0, 1000] to prevent users from specifying an excessively large value.
+		p.limit = max(0, min(1000, l))
 	}
 
 	p.q = q.Get("q")
