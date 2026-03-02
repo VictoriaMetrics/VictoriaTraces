@@ -13,7 +13,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 ## tip
 
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect, vtstorage in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): (experimental) add support for [Tempo datasource APIs](https://grafana.com/docs/tempo/latest/api_docs/). This starts with support for the basic auto-completion `/tags`, search `/search`, and `/v2/traces/*` APIs.
-  TraceQL metrics and pipelines are not yet available in this release. The implemented APIs are subject to change in upcoming release. Also, please be careful with heavy queries to prevent vtselect from running out of memory.
+  TraceQL metrics and pipelines are not yet available in this release.
 
 ## [v0.7.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.7.1)
 
