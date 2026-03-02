@@ -14,7 +14,7 @@ endif
 GO_BUILDINFO = -X 'github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TAG)-$(BUILDINFO_TAG)'
 TAR_OWNERSHIP ?= --owner=1000 --group=1000
 
-GOLANGCI_LINT_VERSION := 2.4.0
+GOLANGCI_LINT_VERSION := 2.9.0
 
 .PHONY: $(MAKECMDGOALS)
 
@@ -178,7 +178,7 @@ benchmark-pure:
 vendor-update:
 	go get -u ./lib/...
 	go get -u ./app/...
-	go mod tidy -compat=1.25
+	go mod tidy -compat=1.26
 	go mod vendor
 
 app-local:

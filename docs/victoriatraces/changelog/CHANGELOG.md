@@ -12,8 +12,11 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.25.5 to Go1.26.0. See [the list of issues addressed in Go1.26.0](https://github.com/golang/go/issues?q=milestone%3AGo1.26.0+label%3ACherryPickApproved).
+
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect, vtstorage in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): (experimental) add support for [Tempo datasource APIs](https://grafana.com/docs/tempo/latest/api_docs/). This starts with support for the basic auto-completion `/tags`, search `/search`, and `/v2/traces/*` APIs.
   TraceQL metrics and pipelines are not yet available in this release.
+
 
 ## [v0.7.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.7.1)
 
