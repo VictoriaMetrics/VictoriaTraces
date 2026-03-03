@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/klauspost/compress/gzip"
 	"golang.org/x/time/rate"
 
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
@@ -241,7 +242,7 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 
 			// prepare request.
 			if *grpcMode {
-				httpReq, err = http.NewRequest("POST", addr+"/opentelemetry.proto.collector.trace.v1.TraceService/Export", bytes.NewReader(reqBytes))
+				httpReq, err = CreateCompressedRequest("POST", addr+"/opentelemetry.proto.collector.trace.v1.TraceService/Export", reqBytes)
 				if err != nil {
 					logger.Errorf("cannot create http request for addr %q: %s", addr, err)
 					continue
@@ -253,7 +254,7 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 				httpReq.Header.Add("User-Agent", "vtgen")
 				httpClient = http2Client
 			} else {
-				httpReq, err = http.NewRequest("POST", addr, bytes.NewReader(reqBytes))
+				httpReq, err = CreateCompressedRequest("POST", addr, reqBytes)
 				if err != nil {
 					logger.Errorf("cannot create http request for addr %q: %s", addr, err)
 					continue
@@ -295,6 +296,25 @@ func generateSpanID() string {
 	h := md5.New()
 	h.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
 	return hex.EncodeToString(h.Sum(nil))[:16]
+}
+
+func CreateCompressedRequest(method, url string, body []byte) (*http.Request, error) {
+	var b bytes.Buffer
+
+	gw := gzip.NewWriter(&b)
+
+	if _, err := gw.Write(body); err != nil {
+		return nil, err
+	}
+	gw.Close()
+
+	r, err := http.NewRequest(method, url, &b)
+	if err != nil {
+		return nil, err
+	}
+
+	r.Header.Set("Content-Encoding", "gzip")
+	return r, nil
 }
 
 // readWrite Does the following:
