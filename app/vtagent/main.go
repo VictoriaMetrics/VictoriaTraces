@@ -1,113 +1,125 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"math/rand"
+	"encoding/binary"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
+
+	_ "net/http/pprof"
 )
 
 var (
-	maxRequestSize = flagutil.NewBytes("opentelemetry.sampling.maxRequestSize", 16*1024*1024, "The maximum size in bytes of a single OpenTelemetry trace sampling request.")
+	maxRequestSize    = flagutil.NewBytes("opentelemetry.sampling.maxRequestSize", 16*1024*1024, "The maximum size in bytes of a single OpenTelemetry trace sampling request.")
+	slowTraceDuration = flagutil.NewExtendedDuration("opentelemetry.sampling.slowTraceDuration", "5s", "Traces that last longer than this duration will be sampled as slow traces.")
 )
 
-var agentAddrs = []string{
-	"http://10.140.0.2:10429/api/v1/remotesampling_decision",
-	"http://10.140.15.234:10429/api/v1/remotesampling_decision",
-	"http://10.140.0.6:10429/api/v1/remotesampling_decision",
-}
-
 // local test
-//var agentAddrs = []string{
-//	"http://127.0.0.1:10429/api/v1/remotesampling_decision",
-//}
-
-type SamplingRequest struct {
-	SamplingTraceList []*SamplingTrace `json:"sampling_trace_list"`
+var agentAddrs = []string{
+	"http://127.0.0.1:10499/api/v1/remotesampling_decision",
 }
 
 type SamplingTrace struct {
-	TraceID    string `json:"trace_id"`
-	StartTime  uint64 `json:"start_time"`
-	EndTime    uint64 `json:"end_time"`
-	StatusCode int32  `json:"status_code"`
-}
+	TraceID    [16]byte `json:"trace_id"`
+	StartTime  uint64   `json:"start_time"`
+	EndTime    uint64   `json:"end_time"`
+	StatusCode int32    `json:"status_code"`
 
-type SamplingDecision struct {
-	TraceIDList []string `json:"trace_id_list"`
+	Sampled bool
 }
 
 var (
-	waitingTraceMapCur  = sync.Map{}
-	waitingTraceMapPrev = sync.Map{}
+	mu                  = sync.Mutex{}
+	waitingTraceMapCur  = map[[16]byte]SamplingTrace{}
+	waitingTraceMapPrev = map[[16]byte]SamplingTrace{}
 )
 
-func startBufCleaner() {
+func startBufCleaner(handlingFunc func([][16]byte), interval time.Duration) {
 	go func() {
-		ticker := time.NewTicker(15 * time.Second)
+		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
 			select {
 			case <-ticker.C:
-				var tidList []string
-				waitingTraceMapPrev.Range(func(k, v interface{}) bool {
-					trace := v.(*SamplingTrace)
-					duration := trace.EndTime - trace.StartTime
-					if duration > uint64(2000*time.Millisecond) && duration < uint64(2100*time.Millisecond) {
+				var tidList [][16]byte
+				mu.Lock()
+				for _, trace := range waitingTraceMapPrev {
+					if trace.Sampled {
 						tidList = append(tidList, trace.TraceID)
-						return true
+						continue
+					}
+
+					duration := trace.EndTime - trace.StartTime
+					if duration > uint64((*slowTraceDuration).Duration().Nanoseconds()) {
+						logger.Infof("sampled for %d ms", duration/uint64(time.Millisecond))
+						tidList = append(tidList, trace.TraceID)
+						continue
 					}
 
 					if trace.StatusCode == 2 {
 						tidList = append(tidList, trace.TraceID)
-						return true
+						continue
 					}
+				}
 
-					if rand.Intn(100) < 1 {
-						tidList = append(tidList, trace.TraceID)
-						return true
-					}
+				prevLen := len(waitingTraceMapPrev)
+				// drop prev one and create a new one
+				waitingTraceMapPrev = make(map[[16]byte]SamplingTrace, prevLen)
 
-					return true
-				})
-				waitingTraceMapPrev.Clear()
+				// rotate the cur one to prev, and prev as cur.
 				waitingTraceMapCur, waitingTraceMapPrev = waitingTraceMapPrev, waitingTraceMapCur
 
-				if len(tidList) == 0 {
-					continue
-				}
-				logger.Infof("fanout sampled decision for %d traces", len(tidList))
+				mu.Unlock()
 
-				go func() {
-					sd := SamplingDecision{
-						TraceIDList: tidList,
-					}
-					b, err := json.Marshal(&sd)
-					if err != nil {
-						logger.Errorf("cannot marshal SamplingDecision: %s", err)
-						return
-					}
-					for _, addr := range agentAddrs {
-						resp, err := http.Post(addr, "application/json", bytes.NewBuffer(b))
-						if err != nil {
-							logger.Errorf("cannot post agent to %s: %s", addr, err)
-							continue
-						}
-						resp.Body.Close()
-					}
-				}()
+				handlingFunc(tidList)
 			}
 		}
 	}()
 }
+
+func fanoutDecisions(tidList [][16]byte) {
+	if len(tidList) == 0 {
+		return
+	}
+	logger.Infof("fanout sampled decision for %d traces", len(tidList))
+
+	decisionBytes := make([]byte, 0, 16*len(tidList))
+	for _, trace := range tidList {
+		decisionBytes = append(decisionBytes, trace[:]...)
+	}
+
+	bb := zstdBufPool.Get()
+	defer zstdBufPool.Put(bb)
+
+	bb.B = zstd.CompressLevel(bb.B[:0], decisionBytes, 1)
+
+	for _, addr := range agentAddrs {
+		req, err := http.NewRequest(http.MethodPost, addr, bb.NewReader())
+		if err != nil {
+			logger.Panicf("BUG: cannot create a new HTTP request to %q: %s", addr, err)
+		}
+		req.Header.Set("Content-Type", "application/octet-stream")
+		req.Header.Set("Content-Encoding", "zstd")
+		req.Header.Set("User-Agent", "retroactivesamplingserver/0.1")
+
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			logger.Errorf("cannot post agent to %s: %s", addr, err)
+			continue
+		}
+		resp.Body.Close()
+	}
+}
+
+var zstdBufPool bytesutil.ByteBufferPool
 
 func main() {
 	rh := func(w http.ResponseWriter, r *http.Request) bool {
@@ -119,57 +131,19 @@ func main() {
 		return false
 	}
 	go httpserver.Serve([]string{"0.0.0.0:10430"}, rh, httpserver.ServeOptions{})
-	startBufCleaner()
+	startBufCleaner(fanoutDecisions, 15*time.Second)
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
 }
 
+var (
+	decisionSampled    uint8 = 1
+	decisionNotSampled uint8 = 0
+)
+
 func samplingRequestHandler(w http.ResponseWriter, r *http.Request) {
 	encoding := r.Header.Get("Content-Encoding")
-	err := protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
-		var req SamplingRequest
-
-		if err := json.Unmarshal(data, &req); err != nil {
-			logger.Errorf("cannot unmarshal HTTP request: %s", err)
-			return err
-		}
-
-		for i := range req.SamplingTraceList {
-			if req.SamplingTraceList[i] != nil {
-				var trace *SamplingTrace
-				if value, ok := waitingTraceMapCur.Load(req.SamplingTraceList[i].TraceID); ok {
-					trace = value.(*SamplingTrace)
-				} else if value, ok = waitingTraceMapPrev.Load(req.SamplingTraceList[i].TraceID); ok {
-					trace = value.(*SamplingTrace)
-				} else {
-					trace = &SamplingTrace{
-						TraceID:    req.SamplingTraceList[i].TraceID,
-						StartTime:  req.SamplingTraceList[i].StartTime,
-						EndTime:    req.SamplingTraceList[i].EndTime,
-						StatusCode: req.SamplingTraceList[i].StatusCode,
-					}
-					waitingTraceMapCur.Store(req.SamplingTraceList[i].TraceID, trace)
-					continue
-				}
-
-				trace.EndTime = max(trace.EndTime, req.SamplingTraceList[i].EndTime)
-				trace.StartTime = min(trace.StartTime, req.SamplingTraceList[i].StartTime)
-				if req.SamplingTraceList[i].StatusCode == 2 {
-					trace.StatusCode = 2
-				}
-				//durationNano := trace.EndTime - trace.StartTime
-				//
-				//if durationNano > uint64(35000*time.Millisecond) {
-				//	//if trace.StatusCode == 2 {
-				//	//rand.Intn(100) < 1 {
-				//	sampledTraceMap.Store(req.SamplingTraceList[i].TraceID, struct{}{})
-				//}
-			}
-
-		}
-
-		return nil
-	})
+	err := protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, handleSamplingRequestData)
 	if err != nil {
 		logger.Errorf("cannot unmarshal HTTP request: %s", err)
 		httpserver.Errorf(w, r, "cannot unmarshal HTTP request: %s", err)
@@ -177,4 +151,108 @@ func samplingRequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(200)
+}
+
+// handleSamplingRequestData handle the decompressed request and set them to the cache.
+func handleSamplingRequestData(data []byte) error {
+	for len(data) > 0 {
+		// samplingBuf is the metadata extracted from each span.
+		// it should be marshaled into:
+		// [<decision>|<traceID>|<startTime>|<endTime>|<statusCode>] in bytes request.
+		// [1 byte    |16 bytes |8 bytes    |8 bytes  |1 byte      ] = 34 bytes
+		// If decision is true, then it contains only [<decision>|<traceID>] as the rest are not useful anymore.
+		if data[0] == decisionSampled {
+			if len(data) < (1 + 16) {
+				logger.Errorf("got %d bytes when we want at least 17 bytes for sampled trace", len(data))
+				break
+			}
+
+			var traceID [16]byte
+			copy(traceID[:], data[1:1+16])
+
+			data = data[1+16:] // [17:]
+
+			var (
+				trace SamplingTrace
+				ok    bool
+			)
+
+			mu.Lock()
+			if trace, ok = waitingTraceMapCur[traceID]; ok {
+				trace.Sampled = true
+				waitingTraceMapCur[traceID] = trace
+			} else if trace, ok = waitingTraceMapPrev[traceID]; ok {
+				trace.Sampled = true
+				waitingTraceMapPrev[traceID] = trace
+			} else {
+				trace = SamplingTrace{
+					TraceID: traceID,
+					Sampled: true,
+				}
+				waitingTraceMapCur[traceID] = trace
+			}
+			mu.Unlock()
+			continue
+		}
+
+		// slow path, need to record.
+		if len(data) < 34 {
+			logger.Errorf("got %d bytes when we want at least 34 bytes for unsampled trace", len(data))
+			break
+		}
+
+		// not sampled, add to buf and wait
+		var traceID [16]byte
+		copy(traceID[:], data[1:1+16])
+		startTimeByte := data[1+16 : 1+16+8]
+		endTimeByte := data[1+16+8 : 1+16+8+8]
+		statusCodeByte := data[1+16+8+8 : 1+16+8+8+1]
+		data = data[1+16+8+8+1:] // [34:]
+
+		startTime := binary.BigEndian.Uint64(startTimeByte)
+		endTime := binary.BigEndian.Uint64(endTimeByte)
+		stausCode := int32(statusCodeByte[0])
+
+		// find the same trace from cache
+		var (
+			trace SamplingTrace
+			ok    bool
+		)
+		mu.Lock()
+		if trace, ok = waitingTraceMapCur[traceID]; ok {
+			if trace.Sampled {
+				continue
+			}
+			trace.EndTime = max(trace.EndTime, endTime)
+			trace.StartTime = min(trace.StartTime, startTime)
+			if stausCode == 2 {
+				trace.StatusCode = 2
+			}
+			waitingTraceMapCur[traceID] = trace
+		} else if trace, ok = waitingTraceMapPrev[traceID]; ok {
+			if trace.Sampled {
+				continue
+			}
+			trace.EndTime = max(trace.EndTime, endTime)
+			trace.StartTime = min(trace.StartTime, startTime)
+			if stausCode == 2 {
+				trace.StatusCode = 2
+			}
+			waitingTraceMapPrev[traceID] = trace
+		} else {
+			trace = SamplingTrace{
+				TraceID:    traceID,
+				StartTime:  startTime,
+				EndTime:    endTime,
+				StatusCode: stausCode,
+
+				Sampled: false,
+			}
+			waitingTraceMapCur[traceID] = trace
+		}
+
+		mu.Unlock()
+	}
+
+	return nil
 }
