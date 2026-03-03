@@ -14,6 +14,19 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 * FEATURE: dashboards/single-node](https://grafana.com/grafana/dashboards/24136), [dashboards/cluster](https://grafana.com/grafana/dashboards/24134): add clickable source code links to the `Logging rate` panel in `Overview`. Users can use it to navigate directly to the source code location that generated those logs, making debugging and code exploration easier. See [#106](https://github.com/VictoriaMetrics/VictoriaTraces/pull/106).
 
+## [v0.8.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.8.0)
+
+Released at 2026-03-02
+
+* SECURITY: upgrade Go builder from Go1.25.5 to Go1.26.0. See [the list of issues addressed in Go1.26.0](https://github.com/golang/go/issues?q=milestone%3AGo1.26.0+label%3ACherryPickApproved).
+* SECURITY: upgrade base docker image (Alpine) from 3.22.2 to 3.23.3. See [Alpine 3.23.3 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.9-3.21.6-3.22.3-3.23.3-released.html).
+
+* BUGFIX: fix VictoriaTraces Docker OCI labels `org.opencontainers.image.source` and `org.opencontainers.image.documentation`: point them to VictoriaTraces repo/docs instead of VictoriaMetrics.
+
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect, vtstorage in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): (experimental) add support for [Tempo datasource APIs](https://grafana.com/docs/tempo/latest/api_docs/). This starts with support for the basic auto-completion `/tags`, search `/search`, and `/v2/traces/*` APIs.
+  TraceQL metrics and pipelines are not yet available in this release.
+* FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.43.1 to v1.47.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.43.1...v1.47.0).
+
 ## [v0.7.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.7.1)
 
 Released at 2026-01-24

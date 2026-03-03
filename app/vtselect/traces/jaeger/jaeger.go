@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/query"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/tracecommon"
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/hashpool"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
@@ -83,7 +84,7 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 // processGetServicesRequest handle the Jaeger /api/services API request.
 // https://github.com/jaegertracing/jaeger/blob/9a45f522422c548827b2f3897affc8170e4a3d8b/cmd/query/app/http_handler.go#L146
 func processGetServicesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	cp, err := query.GetCommonParams(r)
+	cp, err := tracecommon.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -103,7 +104,7 @@ func processGetServicesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 // processGetOperationsRequest handle the Jaeger /api/services/<service_name>/operations API request.
 // https://github.com/jaegertracing/jaeger/blob/9a45f522422c548827b2f3897affc8170e4a3d8b/cmd/query/app/http_handler.go#L158
 func processGetOperationsRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	cp, err := query.GetCommonParams(r)
+	cp, err := tracecommon.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -138,7 +139,7 @@ func processGetOperationsRequest(ctx context.Context, w http.ResponseWriter, r *
 // processGetTraceRequest handle the Jaeger /api/traces/<trace_id> API request.
 // https://github.com/jaegertracing/jaeger/blob/9a45f522422c548827b2f3897affc8170e4a3d8b/cmd/query/app/http_handler.go#L465
 func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	cp, err := query.GetCommonParams(r)
+	cp, err := tracecommon.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -209,7 +210,7 @@ func processGetTraceRequest(ctx context.Context, w http.ResponseWriter, r *http.
 // processGetTracesRequest handle the Jaeger /api/traces API request.
 // https://github.com/jaegertracing/jaeger/blob/9a45f522422c548827b2f3897affc8170e4a3d8b/cmd/query/app/http_handler.go#L227
 func processGetTracesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	cp, err := query.GetCommonParams(r)
+	cp, err := tracecommon.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -410,7 +411,7 @@ func hashProcess(process process) uint64 {
 
 // processGetDependenciesRequest handle the Jaeger /api/dependencies API request.
 func processGetDependenciesRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	cp, err := query.GetCommonParams(r)
+	cp, err := tracecommon.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return

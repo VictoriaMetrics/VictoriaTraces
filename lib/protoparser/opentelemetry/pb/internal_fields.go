@@ -10,6 +10,7 @@ const (
 	TraceIDIndexFieldName          = "trace_id_idx"
 	TraceIDIndexStartTimeFieldName = "start_time"
 	TraceIDIndexEndTimeFieldName   = "end_time"
+	TraceIDIndexDuration           = "duration"
 	TraceIDIndexPartitionCount     = uint64(1024)
 )
 

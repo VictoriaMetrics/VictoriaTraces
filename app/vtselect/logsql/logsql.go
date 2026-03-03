@@ -19,6 +19,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
@@ -149,24 +150,16 @@ func ProcessFacetsRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 			return
 		}
 
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		if len(columns) != 3 {
 			logger.Panicf("BUG: expecting 3 columns; got %d columns", len(columns))
 		}
 
 		// Fetch columns by name to avoid relying on column ordering at VictoriaLogs cluster.
 		// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/648
-		cFieldName := db.GetColumnByName("field_name")
-		cFieldValue := db.GetColumnByName("field_value")
-		cHits := db.GetColumnByName("hits")
-		if cFieldName == nil || cFieldValue == nil || cHits == nil {
-			logger.Panicf("BUG: missing expected columns for facets response: field_name=%v, field_value=%v, hits=%v",
-				cFieldName != nil, cFieldValue != nil, cHits != nil)
-		}
-
-		fieldNames := cFieldName.Values
-		fieldValues := cFieldValue.Values
-		hits := cHits.Values
+		fieldNames := columns[0].Values
+		fieldValues := columns[1].Values
+		hits := columns[2].Values
 
 		bb := blockResultPool.Get()
 		for i := range fieldNames {
@@ -220,13 +213,9 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 
 	// Obtain step
-	stepStr := r.FormValue("step")
-	if stepStr == "" {
-		stepStr = "1d"
-	}
-	step, err := timeutil.ParseDuration(stepStr)
+	step, err := parseDuration(r, "step", "")
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse 'step' arg: %s", err)
+		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
 	if step <= 0 {
@@ -235,13 +224,9 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 
 	// Obtain offset
-	offsetStr := r.FormValue("offset")
-	if offsetStr == "" {
-		offsetStr = "0s"
-	}
-	offset, err := timeutil.ParseDuration(offsetStr)
+	offset, err := parseDuration(r, "offset", "0s")
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse 'offset' arg: %s", err)
+		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
 
@@ -256,8 +241,7 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 
 	// Add a pipe, which calculates hits over time with the given step and offset for the given fields.
-	ca.q.AddCountByTimePipe(int64(step), int64(offset), fields)
-	start, end := ca.q.GetFilterTimeRange()
+	ca.q.AddCountByTimePipe(step, offset, fields)
 
 	var mLock sync.Mutex
 	m := make(map[string]*hitsSeries)
@@ -267,13 +251,13 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 			return
 		}
 
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		timestampValues := columns[0].Values
 		hitsValues := columns[len(columns)-1].Values
 		columns = columns[1 : len(columns)-1]
 
 		bb := blockResultPool.Get()
-		for i := 0; i < rowsCount; i++ {
+		for i := range rowsCount {
 			timestampNsec, ok := logstorage.TryParseTimestampRFC3339Nano(timestampValues[i])
 			if !ok {
 				logger.Panicf("BUG: cannot parse timestamp=%q", timestampValues[i])
@@ -312,7 +296,7 @@ func ProcessHitsRequest(ctx context.Context, w http.ResponseWriter, r *http.Requ
 	}
 
 	m = getTopHitsSeries(m, fieldsLimit)
-	addMissingZeroHits(m, start, end, int64(step), int64(offset))
+	addMissingZeroHits(m, ca.startAligned, ca.endAligned, step, offset)
 
 	// Write response headers
 	h := w.Header()
@@ -330,8 +314,6 @@ func addMissingZeroHits(m map[string]*hitsSeries, start, end, step, offset int64
 		for _, hs := range m {
 			start = min(start, slices.Min(hs.timestamps))
 		}
-	} else {
-		start -= start%step - offset
 	}
 
 	if end == math.MaxInt64 {
@@ -339,9 +321,9 @@ func addMissingZeroHits(m map[string]*hitsSeries, start, end, step, offset int64
 		for _, hs := range m {
 			end = max(end, slices.Max(hs.timestamps))
 		}
-	} else {
-		end -= start%step - offset
 	}
+
+	start, end = alignStartEndToStep(start, end, step, offset)
 
 	if start > end {
 		// nothing to do
@@ -678,31 +660,29 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 		return
 	}
 
-	refreshIntervalMsecs, err := httputil.GetDuration(r, "refresh_interval", 1000)
+	refreshInterval, err := parseDuration(r, "refresh_interval", "1s")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	refreshInterval := time.Millisecond * time.Duration(refreshIntervalMsecs)
 
-	startOffsetMsecs, err := httputil.GetDuration(r, "start_offset", 5*1000)
+	startOffset, err := parseDuration(r, "start_offset", "5s")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	startOffset := startOffsetMsecs * 1e6
 
-	offsetMsecs, err := httputil.GetDuration(r, "offset", 5000)
+	offset, err := parseDuration(r, "offset", "5s")
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
-	offset := offsetMsecs * 1e6
 
 	ctxWithCancel, cancel := context.WithCancel(ctx)
-	tp := newTailProcessor(cancel)
+	needSortFields := !ca.q.IsFixedOutputFieldsOrder()
+	tp := newTailProcessor(cancel, needSortFields)
 
-	ticker := time.NewTicker(refreshInterval)
+	ticker := time.NewTicker(time.Duration(refreshInterval))
 	defer ticker.Stop()
 
 	end := time.Now().UnixNano() - offset
@@ -769,15 +749,19 @@ type tailProcessor struct {
 
 	mu sync.Mutex
 
+	needSortFields bool
+
 	perStreamRows  map[string][]logRow
 	lastTimestamps map[string]int64
 
 	err error
 }
 
-func newTailProcessor(cancel func()) *tailProcessor {
+func newTailProcessor(cancel func(), needSortFields bool) *tailProcessor {
 	return &tailProcessor{
 		cancel: cancel,
+
+		needSortFields: needSortFields,
 
 		perStreamRows:  make(map[string][]logRow),
 		lastTimestamps: make(map[string]int64),
@@ -805,10 +789,11 @@ func (tp *tailProcessor) writeBlock(_ uint, db *logstorage.DataBlock) {
 	}
 
 	// Copy block rows to tp.perStreamRows
+	columns := db.GetColumns(tp.needSortFields)
 	for i, timestamp := range timestamps {
 		streamID := ""
-		fields := make([]logstorage.Field, len(db.Columns))
-		for j, c := range db.Columns {
+		fields := make([]logstorage.Field, len(columns))
+		for j, c := range columns {
 			name := strings.Clone(c.Name)
 			value := strings.Clone(c.Values[i])
 
@@ -873,13 +858,8 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 	}
 
 	// Obtain step
-	stepStr := r.FormValue("step")
-	if stepStr == "" {
-		stepStr = "1d"
-	}
-	step, err := timeutil.ParseDuration(stepStr)
+	step, err := parseDuration(r, "step", "")
 	if err != nil {
-		err = fmt.Errorf("cannot parse 'step' arg: %s", err)
 		httpserver.SendPrometheusError(w, r, err)
 		return
 	}
@@ -889,7 +869,14 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 		return
 	}
 
-	labelFields, err := ca.q.GetStatsLabelsAddGroupingByTime(int64(step))
+	// Obtain offset
+	offset, err := parseDuration(r, "offset", "0s")
+	if err != nil {
+		httpserver.SendPrometheusError(w, r, err)
+		return
+	}
+
+	labelFields, err := ca.q.GetStatsLabelsAddGroupingByTime(step, offset)
 	if err != nil {
 		httpserver.SendPrometheusError(w, r, err)
 		return
@@ -898,8 +885,9 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 	m := make(map[string]*statsSeries)
 	var mLock sync.Mutex
 
-	addPoint := func(name string, labels []logstorage.Field, p statsPoint) {
-		dst := append([]byte{}, name...)
+	addPoint := func(name string, columnIdx int, labels []logstorage.Field, p statsPoint) {
+		dst := encoding.MarshalUint32(nil, uint32(columnIdx))
+		dst = append(dst, name...)
 		dst = logstorage.MarshalFieldsToJSON(dst, labels)
 		key := string(dst)
 
@@ -920,12 +908,12 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		rowsCount := db.RowsCount()
 
-		columns := db.Columns
+		columns := db.GetColumns(false)
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
-		for i := 0; i < rowsCount; i++ {
+		for i := range rowsCount {
 			// Do not move q.GetTimestamp() outside writeBlock, since ts
 			// must be initialized to query timestamp for every processed log row.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/8312
@@ -947,6 +935,7 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 				}
 			}
 
+			columnIdx := 0
 			for j, c := range columns {
 				if slices.Contains(labelFields, c.Name) {
 					continue
@@ -971,8 +960,9 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 								Timestamp: ts,
 								Value:     strconv.FormatUint(bucket.Hits, 10),
 							}
-							addPoint(name, bucketLabels, p)
+							addPoint(name, columnIdx, bucketLabels, p)
 						}
+						columnIdx++
 
 						continue
 					}
@@ -982,7 +972,8 @@ func ProcessStatsQueryRangeRequest(ctx context.Context, w http.ResponseWriter, r
 					Timestamp: ts,
 					Value:     v,
 				}
-				addPoint(clonedColumnNames[j], labels, p)
+				addPoint(clonedColumnNames[j], columnIdx, labels, p)
+				columnIdx++
 			}
 		}
 	}
@@ -1056,12 +1047,13 @@ func ProcessStatsQueryRequest(ctx context.Context, w http.ResponseWriter, r *htt
 	timestamp := ca.q.GetTimestamp()
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		rowsCount := db.RowsCount()
-		columns := db.Columns
+
+		columns := db.GetColumns(false)
 		clonedColumnNames := make([]string, len(columns))
 		for i, c := range columns {
 			clonedColumnNames[i] = strings.Clone(c.Name)
 		}
-		for i := 0; i < rowsCount; i++ {
+		for i := range rowsCount {
 			labels := make([]logstorage.Field, 0, len(labelFields))
 			for j, c := range columns {
 				if slices.Contains(labelFields, c.Name) {
@@ -1212,16 +1204,18 @@ func ProcessQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 		ca.writeResponseHeaders(h, startTime)
 	})
 
+	needSortFields := !ca.q.IsFixedOutputFieldsOrder()
 	writeBlock := func(workerID uint, db *logstorage.DataBlock) {
 		writeResponseHeadersOnce()
 		rowsCount := db.RowsCount()
 		if rowsCount == 0 {
 			return
 		}
-		columns := db.Columns
+
+		columns := db.GetColumns(needSortFields)
 
 		bw := bwShards.Get(workerID)
-		for i := 0; i < rowsCount; i++ {
+		for i := range rowsCount {
 			WriteJSONRow(bw, columns, i)
 			if len(bw.buf) > 16*1024 {
 				bw.FlushIgnoreErrors()
@@ -1351,6 +1345,12 @@ type commonArgs struct {
 
 	// qs contains query execution statistics.
 	qs logstorage.QueryStats
+
+	// startAligned is the start of the selected time range aligned to the given step.
+	startAligned int64
+
+	// endAligned is the aligned end of the selected time range aligned to the given step.
+	endAligned int64
 }
 
 func (ca *commonArgs) newQueryContext(ctx context.Context) *logstorage.QueryContext {
@@ -1382,9 +1382,9 @@ func parseCommonArgsWithConfig(r *http.Request, skipMaxRangeCheck bool) (*common
 	if err != nil {
 		return nil, err
 	}
-	// Treat HTTP 'end' query arg as exclusive: [start, end)
-	// Convert to inclusive bound for internal filter by subtracting 1ns.
 	if endOK {
+		// Treat HTTP 'end' query arg as exclusive: [start, end)
+		// Convert to inclusive bound for internal filter by subtracting 1ns.
 		if end != math.MinInt64 {
 			end--
 		}
@@ -1425,7 +1425,31 @@ func parseCommonArgsWithConfig(r *http.Request, skipMaxRangeCheck bool) (*common
 		if !endOK {
 			end = math.MaxInt64
 		}
+
+		if stepStr := r.FormValue("step"); stepStr != "" {
+			if step, ok := logstorage.TryParseDuration(stepStr); ok {
+				offset := int64(0)
+				if offsetStr := r.FormValue("offset"); offsetStr != "" {
+					nsecs, ok := logstorage.TryParseDuration(offsetStr)
+					if ok {
+						offset = nsecs
+					}
+				}
+				start, end = alignStartEndToStep(start, end, step, offset)
+			}
+		}
+
 		q.AddTimeFilter(start, end)
+	}
+
+	// Initialize startAligned and endAligned
+	startAligned := int64(math.MinInt64)
+	if startOK {
+		startAligned = start
+	}
+	endAligned := int64(math.MaxInt64)
+	if endOK {
+		endAligned = end
 	}
 
 	// Parse optional extra_filters
@@ -1474,8 +1498,41 @@ func parseCommonArgsWithConfig(r *http.Request, skipMaxRangeCheck bool) (*common
 
 		allowPartialResponse: allowPartialResponse,
 		hiddenFieldsFilters:  hiddenFieldsFilters,
+
+		startAligned: startAligned,
+		endAligned:   endAligned,
 	}
 	return ca, nil
+}
+
+func alignStartEndToStep(start, end, step, offset int64) (int64, int64) {
+	if step <= 0 {
+		return start, end
+	}
+
+	start = logstorage.SubInt64NoOverflow(start, -offset)
+	if start >= 0 {
+		start -= start % step
+	} else {
+		d := step + start%step
+		start = logstorage.SubInt64NoOverflow(start, d)
+	}
+	start = logstorage.SubInt64NoOverflow(start, offset)
+
+	end = logstorage.SubInt64NoOverflow(end, -offset)
+	if end <= 0 {
+		end -= end % step
+	} else {
+		d := step - end%step
+		end = logstorage.SubInt64NoOverflow(end, -d)
+	}
+	end = logstorage.SubInt64NoOverflow(end, offset)
+
+	if end > math.MinInt64 {
+		end--
+	}
+
+	return start, end
 }
 
 func timestampToString(nsecs int64) string {
@@ -1669,4 +1726,16 @@ func (ca *commonArgs) writeResponseHeaders(h http.Header, startTime time.Time) {
 		accessControlExposeHeaders[i] = http.CanonicalHeaderKey(v)
 	}
 	h.Set("Access-Control-Expose-Headers", strings.Join(accessControlExposeHeaders, ", "))
+}
+
+func parseDuration(r *http.Request, argName, defaultValue string) (int64, error) {
+	s := r.FormValue(argName)
+	if s == "" {
+		s = defaultValue
+	}
+	nsecs, ok := logstorage.TryParseDuration(s)
+	if !ok {
+		return 0, fmt.Errorf("cannot parse duration from the arg '%s=%s'", argName, s)
+	}
+	return nsecs, nil
 }

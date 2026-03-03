@@ -1,6 +1,8 @@
 {% import (
 	"slices"
 	"sort"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
 ) %}
 
 {% stripspace %}
@@ -33,7 +35,10 @@
 			fes := m[k]
 			sort.Slice(fes, func(i, j int) bool {
 				a, b := &fes[i], &fes[j]
-				return a.hits > b.hits || a.value < b.value
+				if a.hits == b.hits {
+					return a.value < b.value
+				}
+				return stringsutil.LessNatural(b.hits, a.hits)
 			})
 		%}
 		{% if len(fes) > 0 %}

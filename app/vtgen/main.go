@@ -171,6 +171,7 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 						timeOffset = uint64(time.Now().UnixNano()) - sp.StartTimeUnixNano
 					})
 					// replace TraceID
+					traceIDMutex.Lock()
 					if tid, ok := traceIDMap[sp.TraceID]; ok {
 						// old traceID already seen. use the cached one.
 						sp.TraceID = tid
@@ -186,8 +187,10 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 							logger.Infof(traceID)
 						}
 					}
+					traceIDMutex.Unlock()
 
 					// replace SpanID
+					spanIDMutex.Lock()
 					if sid, ok := spanIDMap[sp.SpanID]; ok {
 						sp.SpanID = sid
 					} else {
@@ -206,6 +209,7 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 						sp.ParentSpanID = parentSpanID
 						spanIDMap[oldParentSpanID] = parentSpanID
 					}
+					spanIDMutex.Unlock()
 
 					// adjust the timestamp of the span.
 					sp.StartTimeUnixNano = sp.StartTimeUnixNano + timeOffset
@@ -279,19 +283,15 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 var traceIDMutex sync.Mutex
 
 func generateTraceID() string {
-	traceIDMutex.Lock()
-	defer traceIDMutex.Unlock()
-
 	h := md5.New()
 	h.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
+	h.Write([]byte(strconv.Itoa(rand.Intn(999999))))
 	return hex.EncodeToString(h.Sum(nil))
 }
 
 var spanIDMutex sync.Mutex
 
 func generateSpanID() string {
-	spanIDMutex.Lock()
-	defer spanIDMutex.Unlock()
 	h := md5.New()
 	h.Write([]byte(strconv.FormatInt(time.Now().UnixNano(), 10)))
 	return hex.EncodeToString(h.Sum(nil))[:16]
