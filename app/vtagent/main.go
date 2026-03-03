@@ -2,7 +2,10 @@ package main
 
 import (
 	"encoding/binary"
+	"flag"
+	"fmt"
 	"net/http"
+	"net/url"
 	"sync"
 	"time"
 
@@ -20,12 +23,8 @@ import (
 var (
 	maxRequestSize    = flagutil.NewBytes("opentelemetry.sampling.maxRequestSize", 16*1024*1024, "The maximum size in bytes of a single OpenTelemetry trace sampling request.")
 	slowTraceDuration = flagutil.NewExtendedDuration("opentelemetry.sampling.slowTraceDuration", "5s", "Traces that last longer than this duration will be sampled as slow traces.")
+	agentAddrs        = flagutil.NewArrayString("agentAddrs", "The addresses to fanout the sampling decision.")
 )
-
-// local test
-var agentAddrs = []string{
-	"http://127.0.0.1:10499/api/v1/remotesampling_decision",
-}
 
 type SamplingTrace struct {
 	TraceID    [16]byte `json:"trace_id"`
@@ -41,6 +40,37 @@ var (
 	waitingTraceMapCur  = map[[16]byte]SamplingTrace{}
 	waitingTraceMapPrev = map[[16]byte]SamplingTrace{}
 )
+
+func initFlags() {
+	flag.Parse()
+
+	if len(*agentAddrs) == 0 {
+		panic("at least one agent address must be specified")
+	}
+
+	for _, addr := range *agentAddrs {
+		if _, err := url.Parse(addr); err != nil {
+			panic(fmt.Errorf("cannot parse agent address %q: %s", addr, err))
+		}
+	}
+}
+
+func main() {
+	initFlags()
+
+	rh := func(w http.ResponseWriter, r *http.Request) bool {
+		switch r.URL.Path {
+		case "/insert/sampling":
+			samplingRequestHandler(w, r)
+			return true
+		}
+		return false
+	}
+	go httpserver.Serve([]string{"0.0.0.0:10430"}, rh, httpserver.ServeOptions{})
+	startBufCleaner(fanoutDecisions, 15*time.Second)
+	sig := procutil.WaitForSigterm()
+	logger.Infof("received signal %s", sig)
+}
 
 func startBufCleaner(handlingFunc func([][16]byte), interval time.Duration) {
 	go func() {
@@ -101,7 +131,7 @@ func fanoutDecisions(tidList [][16]byte) {
 
 	bb.B = zstd.CompressLevel(bb.B[:0], decisionBytes, 1)
 
-	for _, addr := range agentAddrs {
+	for _, addr := range *agentAddrs {
 		req, err := http.NewRequest(http.MethodPost, addr, bb.NewReader())
 		if err != nil {
 			logger.Panicf("BUG: cannot create a new HTTP request to %q: %s", addr, err)
@@ -120,21 +150,6 @@ func fanoutDecisions(tidList [][16]byte) {
 }
 
 var zstdBufPool bytesutil.ByteBufferPool
-
-func main() {
-	rh := func(w http.ResponseWriter, r *http.Request) bool {
-		switch r.URL.Path {
-		case "/insert/sampling":
-			samplingRequestHandler(w, r)
-			return true
-		}
-		return false
-	}
-	go httpserver.Serve([]string{"0.0.0.0:10430"}, rh, httpserver.ServeOptions{})
-	startBufCleaner(fanoutDecisions, 15*time.Second)
-	sig := procutil.WaitForSigterm()
-	logger.Infof("received signal %s", sig)
-}
 
 var (
 	decisionSampled    uint8 = 1
