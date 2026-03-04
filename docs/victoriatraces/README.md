@@ -553,6 +553,8 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	The following unit suffixes are required: s (second), m (minute), h (hour), d (day), w (week), y (year). Bare numbers without units are not allowed (except 0) (default 0)
   -search.maxQueueDuration duration
     	The maximum time the search request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
+  -search.maxTraces uint
+    	The maximum number of traces that can be returned in a single search request. This limit affects Jaeger's /api/traces API. (default 1000)
   -search.traceMaxDurationWindow duration
     	The window of searching for the rest trace spans after finding one span.It allows extending the search start time and end time by -search.traceMaxDurationWindow to make sure all spans are included.It affects both Jaeger's /api/traces and /api/traces/<trace_id> APIs. (default 1m0s)
   -search.traceMaxServiceNameList uint

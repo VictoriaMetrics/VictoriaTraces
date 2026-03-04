@@ -26,6 +26,8 @@ var (
 		"This limit affects Jaeger's /api/services API.")
 	TraceMaxSpanNameList = flag.Uint64("search.traceMaxSpanNameList", 1000, "The maximum number of span name can return in a get span name request. "+
 		"This limit affects Jaeger's /api/services/*/operations API.")
+	TraceMaxTraces = flag.Uint64("search.maxTraces", 1000, "The maximum number of traces that can be returned in a single search request. "+
+		"This limit affects Jaeger's /api/traces API.")
 
 	LatencyOffset = flag.Duration("search.latencyOffset", 30*time.Second, "The time when a trace become visible in query results after the collection. see -insert.traceMaxDuration as well. (default 30s)")
 )

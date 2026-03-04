@@ -20,10 +20,6 @@ import (
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
-const (
-	maxLimit = 1000
-)
-
 // Jaeger Query APIs metrics
 var (
 	jaegerServicesRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/jaeger/api/services"}`)
@@ -334,9 +330,16 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse limit [%s]: %w", limit, err)
 		}
-		if p.Limit > maxLimit {
-			return nil, fmt.Errorf("limit should be not higher than %d", maxLimit)
+		if p.Limit < 0 {
+			return nil, fmt.Errorf("limit must be non-negative, got %d", p.Limit)
 		}
+		if uint64(p.Limit) > *tracecommon.TraceMaxTraces {
+			return nil, fmt.Errorf("limit should be not higher than %d", *tracecommon.TraceMaxTraces)
+		}
+	}
+	// Enforce -search.maxTraces even when limit is omitted (default 20 may exceed configured max)
+	if uint64(p.Limit) > *tracecommon.TraceMaxTraces {
+		p.Limit = int(*tracecommon.TraceMaxTraces)
 	}
 
 	startTimeMin := q.Get("start")
