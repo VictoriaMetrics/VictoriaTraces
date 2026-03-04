@@ -232,6 +232,11 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 			reqBytes = append(flagBytes, reqBytes...)
 		}
 
+		bb, err := createGzipBytes(reqBytes)
+		if err != nil {
+			panic(err)
+		}
+
 		// send request to each address.
 		for addrIdx, addr := range addrList {
 			var (
@@ -242,7 +247,7 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 
 			// prepare request.
 			if *grpcMode {
-				httpReq, err = CreateCompressedRequest("POST", addr+"/opentelemetry.proto.collector.trace.v1.TraceService/Export", reqBytes)
+				httpReq, err = CreateCompressedRequest("POST", addr+"/opentelemetry.proto.collector.trace.v1.TraceService/Export", bb)
 				if err != nil {
 					logger.Errorf("cannot create http request for addr %q: %s", addr, err)
 					continue
@@ -254,16 +259,12 @@ func doHTPPRequest(reqBodyList [][]byte, limiter *rate.Limiter, addrList, authHe
 				httpReq.Header.Add("User-Agent", "vtgen")
 				httpClient = http2Client
 			} else {
-				httpReq, err = CreateCompressedRequest("POST", addr, reqBytes)
+				httpReq, err = CreateCompressedRequest("POST", addr, bb)
 				if err != nil {
 					logger.Errorf("cannot create http request for addr %q: %s", addr, err)
 					continue
 				}
 				httpReq.Header.Add("content-type", "application/x-protobuf")
-			}
-
-			if *authHeaders != "" {
-				httpReq.Header.Add("authorization", authHeaderList[addrIdx])
 			}
 
 			// do request and record metrics.
@@ -298,17 +299,19 @@ func generateSpanID() string {
 	return hex.EncodeToString(h.Sum(nil))[:16]
 }
 
-func CreateCompressedRequest(method, url string, body []byte) (*http.Request, error) {
+func createGzipBytes(body []byte) ([]byte, error) {
 	var b bytes.Buffer
 
 	gw := gzip.NewWriter(&b)
-
 	if _, err := gw.Write(body); err != nil {
 		return nil, err
 	}
 	gw.Close()
+	return b.Bytes(), nil
+}
 
-	r, err := http.NewRequest(method, url, &b)
+func CreateCompressedRequest(method, url string, body []byte) (*http.Request, error) {
+	r, err := http.NewRequest(method, url, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
