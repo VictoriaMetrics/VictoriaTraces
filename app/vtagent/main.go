@@ -16,14 +16,16 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil"
+	"github.com/cespare/xxhash/v2"
 
 	_ "net/http/pprof"
 )
 
 var (
-	maxRequestSize    = flagutil.NewBytes("opentelemetry.sampling.maxRequestSize", 16*1024*1024, "The maximum size in bytes of a single OpenTelemetry trace sampling request.")
-	slowTraceDuration = flagutil.NewExtendedDuration("opentelemetry.sampling.slowTraceDuration", "5s", "Traces that last longer than this duration will be sampled as slow traces.")
-	agentAddrs        = flagutil.NewArrayString("agentAddrs", "The addresses to fanout the sampling decision.")
+	maxRequestSize      = flagutil.NewBytes("opentelemetry.sampling.maxRequestSize", 16*1024*1024, "The maximum size in bytes of a single OpenTelemetry trace sampling request.")
+	slowTraceDuration   = flagutil.NewExtendedDuration("opentelemetry.sampling.slowTraceDuration", "5s", "Traces that last longer than this duration will be sampled as slow traces.")
+	agentAddrs          = flagutil.NewArrayString("agentAddrs", "The addresses to fanout the sampling decision.")
+	probabilisticSample = flag.Int("opentelemetry.sampling.percentage", 0, "The percentage of samples that should be sampled.")
 )
 
 type SamplingTrace struct {
@@ -89,12 +91,16 @@ func startBufCleaner(handlingFunc func([][16]byte), interval time.Duration) {
 
 					duration := trace.EndTime - trace.StartTime
 					if duration > uint64((*slowTraceDuration).Duration().Nanoseconds()) {
-						logger.Infof("sampled for %d ms", duration/uint64(time.Millisecond))
 						tidList = append(tidList, trace.TraceID)
 						continue
 					}
 
 					if trace.StatusCode == 2 {
+						tidList = append(tidList, trace.TraceID)
+						continue
+					}
+
+					if int(xxhash.Sum64(trace.TraceID[:])%100) < *probabilisticSample {
 						tidList = append(tidList, trace.TraceID)
 						continue
 					}
