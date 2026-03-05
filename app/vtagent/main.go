@@ -55,6 +55,10 @@ func initFlags() {
 			panic(fmt.Errorf("cannot parse agent address %q: %s", addr, err))
 		}
 	}
+
+	if *probabilisticSample < 0 || *probabilisticSample > 100 {
+		panic("-opentelemetry.sampling.percentage must be [0, 100].")
+	}
 }
 
 func main() {
