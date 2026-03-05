@@ -229,7 +229,12 @@ func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, param *Tr
 	}
 	if len(param.Attributes) > 0 {
 		for k, v := range param.Attributes {
-			qStr += fmt.Sprintf(`AND %q:=%q `, k, v)
+			if strings.HasPrefix(v, "~") {
+				// ~ prefix forces regex (e.g. tags={"key":"~value.*"})
+				qStr += fmt.Sprintf(`AND %q:re(%s) `, k, strconv.Quote(v[1:]))
+			} else {
+				qStr += fmt.Sprintf(`AND %q:=%q `, k, v)
+			}
 		}
 	}
 	if param.DurationMin > 0 {

@@ -59,7 +59,7 @@ The `/select/jaeger/api/traces` HTTP endpoint provides the following params:
 
 - `service`: the service name.
 - `operation`: the span name (also known as the operation name in Jaeger).
-- `tags`: the attributes (also known as tags) filter, example: `{"key":"value"}`
+- `tags`: the attributes (also known as tags) filter, example: `{"key":"value"}`. Prefix a value with `~` to use regex matching, e.g. `{"key":"~value.*"}`
 - `start`: the start timestamp in unix microseconds.
 - `end`: the end timestamp in unix microseconds.
 - `minDuration`: the minimum duration of the span, with units `ns`, `us`, `ms`, `s`, `m`, or `h`.
@@ -216,3 +216,4 @@ Some valid filter examples:
 - Multiple span attribute filters: `error=unset otel.scope.name=redis-manual`
 - Single resource attribute filter: `resource_attr:telemetry.sdk.language=go`
 - Span attribute and resource attribute filters: `span.kind=client resource_attr:os.type=linux`
+- Regex filter: prefix the value with `~` to match by regex, e.g. `{"order_id":"~abc.*"}` or `{"http.status_code":"~^2"}` for values starting with "2"
