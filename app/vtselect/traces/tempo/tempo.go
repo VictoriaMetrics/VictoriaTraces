@@ -36,6 +36,9 @@ var (
 
 	tempoQueryV2Requests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/v2/traces/*"}`)
 	tempoQueryV2Duration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/v2/traces/*"}`)
+
+	tempoMetricsQueryRangeRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/metrics/query_range"}`)
+	tempoMetricsQueryRangeDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/metrics/query_range"}`)
 )
 
 var (
@@ -64,6 +67,11 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		tempoSearchRequests.Inc()
 		processSearchRequest(ctx, w, r)
 		tempoSearchDuration.UpdateDuration(startTime)
+		return true
+	} else if path == "/select/tempo/api/metrics/query_range" {
+		tempoMetricsQueryRangeRequests.Inc()
+		processMetricsQueryRangeRequest(ctx, w, r)
+		tempoMetricsQueryRangeDuration.UpdateDuration(startTime)
 		return true
 	} else if strings.HasPrefix(path, "/select/tempo/api/v2/traces/") && len(path) > len("/select/tempo/api/v2/traces/") {
 		tempoQueryV2Requests.Inc()

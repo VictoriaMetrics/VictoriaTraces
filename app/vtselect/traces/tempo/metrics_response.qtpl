@@ -1,0 +1,65 @@
+{% import (
+	"strconv"
+) %}
+
+{% stripspace %}
+
+{% func MetricsQueryRangeResponse(series []tempoMetricsSeries) %}
+{
+	"series":[
+		{% if len(series) > 0 %}
+			{%= metricsSeriesJson(&series[0]) %}
+			{% for i := 1; i < len(series); i++ %}
+				,{%= metricsSeriesJson(&series[i]) %}
+			{% endfor %}
+		{% endif %}
+	],
+	"metrics":{
+		"inspectedBytes":"0",
+		"inspectedTraces":0,
+		"totalJobs":0,
+		"completedJobs":0
+	},
+	"status":"COMPLETE"
+}
+{% endfunc %}
+
+{% func metricsSeriesJson(s *tempoMetricsSeries) %}
+{
+	"labels":[
+		{% if len(s.Labels) > 0 %}
+			{%= metricsLabelJson(&s.Labels[0]) %}
+			{% for i := 1; i < len(s.Labels); i++ %}
+				,{%= metricsLabelJson(&s.Labels[i]) %}
+			{% endfor %}
+		{% endif %}
+	],
+	"samples":[
+		{% if len(s.Samples) > 0 %}
+			{%= metricsSampleJson(&s.Samples[0]) %}
+			{% for i := 1; i < len(s.Samples); i++ %}
+				,{%= metricsSampleJson(&s.Samples[i]) %}
+			{% endfor %}
+		{% endif %}
+	],
+	"exemplars":[]
+}
+{% endfunc %}
+
+{% func metricsLabelJson(l *tempoLabel) %}
+{
+	"key":{%q= l.Key %},
+	"value":{
+		"stringValue":{%q= l.Value %}
+	}
+}
+{% endfunc %}
+
+{% func metricsSampleJson(s *tempoSample) %}
+{
+	"timestampMs":"{%s= strconv.FormatInt(s.TimestampMs, 10) %}",
+	"value":{%f= s.Value %}
+}
+{% endfunc %}
+
+{% endstripspace %}
