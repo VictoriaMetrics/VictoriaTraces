@@ -13,6 +13,13 @@ type filterCommon struct {
 	value     string
 }
 
+// statusValueMap maps TraceQL status names to OTEL StatusCode numeric values.
+var statusValueMap = map[string]string{
+	"unset": "0",
+	"ok":    "1",
+	"error": "2",
+}
+
 func (fc *filterCommon) String() string {
 	// traceDuration must be treated as pipe
 	if fc.fieldName == "traceDuration" {
@@ -26,6 +33,14 @@ func (fc *filterCommon) String() string {
 	}
 
 	v := fc.value
+
+	// Map status names (error, ok, unset) to numeric OTEL StatusCode values.
+	if fc.fieldName == "status" {
+		if numeric, ok := statusValueMap[strings.ToLower(v)]; ok {
+			v = numeric
+		}
+	}
+
 	if duration, ok := tryParseDuration(v); ok {
 		v = strconv.FormatInt(duration, 10)
 	}

@@ -51,6 +51,35 @@ func (q *Query) HasPipe() bool {
 	return len(q.pipes) > 0
 }
 
+// HasNonHintPipe returns true if the query contains pipes other than display hints
+// (select, by, with). These hint pipes are safe to ignore in search/tag queries.
+func (q *Query) HasNonHintPipe() bool {
+	for _, p := range q.pipes {
+		switch p.(type) {
+		case *pipeSelect, *pipeBy, *pipeWith:
+			continue
+		default:
+			return true
+		}
+	}
+	return false
+}
+
+// StripHintPipes removes display-hint pipes (select, by, with) from the query
+// so they don't leak into LogsQL where they have different semantics.
+func (q *Query) StripHintPipes() {
+	var kept []pipe
+	for _, p := range q.pipes {
+		switch p.(type) {
+		case *pipeSelect, *pipeBy, *pipeWith:
+			continue
+		default:
+			kept = append(kept, p)
+		}
+	}
+	q.pipes = kept
+}
+
 // IsMetricsQuery returns true if this query contains metrics pipes (rate, *_over_time).
 func (q *Query) IsMetricsQuery() bool {
 	for _, p := range q.pipes {

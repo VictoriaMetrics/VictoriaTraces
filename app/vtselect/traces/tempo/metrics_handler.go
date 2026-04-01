@@ -308,6 +308,12 @@ func buildCompareSeries(results []compareAttrResult, topN int) []tempoMetricsSer
 
 		traceQLName := traceql.VTFieldToTraceQL(ar.attrName)
 
+		// Reverse-map known numeric values to human-readable names.
+		if ar.attrName == otelpb.StatusCodeField {
+			ar.baseline = remapStatusValues(ar.baseline)
+			ar.selection = remapStatusValues(ar.selection)
+		}
+
 		// Rank values by total count (baseline + selection combined).
 		type valueTotal struct {
 			value string
@@ -429,6 +435,25 @@ func computeDivergence(ar compareAttrResult) float64 {
 		divergence += math.Abs(selProp - baseProp)
 	}
 	return divergence
+}
+
+// statusCodeToName maps numeric OTEL StatusCode values to TraceQL names.
+var statusCodeToName = map[string]string{
+	"0": "unset",
+	"1": "ok",
+	"2": "error",
+}
+
+func remapStatusValues(counts map[string]map[int64]float64) map[string]map[int64]float64 {
+	result := make(map[string]map[int64]float64, len(counts))
+	for v, ts := range counts {
+		name := v
+		if mapped, ok := statusCodeToName[v]; ok {
+			name = mapped
+		}
+		result[name] = ts
+	}
+	return result
 }
 
 func makeCompareSeries(metaType, attrName, attrValue string, tsCounts map[int64]float64, timestamps []int64) tempoMetricsSeries {
