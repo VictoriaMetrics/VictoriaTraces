@@ -20,6 +20,24 @@ var statusValueMap = map[string]string{
 	"error": "2",
 }
 
+// statusCodeMap is the reverse of statusValueMap.
+var statusCodeMap = func() map[string]string {
+	m := make(map[string]string, len(statusValueMap))
+	for name, code := range statusValueMap {
+		m[code] = name
+	}
+	return m
+}()
+
+// StatusCodeToName converts a numeric OTEL StatusCode ("2") to its TraceQL name ("error").
+// Returns the input unchanged if not a known status code.
+func StatusCodeToName(code string) string {
+	if name, ok := statusCodeMap[code]; ok {
+		return name
+	}
+	return code
+}
+
 func (fc *filterCommon) String() string {
 	// traceDuration must be treated as pipe
 	if fc.fieldName == "traceDuration" {
