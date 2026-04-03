@@ -8,7 +8,7 @@ require (
 	github.com/VictoriaMetrics/VictoriaLogs v1.47.1-0.20260225221819-a408207c2242
 	github.com/VictoriaMetrics/VictoriaMetrics v1.135.0
 	github.com/VictoriaMetrics/easyproto v1.2.0
-	github.com/VictoriaMetrics/metrics v1.41.2
+	github.com/VictoriaMetrics/metrics v1.43.1
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/google/go-cmp v0.7.0
 	github.com/klauspost/compress v1.18.4

@@ -24,6 +24,7 @@ Released at 2026-03-02
 * SECURITY: upgrade base docker image (Alpine) from 3.22.2 to 3.23.3. See [Alpine 3.23.3 release notes](https://www.alpinelinux.org/posts/Alpine-3.20.9-3.21.6-3.22.3-3.23.3-released.html).
 
 * BUGFIX: fix VictoriaTraces Docker OCI labels `org.opencontainers.image.source` and `org.opencontainers.image.documentation`: point them to VictoriaTraces repo/docs instead of VictoriaMetrics.
+* BUGFIX: All VictoriaTraces components: Fix `unsupported` metric type display in exposed metric metadata for summaries and quantiles. This `unsupported` type exists when a summary is not updated within a certain time window. See [#120](https://github.com/VictoriaMetrics/metrics/issues/120) for details.
 
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect, vtstorage in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): (experimental) add support for [Tempo datasource APIs](https://grafana.com/docs/tempo/latest/api_docs/). This starts with support for the basic auto-completion `/tags`, search `/search`, and `/v2/traces/*` APIs.
   TraceQL metrics and pipelines are not yet available in this release.
