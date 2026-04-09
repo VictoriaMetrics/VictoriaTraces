@@ -216,4 +216,6 @@ Some valid filter examples:
 - Multiple span attribute filters: `error=unset otel.scope.name=redis-manual`
 - Single resource attribute filter: `resource_attr:telemetry.sdk.language=go`
 - Span attribute and resource attribute filters: `span.kind=client resource_attr:os.type=linux`
-- Regex filter: prefix the value with `~` to match by regex, e.g. `{"order_id":"~abc.*"}` or `{"http.status_code":"~^2"}` for values starting with "2"
+- Multiple regex filters: `span.kind=~cli.* http.status_code:~^2`
+
+Note that the examples are for user input on the Jaeger frontend, which parses and sends the request in JSON format later.
