@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support positive regex matching in the Jaeger query API when filtering traces by tags. See [the pull request #100](https://github.com/VictoriaMetrics/VictoriaTraces/pull/116) for examples. Thank @emamihe for the pull request.
+
 ## [v0.8.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.8.0)
 
 Released at 2026-03-02
