@@ -80,6 +80,14 @@ func testServiceGraphGenerationJaegerQuery(tc *at.TestCase, sut at.VictoriaTrace
 			},
 		},
 		CmpOpts: []cmp.Option{
+			cmpopts.SortSlices(func(i, j at.DependenciesResponseData) bool {
+				if i.Parent != j.Parent {
+					return i.Parent < j.Parent
+				} else if i.Child != j.Child {
+					return i.Child < j.Child
+				}
+				return i.CallCount < j.CallCount
+			}),
 			cmpopts.IgnoreFields(at.JaegerAPIDependenciesResponse{}, "Errors", "Limit", "Offset", "Total"),
 			cmpopts.IgnoreFields(at.DependenciesResponseData{}, "CallCount"),
 		},
