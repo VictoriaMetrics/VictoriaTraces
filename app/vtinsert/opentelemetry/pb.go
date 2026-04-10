@@ -258,7 +258,7 @@ func decodeSpan(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (startTimeUnix
 		eventIdx        int
 		linkIdx         int
 
-		// special fields that must be appneded at the end of the fields slice
+		// special fields that must be appended at the end of the fields slice
 		// startTimeUnixNano uint64
 		// endTimeUnixNano uint64
 		traceID string
@@ -494,7 +494,7 @@ func decodeLink(src []byte, fs *logstorage.Fields, fb *fmtBuffer, linkIdx int) (
 		case 4:
 			data, ok := fc.MessageData()
 			if !ok {
-				return fmt.Errorf("cannot read aspan link ttributes data")
+				return fmt.Errorf("cannot read span link attributes data")
 			}
 			if err = decodeKeyValueWithPrefixSuffix(data, fs, fb, "", pb.LinkPrefix+pb.LinkAttrPrefix, linkFieldSuffix); err != nil {
 				return fmt.Errorf("cannot decode span link attributes: %w", err)

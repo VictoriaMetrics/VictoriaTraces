@@ -705,3 +705,99 @@ func GetServiceGraphTimeRange(ctx context.Context, tenantID logstorage.TenantID,
 
 	return rows, nil
 }
+
+// GetServiceDBGraphTimeRange returns service-to-db relations (parent, child, callCount) for the given tenant and time range.
+func GetServiceDBGraphTimeRange(ctx context.Context, tenantID logstorage.TenantID, startTime, endTime time.Time, limit uint64) ([][]logstorage.Field, error) {
+	cp := &tracecommon.CommonParams{
+		TenantIDs: []logstorage.TenantID{tenantID},
+	}
+
+	// (NOT "span_attr:db.system.name": "") AND (kind:3) | fields resource_attr:service.name, span_attr:db.system.name | rename resource_attr:service.name as parent, span_attr:db.system.name as child | stats by (parent, child) count() callCount
+	qStr := fmt.Sprintf(
+		`(NOT "%s":"") AND (%s:%d) | fields %s, %s | rename %s as %s, %s as %s | stats by (%s, %s) count() %s`,
+		// filters
+		otelpb.SpanAttrDbSystemName, otelpb.KindField, otelpb.SpanKind(3),
+		// fields
+		otelpb.ResourceAttrServiceName, otelpb.SpanAttrDbSystemName,
+		// rename
+		otelpb.ResourceAttrServiceName, otelpb.ServiceGraphParentFieldName,
+		otelpb.SpanAttrDbSystemName, otelpb.ServiceGraphChildFieldName,
+		// stats by
+		otelpb.ServiceGraphParentFieldName, otelpb.ServiceGraphChildFieldName,
+		// count()
+		otelpb.ServiceGraphCallCountFieldName,
+	)
+
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, endTime.UnixNano())
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse service db query [%s]: %w", qStr, err)
+	}
+	q.AddTimeFilter(startTime.UnixNano(), endTime.UnixNano())
+	if limit > 0 {
+		q.AddPipeOffsetLimit(0, limit)
+	}
+
+	cp.Query = q
+	qctx := cp.NewQueryContext(ctx)
+	defer cp.UpdatePerQueryStatsMetrics()
+
+	var rowsLock sync.Mutex
+	var rows [][]logstorage.Field
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		columns := db.GetColumns(false)
+		if len(columns) == 0 {
+			return
+		}
+		clonedColumnNames := make([]string, len(columns))
+		valuesCount := 0
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+			if len(c.Values) > valuesCount {
+				valuesCount = len(c.Values)
+			}
+		}
+		if valuesCount == 0 {
+			return
+		}
+		for i := 0; i < valuesCount; i++ {
+			fields := make([]logstorage.Field, 0, len(columns))
+			for j := range clonedColumnNames {
+				fields = append(
+					fields,
+					logstorage.Field{
+						Name:  clonedColumnNames[j],
+						Value: strings.Clone(columns[j].Values[i]),
+					},
+				)
+			}
+			rowsLock.Lock()
+			rows = append(rows, fields)
+			rowsLock.Unlock()
+		}
+	}
+
+	if err = vtstorage.RunQuery(qctx, writeBlock); err != nil {
+		return nil, fmt.Errorf("cannot execute middleware query [%s]: %w", qStr, err)
+	}
+
+	// rename `child` node's name (e.g. `redis`) to service.name + child name (e.g. `serviceA:redis`)
+	for i := range rows {
+		parentName := ""
+		for j := range rows[i] {
+			if rows[i][j].Name == otelpb.ServiceGraphParentFieldName {
+				parentName = rows[i][j].Value
+				break
+			}
+		}
+		if parentName == "" {
+			continue
+		}
+		for j := range rows[i] {
+			if rows[i][j].Name == otelpb.ServiceGraphChildFieldName {
+				rows[i][j].Value = parentName + ":" + rows[i][j].Value
+				break
+			}
+		}
+	}
+	return rows, nil
+}

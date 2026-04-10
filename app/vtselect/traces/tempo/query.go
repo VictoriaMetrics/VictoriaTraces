@@ -21,7 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/traceql"
 )
 
-// Q: Why the query part is seperated from `app/vtselect/traces/query`
+// Q: Why the query part is separated from `app/vtselect/traces/query`
 //
 // A: The Tempo API in VictoriaTraces is experimental, and we observed some unstable structure in the query and response.
 //

@@ -348,7 +348,7 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -defaultMsgValue string
     	Default value for _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field (default "-")
   -defaultParallelReaders int
-    	Default number of parallel data readers to use for executing every query; higher number of readers may help increasing query performance on high-latency storage such as NFS or S3 at the cost of higher RAM usage; see https://docs.victoriametrics.com/victorialogs/logsql/#parallel_readers-query-option (default 48)
+    	Default number of parallel data readers to use for executing every query; higher number of readers may help increasing query performance on high-latency storage such as NFS or S3 at the cost of higher RAM usage; see https://docs.victoriametrics.com/victorialogs/logsql/#parallel_readers-query-option (default 16)
   -delete.enable
     	Whether to enable /delete/* HTTP endpoints
   -enableTCP6
@@ -376,7 +376,7 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -fs.disableMmap
     	Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -fs.maxConcurrency int
-    	The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 256)
+    	The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 128)
   -futureRetention value
     	Log entries with timestamps bigger than now+futureRetention are rejected during data ingestion; see https://docs.victoriametrics.com/victoriatraces/#retention
     	The following optional suffixes are supported: s (second), h (hour), d (day), w (week), M (month), y (year). If suffix isn't set, then the duration is counted in months (default 2d)
@@ -477,7 +477,7 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	Trace spans with timestamps older than now-maxBackfillAge are rejected during data ingestion; see https://docs.victoriametrics.com/victorialogs/#backfilling
     	The following optional suffixes are supported: s (second), h (hour), d (day), w (week), M (month), y (year). If suffix isn't set, then the duration is counted in months (default 0)
   -maxConcurrentInserts int
-    	The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 48)
+    	The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 16)
   -memory.allowedBytes size
     	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
     	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -545,7 +545,7 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
   -search.logSlowQueryDuration duration
     	Log queries with execution time exceeding this value. Zero disables slow query logging (default 5s)
   -search.maxConcurrentRequests int
-    	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 16)
+    	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 8)
   -search.maxQueryDuration duration
     	The maximum duration for query execution. It can be overridden to a smaller value on a per-query basis via 'timeout' query arg (default 30s)
   -search.maxQueryTimeRange value
@@ -571,6 +571,8 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
     	Whether to disable /select/* HTTP endpoints
   -select.disableCompression
     	Whether to disable compression for select query responses received from -storageNode nodes. Disabled compression reduces CPU usage at the cost of higher network usage
+  -servicegraph.databaseTaskLimit uint
+    	How many service-database graph relations each task could fetch for each tenant. It requires setting -servicegraph.enableTask=true. Setting it to 0 will stop VictoriaTraces from generating service-database graph relations. (default 1000)
   -servicegraph.enableTask
     	Whether to enable background task for generating service graph. It should only be enabled on VictoriaTraces single-node or vtstorage.
   -servicegraph.taskInterval duration
