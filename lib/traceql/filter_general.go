@@ -45,7 +45,8 @@ func (fc *filterCommon) String() string {
 	}
 
 	// nestedSetParent<0 is Tempo's way to select root spans.
-	// Map it to empty parent_span_id check in VictoriaTraces.
+	// Query the trace ID index stream which has has_root_span field — much faster
+	// than scanning parent_span_id across all spans.
 	if fc.fieldName == "nestedSetParent" && fc.op == "<" && fc.value == "0" {
 		return otelpb.ParentSpanIDField + `:=""`
 	}
