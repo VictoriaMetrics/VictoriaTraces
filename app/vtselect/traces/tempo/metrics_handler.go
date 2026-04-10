@@ -64,6 +64,12 @@ func processMetricsQueryRangeRequest(ctx context.Context, w http.ResponseWriter,
 			httpserver.Errorf(w, r, "cannot execute query: %s", err)
 			return
 		}
+
+		// Collect exemplars — sample trace IDs for clickable links in Grafana.
+		exemplars, exemplarErr := collectExemplars(ctx, cp, translation.baseFilter, params.start.UnixNano(), params.end.UnixNano(), params.step, defaultMaxExemplars)
+		if exemplarErr == nil && len(exemplars) > 0 {
+			attachExemplarsToSeries(allSeries, exemplars)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -733,6 +739,158 @@ func formatDurationNs(ns float64) string {
 	default:
 		return fmt.Sprintf("%.3g ns", ns)
 	}
+}
+
+const defaultMaxExemplars = 100
+
+// collectExemplars samples trace IDs from spans matching the filter for use as exemplars.
+// It runs a lightweight query to get a spread of trace IDs across the time range.
+func collectExemplars(ctx context.Context, cp *tracecommon.CommonParams, filterStr string, startNs, endNs, stepNs int64, maxExemplars int) ([]tempoExemplar, error) {
+	if maxExemplars <= 0 {
+		maxExemplars = defaultMaxExemplars
+	}
+
+	// Query: sample spans spread across the time range using time-bucketed sampling.
+	// Use uniq_values to get one trace_id per time bucket.
+	bucketCount := maxExemplars
+	bucketSize := (endNs - startNs) / int64(bucketCount)
+	if bucketSize < 1e9 {
+		bucketSize = 1e9 // minimum 1 second buckets
+	}
+	bucketSizeStr := strconv.FormatFloat(float64(bucketSize)/1e9, 'f', -1, 64) + "s"
+
+	qStr := fmt.Sprintf("%s | stats by (_time:%s) any(%s) as tid, any(%s) as sid, any(%s) as dur",
+		filterStr, bucketSizeStr, otelpb.TraceIDField, otelpb.SpanIDField, otelpb.DurationField)
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, endNs)
+	if err != nil {
+		return nil, err
+	}
+	q.AddTimeFilter(startNs, endNs)
+
+	type rawExemplar struct {
+		traceID  string
+		spanID   string
+		duration float64
+		tsNs     int64
+	}
+
+	var exemplars []rawExemplar
+	var mu sync.Mutex
+	seen := make(map[string]bool) // dedup by trace_id
+
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		rowsCount := db.RowsCount()
+		columns := db.GetColumns(false)
+
+		for i := range rowsCount {
+			var traceID, spanID string
+			var duration float64
+			tsNs := q.GetTimestamp()
+
+			for _, c := range columns {
+				switch c.Name {
+				case "tid":
+					traceID = strings.Clone(c.Values[i])
+				case "sid":
+					spanID = strings.Clone(c.Values[i])
+				case "dur":
+					duration, _ = strconv.ParseFloat(c.Values[i], 64)
+				case "_time":
+					if nsec, ok := logstorage.TryParseTimestampRFC3339Nano(c.Values[i]); ok {
+						tsNs = nsec
+					}
+				}
+			}
+
+			if traceID == "" {
+				continue
+			}
+
+			mu.Lock()
+			if !seen[traceID] && len(exemplars) < maxExemplars {
+				seen[traceID] = true
+				exemplars = append(exemplars, rawExemplar{
+					traceID:  traceID,
+					spanID:   spanID,
+					duration: duration,
+					tsNs:     tsNs,
+				})
+			}
+			mu.Unlock()
+		}
+	}
+
+	cpCopy := *cp
+	cpCopy.Query = q
+	qctx := cpCopy.NewQueryContext(ctx)
+	defer cpCopy.UpdatePerQueryStatsMetrics()
+
+	if err := vtstorage.RunQuery(qctx, writeBlock); err != nil {
+		return nil, err
+	}
+
+	result := make([]tempoExemplar, len(exemplars))
+	for i, e := range exemplars {
+		result[i] = tempoExemplar{
+			TraceID:     e.traceID,
+			SpanID:      e.spanID,
+			TimestampMs: e.tsNs / 1e6,
+			Value:       e.duration / 1e9, // span duration in seconds
+		}
+	}
+	return result, nil
+}
+
+// attachExemplarsToSeries distributes exemplars across series and sets each exemplar's
+// value to the corresponding metric sample value so dots appear on the chart line.
+func attachExemplarsToSeries(series []tempoMetricsSeries, exemplars []tempoExemplar) {
+	if len(series) == 0 || len(exemplars) == 0 {
+		return
+	}
+
+	// For single series (no by-clause), attach all exemplars.
+	if len(series) == 1 {
+		snapExemplarValues(exemplars, series[0].Samples)
+		series[0].Exemplars = exemplars
+		return
+	}
+
+	// For multiple series, distribute exemplars round-robin.
+	for i := range exemplars {
+		idx := i % len(series)
+		series[idx].Exemplars = append(series[idx].Exemplars, exemplars[i])
+	}
+	// Snap values for each series.
+	for i := range series {
+		snapExemplarValues(series[i].Exemplars, series[i].Samples)
+	}
+}
+
+// snapExemplarValues sets each exemplar's value to the nearest sample's value
+// so exemplar dots appear on the chart line instead of at the bottom.
+func snapExemplarValues(exemplars []tempoExemplar, samples []tempoSample) {
+	if len(samples) == 0 {
+		return
+	}
+	for i := range exemplars {
+		bestIdx := 0
+		bestDist := abs64(exemplars[i].TimestampMs - samples[0].TimestampMs)
+		for j := 1; j < len(samples); j++ {
+			d := abs64(exemplars[i].TimestampMs - samples[j].TimestampMs)
+			if d < bestDist {
+				bestDist = d
+				bestIdx = j
+			}
+		}
+		exemplars[i].Value = samples[bestIdx].Value
+	}
+}
+
+func abs64(x int64) int64 {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
 
 func marshalLabels(labels []logstorage.Field) string {

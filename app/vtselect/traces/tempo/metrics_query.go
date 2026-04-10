@@ -49,7 +49,8 @@ func translateMetricsQuery(traceQLStr string, timestamp int64) (*metricsQueryTra
 	}
 
 	result := &metricsQueryTranslation{
-		byFields: vtByFields,
+		byFields:   vtByFields,
+		baseFilter: filterStr, // used by exemplar collection and compare queries
 	}
 
 	if funcName == "compare" && compareParams != nil {

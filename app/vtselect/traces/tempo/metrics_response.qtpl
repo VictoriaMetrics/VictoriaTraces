@@ -42,7 +42,25 @@
 			{% endfor %}
 		{% endif %}
 	],
-	"exemplars":[]
+	"exemplars":[
+		{% if len(s.Exemplars) > 0 %}
+			{%= metricsExemplarJson(&s.Exemplars[0]) %}
+			{% for i := 1; i < len(s.Exemplars); i++ %}
+				,{%= metricsExemplarJson(&s.Exemplars[i]) %}
+			{% endfor %}
+		{% endif %}
+	]
+}
+{% endfunc %}
+
+{% func metricsExemplarJson(e *tempoExemplar) %}
+{
+	"labels":[
+		{"key":"trace:id","value":{"stringValue":{%q= e.TraceID %}}},
+		{"key":"span:id","value":{"stringValue":{%q= e.SpanID %}}}
+	],
+	"value":{%f= e.Value %},
+	"timestampMs":"{%s= strconv.FormatInt(e.TimestampMs, 10) %}"
 }
 {% endfunc %}
 

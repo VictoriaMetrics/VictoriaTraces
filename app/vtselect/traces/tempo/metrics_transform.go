@@ -10,8 +10,17 @@ import (
 
 // tempoMetricsSeries represents a single time series in the Tempo QueryRangeResponse format.
 type tempoMetricsSeries struct {
-	Labels  []tempoLabel
-	Samples []tempoSample
+	Labels    []tempoLabel
+	Samples   []tempoSample
+	Exemplars []tempoExemplar
+}
+
+// tempoExemplar represents an exemplar linking a metric data point to a specific trace.
+type tempoExemplar struct {
+	TraceID     string
+	SpanID      string
+	TimestampMs int64
+	Value       float64 // span duration in seconds, or NaN
 }
 
 // tempoLabel represents a label in the Tempo OTEL KeyValue format.
