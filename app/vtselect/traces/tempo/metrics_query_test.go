@@ -5,83 +5,163 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 )
 
-func TestTranslateMetricsQuery(t *testing.T) {
+func TestTranslateMetricsQueryFull(t *testing.T) {
 	ts := time.Now().UnixNano()
 
-	f := func(input, expectedContains string) {
+	f := func(traceQL, expectedLogsQL string) {
 		t.Helper()
-		tr, err := translateMetricsQuery(input, ts)
+		tr, err := translateMetricsQuery(traceQL, ts)
 		if err != nil {
-			t.Fatalf("translateMetricsQuery(%q): %s", input, err)
+			t.Fatalf("translateMetricsQuery(%q): %s", traceQL, err)
 		}
-		if !strings.Contains(tr.baseQuery, expectedContains) {
-			t.Fatalf("translateMetricsQuery(%q) = %q; expected to contain %q", input, tr.baseQuery, expectedContains)
+		if tr.baseQuery != expectedLogsQL {
+			t.Fatalf("translateMetricsQuery(%q):\n  got:  %q\n  want: %q", traceQL, tr.baseQuery, expectedLogsQL)
+		}
+		// Verify the generated LogsQL actually parses.
+		_, err = logstorage.ParseQueryAtTimestamp(tr.baseQuery, ts)
+		if err != nil {
+			t.Fatalf("generated LogsQL does not parse: %q: %s", tr.baseQuery, err)
 		}
 	}
 
-	// rate()
-	f(`{} | rate()`, `rate() as value`)
+	// Basic rate
+	f(`{} | rate()`, `* | stats rate() as value`)
 
-	// count_over_time()
-	f(`{} | count_over_time()`, `count() as value`)
+	// Status value mapping
+	f(`{status = error} | rate()`, `status_code:=2 | stats rate() as value`)
 
-	// *_over_time with field
-	f(`{} | min_over_time(duration)`, `min(duration) as value`)
-	f(`{} | max_over_time(duration)`, `max(duration) as value`)
-	f(`{} | avg_over_time(duration)`, `avg(duration) as value`)
-	f(`{} | sum_over_time(duration)`, `sum(duration) as value`)
+	// Duration filter (100ms = 100000000ns)
+	f(`{duration > 100ms} | rate()`, `duration:>100000000 | stats rate() as value`)
 
-	// With filter
-	f(`{resource.service.name = "frontend"} | rate()`, `rate() as value`)
+	// Resource attribute filter
+	f(`{resource.service.name = "api"} | rate()`,
+		`"resource_attr:service.name":=api | stats rate() as value`)
 
-	// Field name mapping in *_over_time
-	f(`{} | avg_over_time(span.http.response_content_length)`, `avg("span_attr:http.response_content_length") as value`)
+	// Span attribute filter
+	f(`{span.http.status_code >= 400} | count_over_time()`,
+		`"span_attr:http.status_code":>=400 | stats count() as value`)
+
+	// Name filter
+	f(`{name = "http_request"} | rate()`, `name:=http_request | stats rate() as value`)
+
+	// nestedSetParent → root spans
+	f(`{nestedSetParent < 0} | rate()`, `parent_span_id:="" | stats rate() as value`)
+
+	// Grafana sends {true && true}
+	f(`{true && true} | rate()`, `* and * | stats rate() as value`)
+
+	// All aggregation functions
+	f(`{} | count_over_time()`, `* | stats count() as value`)
+	f(`{} | min_over_time(duration)`, `* | stats min(duration) as value`)
+	f(`{} | max_over_time(duration)`, `* | stats max(duration) as value`)
+	f(`{} | avg_over_time(duration)`, `* | stats avg(duration) as value`)
+	f(`{} | sum_over_time(duration)`, `* | stats sum(duration) as value`)
+	f(`{} | histogram_over_time(duration)`, `* | stats histogram(duration) as value`)
+	f(`{} | quantile_over_time(duration, 0.9)`, `* | stats quantile(0.9, duration) as value`)
+
+	// Field name mapping in aggregation
+	f(`{} | sum_over_time(span.kafka.lag)`, `* | stats sum("span_attr:kafka.lag") as value`)
+	f(`{} | avg_over_time(span.http.response_content_length)`,
+		`* | stats avg("span_attr:http.response_content_length") as value`)
+	f(`{} | max_over_time(span.http.status_code)`,
+		`* | stats max("span_attr:http.status_code") as value`)
 }
 
-func TestTranslateMetricsQueryWithBy(t *testing.T) {
+func TestTranslateMetricsQueryByFields(t *testing.T) {
 	ts := time.Now().UnixNano()
 
-	tr, err := translateMetricsQuery(`{} | rate() | by(resource.service.name)`, ts)
+	f := func(traceQL, expectedLogsQL string) {
+		t.Helper()
+		tr, err := translateMetricsQuery(traceQL, ts)
+		if err != nil {
+			t.Fatalf("translateMetricsQuery(%q): %s", traceQL, err)
+		}
+		if tr.baseQuery != expectedLogsQL {
+			t.Fatalf("translateMetricsQuery(%q):\n  got:  %q\n  want: %q", traceQL, tr.baseQuery, expectedLogsQL)
+		}
+		_, err = logstorage.ParseQueryAtTimestamp(tr.baseQuery, ts)
+		if err != nil {
+			t.Fatalf("generated LogsQL does not parse: %q: %s", tr.baseQuery, err)
+		}
+	}
+
+	// Tempo-style by() without | separator
+	f(`{} | rate() by(resource.service.name)`,
+		`* | stats by ("resource_attr:service.name") rate() as value`)
+
+	// With explicit | separator
+	f(`{} | rate() | by(resource.service.name)`,
+		`* | stats by ("resource_attr:service.name") rate() as value`)
+
+	// Intrinsic field
+	f(`{} | rate() | by(name)`,
+		`* | stats by (name) rate() as value`)
+
+	// Status field mapping in by()
+	f(`{} | rate() | by(status)`,
+		`* | stats by (status_code) rate() as value`)
+
+	// Multiple by fields
+	f(`{} | avg_over_time(duration) | by(resource.service.name, span.http.method)`,
+		`* | stats by ("resource_attr:service.name", "span_attr:http.method") avg(duration) as value`)
+
+	// Quantile with by
+	f(`{} | quantile_over_time(duration, 0.5) | by(resource.service.name)`,
+		`* | stats by ("resource_attr:service.name") quantile(0.5, duration) as value`)
+
+	// Complex: filter + aggregation + by
+	f(`{resource.service.name = "api"} | max_over_time(span.http.status_code) | by(resource.service.name)`,
+		`"resource_attr:service.name":=api | stats by ("resource_attr:service.name") max("span_attr:http.status_code") as value`)
+}
+
+func TestTranslateMetricsQueryWithHints(t *testing.T) {
+	ts := time.Now().UnixNano()
+
+	// with() hints should be silently ignored — output must match the hint-free version.
+	baseRate, err := translateMetricsQuery(`{} | rate()`, ts)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	if !strings.Contains(tr.baseQuery, `by ("resource_attr:service.name")`) {
-		t.Fatalf("expected by clause with mapped field; got %q", tr.baseQuery)
-	}
-	if !strings.Contains(tr.baseQuery, `rate() as value`) {
-		t.Fatalf("expected rate() stats; got %q", tr.baseQuery)
-	}
-	if len(tr.byFields) != 1 || tr.byFields[0] != "resource_attr:service.name" {
-		t.Fatalf("unexpected byFields; got %v", tr.byFields)
-	}
-}
-
-func TestTranslateMetricsQueryWithMultipleByFields(t *testing.T) {
-	ts := time.Now().UnixNano()
-
-	tr, err := translateMetricsQuery(`{} | count_over_time() | by(resource.service.name, span.http.method)`, ts)
+	withSample, err := translateMetricsQuery(`{} | rate() with(sample=true)`, ts)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
+	if withSample.baseQuery != baseRate.baseQuery {
+		t.Fatalf("with(sample=true) changed output:\n  got:  %q\n  want: %q", withSample.baseQuery, baseRate.baseQuery)
+	}
 
-	if !strings.Contains(tr.baseQuery, `"resource_attr:service.name"`) {
-		t.Fatalf("expected resource_attr field in by clause; got %q", tr.baseQuery)
+	withExemplars, err := translateMetricsQuery(`{} | rate() with(exemplars=0)`, ts)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
 	}
-	if !strings.Contains(tr.baseQuery, `"span_attr:http.method"`) {
-		t.Fatalf("expected span_attr field in by clause; got %q", tr.baseQuery)
+	if withExemplars.baseQuery != baseRate.baseQuery {
+		t.Fatalf("with(exemplars=0) changed output:\n  got:  %q\n  want: %q", withExemplars.baseQuery, baseRate.baseQuery)
 	}
-	if len(tr.byFields) != 2 {
-		t.Fatalf("unexpected byFields count; got %d; want 2", len(tr.byFields))
+
+	// with() + by() combined
+	baseBy, err := translateMetricsQuery(`{} | rate() | by(resource.service.name)`, ts)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	withBy, err := translateMetricsQuery(`{} | rate() by(resource.service.name) with(sample=0.5)`, ts)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if withBy.baseQuery != baseBy.baseQuery {
+		t.Fatalf("with(sample=0.5) + by() changed output:\n  got:  %q\n  want: %q", withBy.baseQuery, baseBy.baseQuery)
 	}
 }
 
 func TestTranslateMetricsQueryCompare(t *testing.T) {
 	ts := time.Now().UnixNano()
 
-	tr, err := translateMetricsQuery(`{} | compare({duration >= 500ms}, 10)`, ts)
+	// Basic compare with status filter
+	tr, err := translateMetricsQuery(`{} | compare({status = error}, 10)`, ts)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -91,18 +171,30 @@ func TestTranslateMetricsQueryCompare(t *testing.T) {
 	if tr.baseFilter != "*" {
 		t.Fatalf("expected baseFilter=*; got %q", tr.baseFilter)
 	}
-	if !strings.Contains(tr.compareFilter, "duration") {
-		t.Fatalf("expected duration in compareFilter; got %q", tr.compareFilter)
+	if !strings.Contains(tr.compareFilter, "status_code") {
+		t.Fatalf("expected status_code in compareFilter; got %q", tr.compareFilter)
 	}
 	if tr.topN != 10 {
 		t.Fatalf("expected topN=10; got %d", tr.topN)
 	}
-}
 
-func TestTranslateMetricsQueryCompareWithTimestamps(t *testing.T) {
-	ts := time.Now().UnixNano()
+	// Compare with non-trivial base filter
+	tr, err = translateMetricsQuery(`{resource.service.name = "api"} | compare({duration >= 100ms}, 5)`, ts)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if !strings.Contains(tr.baseFilter, "resource_attr:service.name") {
+		t.Fatalf("expected resource_attr in baseFilter; got %q", tr.baseFilter)
+	}
+	if !strings.Contains(tr.compareFilter, "duration") {
+		t.Fatalf("expected duration in compareFilter; got %q", tr.compareFilter)
+	}
+	if tr.topN != 5 {
+		t.Fatalf("expected topN=5; got %d", tr.topN)
+	}
 
-	tr, err := translateMetricsQuery(`{} | compare({duration >= 6s}, 10, 1775053673000000000, 1775054024000000000)`, ts)
+	// Full 4-arg form with timestamps
+	tr, err = translateMetricsQuery(`{true && true} | compare({duration >= 6s && duration <= 230s}, 10, 1775053673000000000, 1775054024000000000)`, ts)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -117,6 +209,28 @@ func TestTranslateMetricsQueryCompareWithTimestamps(t *testing.T) {
 	}
 	if tr.selectionEndNs != 1775054024000000000 {
 		t.Fatalf("unexpected selectionEndNs; got %d", tr.selectionEndNs)
+	}
+}
+
+func TestTranslateMetricsQueryWithComparison(t *testing.T) {
+	ts := time.Now().UnixNano()
+
+	// rate() > 5 should parse without error
+	tr, err := translateMetricsQuery(`{} | rate() > 5`, ts)
+	if err != nil {
+		t.Fatalf("unexpected error for rate() > 5: %s", err)
+	}
+	if tr.baseQuery == "" {
+		t.Fatal("expected non-empty baseQuery")
+	}
+
+	// count_over_time() >= 100
+	tr, err = translateMetricsQuery(`{} | count_over_time() >= 100`, ts)
+	if err != nil {
+		t.Fatalf("unexpected error for count_over_time() >= 100: %s", err)
+	}
+	if tr.baseQuery == "" {
+		t.Fatal("expected non-empty baseQuery")
 	}
 }
 
