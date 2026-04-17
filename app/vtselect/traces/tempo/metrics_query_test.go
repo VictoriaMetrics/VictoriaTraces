@@ -48,8 +48,9 @@ func TestTranslateMetricsQueryFull(t *testing.T) {
 	// Name filter
 	f(`{name = "http_request"} | rate()`, `name:=http_request | stats rate() as value`)
 
-	// nestedSetParent → root spans
-	f(`{nestedSetParent < 0} | rate()`, `parent_span_id:="" | stats rate() as value`)
+	// nestedSetParent → root spans; intersect with trace ID index via in(subquery)
+	f(`{nestedSetParent < 0} | rate()`,
+		`parent_span_id:="" AND trace_id:in({trace_id_idx_stream!=""} has_root_span:=1 | fields trace_id_idx) | stats rate() as value`)
 
 	// Grafana sends {true && true}
 	f(`{true && true} | rate()`, `* and * | stats rate() as value`)

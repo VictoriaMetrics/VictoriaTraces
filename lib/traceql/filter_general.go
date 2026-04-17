@@ -1,6 +1,7 @@
 package traceql
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -45,10 +46,20 @@ func (fc *filterCommon) String() string {
 	}
 
 	// nestedSetParent<0 is Tempo's way to select root spans.
-	// Query the trace ID index stream which has has_root_span field — much faster
-	// than scanning parent_span_id across all spans.
+	// Combine an empty parent_span_id check with trace_id:in(<subquery>) — the
+	// subquery pulls trace IDs from the trace ID index stream (one entry per
+	// trace with has_root_span=1). This narrows the span scan to only traces
+	// known to contain a root span, orders of magnitude faster than scanning
+	// parent_span_id across all spans.
 	if fc.fieldName == "nestedSetParent" && fc.op == "<" && fc.value == "0" {
-		return otelpb.ParentSpanIDField + `:=""`
+		return fmt.Sprintf(
+			`%s:="" AND %s:in({%s!=""} %s:=1 | fields %s)`,
+			otelpb.ParentSpanIDField,
+			otelpb.TraceIDField,
+			otelpb.TraceIDIndexStreamName,
+			otelpb.TraceIDIndexHasRootSpan,
+			otelpb.TraceIDIndexFieldName,
+		)
 	}
 
 	v := fc.value
