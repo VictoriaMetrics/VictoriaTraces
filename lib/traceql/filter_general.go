@@ -62,6 +62,19 @@ func (fc *filterCommon) String() string {
 		)
 	}
 
+	// TraceQL's `attr = nil` / `attr != nil` map to LogsQL's empty-value and
+	// any-value filters respectively — the canonical forms per
+	// https://docs.victoriametrics.com/victorialogs/logsql/#empty-value-filter
+	// and https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter.
+	if fc.value == "nil" {
+		switch fc.op {
+		case "=":
+			return quoteFieldNameIfNeeded(fc.tagToVTField()) + `:""`
+		case "!=":
+			return quoteFieldNameIfNeeded(fc.tagToVTField()) + ":*"
+		}
+	}
+
 	v := fc.value
 
 	// Map status names (error, ok, unset) to numeric OTEL StatusCode values.

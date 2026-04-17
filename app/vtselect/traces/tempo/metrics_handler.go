@@ -189,7 +189,7 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 			}
 
 			// Filter out rows without this attribute — otherwise empty values dominate the grouping.
-			nonEmptyFilter := quotedAttr + `:!=""`
+			nonEmptyFilter := quotedAttr + `:*`
 
 			// Baseline: count per value over full time range.
 			baseQ := t.baseFilter + " AND " + nonEmptyFilter + " | stats by (" + quotedAttr + ") count() as value"
