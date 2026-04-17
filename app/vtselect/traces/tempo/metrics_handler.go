@@ -59,7 +59,11 @@ func processMetricsQueryRangeRequest(ctx context.Context, w http.ResponseWriter,
 			return
 		}
 	} else {
-		allSeries, err = executeStatsQuery(ctx, cp, translation.baseQuery, translation.byFields, params)
+		valueScale := 1.0
+		if translation.scaleDurationToSeconds {
+			valueScale = 1e-9
+		}
+		allSeries, err = executeStatsQuery(ctx, cp, translation.baseQuery, translation.byFields, params, valueScale)
 		if err != nil {
 			httpserver.Errorf(w, r, "cannot execute query: %s", err)
 			return
@@ -184,8 +188,11 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 				selection: make(map[string]map[int64]float64),
 			}
 
+			// Filter out rows without this attribute — otherwise empty values dominate the grouping.
+			nonEmptyFilter := quotedAttr + `:!=""`
+
 			// Baseline: count per value over full time range.
-			baseQ := t.baseFilter + " | stats by (" + quotedAttr + ") count() as value"
+			baseQ := t.baseFilter + " AND " + nonEmptyFilter + " | stats by (" + quotedAttr + ") count() as value"
 			baseCounts, err := runCountQuery(ctx, cp, baseQ, attr, params.start.UnixNano(), params.end.UnixNano(), params.step)
 			if err != nil {
 				queryErrMu.Lock()
@@ -196,7 +203,7 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 			ar.baseline = baseCounts
 
 			// Selection: count per value over selection window.
-			selQ := selFilter + " | stats by (" + quotedAttr + ") count() as value"
+			selQ := selFilter + " AND " + nonEmptyFilter + " | stats by (" + quotedAttr + ") count() as value"
 			selCounts, err := runCountQuery(ctx, cp, selQ, attr, selStartNs, selEndNs, params.step)
 			if err != nil {
 				queryErrMu.Lock()
@@ -486,7 +493,8 @@ func makeCompareSeriesTotals(metaType, attrName string, totalByTs map[int64]floa
 }
 
 // executeStatsQuery runs a single LogsQL stats query and returns Tempo series.
-func executeStatsQuery(ctx context.Context, cp *tracecommon.CommonParams, logsQLStr string, byFields []string, params *metricsQueryRangeParam) ([]tempoMetricsSeries, error) {
+// valueScale scales sample values (1 = no scaling, 1e-9 = ns → seconds for duration aggregations).
+func executeStatsQuery(ctx context.Context, cp *tracecommon.CommonParams, logsQLStr string, byFields []string, params *metricsQueryRangeParam, valueScale float64) ([]tempoMetricsSeries, error) {
 	q, err := logstorage.ParseQueryAtTimestamp(logsQLStr, params.end.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", logsQLStr, err)
@@ -600,7 +608,10 @@ func executeStatsQuery(ctx context.Context, cp *tracecommon.CommonParams, logsQL
 		return rows[i].key < rows[j].key
 	})
 
-	return transformToTempoSeries(rows), nil
+	if valueScale == 0 {
+		valueScale = 1
+	}
+	return transformToTempoSeriesScaled(rows, valueScale), nil
 }
 
 // parseMetricsQueryRangeParams parses query parameters for the metrics/query_range endpoint.
@@ -693,52 +704,6 @@ func vmrangeToSeconds(vmrange string) string {
 	mid := math.Sqrt(lo * hi)
 	seconds := mid / 1e9
 	return strconv.FormatFloat(seconds, 'g', -1, 64)
-}
-
-// vmrangeToNanos converts a vmrange to its geometric mean as a nanosecond integer string.
-// This matches what Grafana's Drilldown expects for constructing compare filters.
-// e.g., "5.995e+08...6.813e+08" → "639000000"
-func vmrangeToNanos(vmrange string) string {
-	parts := strings.SplitN(vmrange, "...", 2)
-	if len(parts) != 2 {
-		return vmrange
-	}
-	lo, errLo := strconv.ParseFloat(parts[0], 64)
-	hi, errHi := strconv.ParseFloat(parts[1], 64)
-	if errLo != nil || errHi != nil {
-		return vmrange
-	}
-	mid := math.Sqrt(lo * hi)
-	return strconv.FormatInt(int64(mid), 10)
-}
-
-func humanizeVMRange(vmrange string) string {
-	parts := strings.SplitN(vmrange, "...", 2)
-	if len(parts) != 2 {
-		return vmrange
-	}
-	lo, errLo := strconv.ParseFloat(parts[0], 64)
-	hi, errHi := strconv.ParseFloat(parts[1], 64)
-	if errLo != nil || errHi != nil {
-		return vmrange
-	}
-	mid := math.Sqrt(lo * hi)
-	return formatDurationNs(mid)
-}
-
-func formatDurationNs(ns float64) string {
-	switch {
-	case ns >= 60e9:
-		return fmt.Sprintf("%.3g mins", ns/60e9)
-	case ns >= 1e9:
-		return fmt.Sprintf("%.3g s", ns/1e9)
-	case ns >= 1e6:
-		return fmt.Sprintf("%.3g ms", ns/1e6)
-	case ns >= 1e3:
-		return fmt.Sprintf("%.3g µs", ns/1e3)
-	default:
-		return fmt.Sprintf("%.3g ns", ns)
-	}
 }
 
 const defaultMaxExemplars = 100

@@ -49,7 +49,17 @@ type metricsStatsPoint struct {
 }
 
 // transformToTempoSeries converts collected stats results to Tempo series format.
+// valueScale is a multiplier applied to each sample value (use 1 for no scaling,
+// or 1e-9 to convert nanosecond durations to seconds).
+func transformToTempoSeriesScaled(rows []*metricsStatsSeries, valueScale float64) []tempoMetricsSeries {
+	return transformToTempoSeriesImpl(rows, valueScale)
+}
+
 func transformToTempoSeries(rows []*metricsStatsSeries) []tempoMetricsSeries {
+	return transformToTempoSeriesImpl(rows, 1)
+}
+
+func transformToTempoSeriesImpl(rows []*metricsStatsSeries, valueScale float64) []tempoMetricsSeries {
 	result := make([]tempoMetricsSeries, 0, len(rows))
 	for _, ss := range rows {
 		ts := tempoMetricsSeries{
@@ -70,7 +80,7 @@ func transformToTempoSeries(rows []*metricsStatsSeries) []tempoMetricsSeries {
 			value, _ := strconv.ParseFloat(p.Value, 64)
 			ts.Samples = append(ts.Samples, tempoSample{
 				TimestampMs: p.Timestamp / 1e6, // nanoseconds -> milliseconds
-				Value:       value,
+				Value:       value * valueScale,
 			})
 		}
 

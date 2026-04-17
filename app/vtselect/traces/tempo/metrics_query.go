@@ -13,6 +13,10 @@ type metricsQueryTranslation struct {
 	byFields  []string // mapped VT field names
 	isCompare bool
 
+	// scaleDurationToSeconds is true when the aggregation is over the `duration` field
+	// (stored as nanoseconds). Sample values need /1e9 so Grafana renders them as seconds.
+	scaleDurationToSeconds bool
+
 	// compare-specific fields (only set when isCompare=true)
 	baseFilter       string // LogsQL filter for base (outer filter)
 	compareFilter    string // LogsQL filter for selection (inner filter)
@@ -69,6 +73,14 @@ func translateMetricsQuery(traceQLStr string, timestamp int64) (*metricsQueryTra
 		return nil, err
 	}
 	result.baseQuery = buildStatsQuery(filterStr, vtByFields, statsExpr)
+
+	// Duration values are stored as nanoseconds in VictoriaTraces, but Grafana
+	// renders metric values on duration panels as seconds. Aggregations like
+	// min/max/avg/sum/quantile over duration need to be scaled down.
+	// histogram_over_time already produces bucket labels in seconds.
+	if fieldName == "duration" && funcName != "histogram_over_time" && funcName != "count_over_time" && funcName != "rate" {
+		result.scaleDurationToSeconds = true
+	}
 	return result, nil
 }
 
