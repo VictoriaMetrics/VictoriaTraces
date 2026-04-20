@@ -34,7 +34,7 @@ jobs:
 
       - name: Restore node_modules cache
         id: cache-restore
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v5.0.4
         with:
           path: app/vmui/packages/vmui/node_modules
           key: vmui-deps-${{ runner.os }}-${{ hashFiles('app/vmui/packages/vmui/package-lock.json') }}
@@ -47,7 +47,7 @@ jobs:
 
       - name: Save node_modules cache
         if: steps.cache-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v5.0.4
         with:
           path: app/vmui/packages/vmui/node_modules
           key: vmui-deps-${{ runner.os }}-${{ hashFiles('app/vmui/packages/vmui/package-lock.json') }}
