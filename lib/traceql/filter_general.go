@@ -23,7 +23,24 @@ func (fc *filterCommon) String() string {
 	if duration, ok := tryParseDuration(v); ok {
 		v = strconv.FormatInt(duration, 10)
 	}
-	return quoteFieldNameIfNeeded(fc.tagToVTField()) + ":" + fc.op + quoteTokenIfNeeded(v)
+	return quoteFieldNameIfNeeded(fc.tagToVTField()) + ":" + mapTraceQLOpToLogsQL(fc.op) + quoteTokenIfNeeded(v)
+}
+
+// mapTraceQLOpToLogsQL maps a TraceQL comparison operator to the
+// corresponding LogsQL operator used when composing queries against
+// the underlying VictoriaLogs storage engine.
+//
+// TraceQL regex match operator is `=~` / `!~`, while LogsQL uses
+// `~` / `!~`. Without this mapping the produced LogsQL contains
+// `field:=~"pattern"` which fails to parse with
+//
+//	compound token cannot start with "=~"; put it into quotes if needed
+func mapTraceQLOpToLogsQL(op string) string {
+	switch op {
+	case "=~":
+		return "~"
+	}
+	return op
 }
 
 func (fc *filterCommon) tagToVTField() string {

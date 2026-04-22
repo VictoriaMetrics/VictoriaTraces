@@ -2,6 +2,7 @@ package traceql
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -75,6 +76,43 @@ func Test_parseQuery(t *testing.T) {
 	//f(`{ span.http.request_content_length > "10 * 1024 * 1024" }`)
 	//f(`{ span.http.request_content_length > 10} | select(span.http.request_content_length) | by(span.http.request_content_length, span.http.request_content_length2) | sum(other_field) > 2m`)
 	f(`{(a=b && c=d && c=d)}`)
+}
+
+// TestFilterGeneralString_OperatorMapping verifies that TraceQL comparison
+// operators are translated to valid LogsQL operators when composing
+// the underlying storage query. See lib/traceql/filter_general.go.
+//
+// This guards against a regression where `=~` was pasted verbatim and
+// produced invalid LogsQL like `field:=~"pattern"` which failed to parse
+// with: `compound token cannot start with "=~"`.
+func TestFilterGeneralString_OperatorMapping(t *testing.T) {
+	f := func(input, wantSubstr string) {
+		t.Helper()
+		lex := newLexer(input, 0)
+		q, err := parseQuery(lex)
+		if err != nil {
+			t.Fatalf("parse %q: %v", input, err)
+		}
+		got := q.String()
+		if !strings.Contains(got, wantSubstr) {
+			t.Fatalf("query %q\n  produced: %s\n  want substring: %s", input, got, wantSubstr)
+		}
+		if strings.Contains(got, ":=~") {
+			t.Fatalf("query %q produced invalid LogsQL `:=~`: %s", input, got)
+		}
+	}
+
+	// Regex match operator `=~` must become LogsQL `~` (not `=~`).
+	f(`{resource.host.name =~ "kimi-k2-a.*"}`, `"resource_attr:host.name":~"kimi-k2-a.*"`)
+
+	// Other operators are passed through unchanged.
+	f(`{resource.service.name = "kimi"}`, `"resource_attr:service.name":=kimi`)
+	f(`{span.http.status_code != 200}`, `"span_attr:http.status_code":!=200`)
+	f(`{span.http.status_code > 400}`, `"span_attr:http.status_code":>400`)
+
+	// Realistic multi-condition query that previously failed.
+	f(`{span.rpc.method = "App" && span.rpc.system = "connect_rpc" && resource.service.name = "kimi" && resource.host.name =~ "kimi-k2-a.*"}`,
+		`"resource_attr:host.name":~"kimi-k2-a.*"`)
 }
 
 func TestGetTraceDurationFilters(t *testing.T) {
