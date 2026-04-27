@@ -2,7 +2,9 @@ package pb
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/easyproto"
@@ -97,11 +99,13 @@ func (kv *KeyValue) unmarshalProtobuf(src []byte) (err error) {
 type AnyValue struct {
 	StringValue  *string       `json:"stringValue"`
 	BoolValue    *bool         `json:"boolValue"`
-	IntValue     *int64        `json:"intValue,string"`
+	IntValue     *int64        `json:"-"`
 	DoubleValue  *float64      `json:"doubleValue"`
 	ArrayValue   *ArrayValue   `json:"arrayValue"`
 	KeyValueList *KeyValueList `json:"keyValueList"`
 	BytesValue   *[]byte       `json:"BytesValue"`
+
+	IntValueRaw *json.RawMessage
 }
 
 func (av *AnyValue) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -195,6 +199,46 @@ func (av *AnyValue) unmarshalProtobuf(src []byte) (err error) {
 			av.BytesValue = &bytesValue
 		}
 	}
+	return nil
+}
+
+func (av *AnyValue) UnmarshalJSON(b []byte) (err error) {
+	type Alias AnyValue
+
+	tmp := struct {
+		Alias
+		IntValueRaw json.RawMessage `json:"intValue"`
+	}{}
+
+	if err := json.Unmarshal(b, &tmp); err != nil {
+		return err
+	}
+	*av = AnyValue(tmp.Alias)
+	av.IntValueRaw = &tmp.IntValueRaw
+
+	// decode IntValueRaw and treat it as int64 to field IntValue
+	if av.IntValueRaw != nil && len(*av.IntValueRaw) > 0 {
+		firstByte := (*av.IntValueRaw)[0]
+		if firstByte == '-' || (firstByte >= '0' && firstByte <= '9') {
+			var intVal int64
+			err = json.Unmarshal(*av.IntValueRaw, &intVal)
+			if err != nil {
+				return err
+			}
+			av.IntValue = &intVal
+		} else {
+			unquoted, err := strconv.Unquote(string(*av.IntValueRaw))
+			if err != nil {
+				return err
+			}
+			int64Value, err := strconv.ParseInt(unquoted, 10, 64)
+			if err != nil {
+				return err
+			}
+			av.IntValue = &int64Value
+		}
+	}
+	av.IntValueRaw = nil
 	return nil
 }
 
