@@ -104,8 +104,14 @@ type AnyValue struct {
 	ArrayValue   *ArrayValue   `json:"arrayValue"`
 	KeyValueList *KeyValueList `json:"keyValueList"`
 	BytesValue   *[]byte       `json:"BytesValue"`
+}
 
-	IntValueRaw *json.RawMessage
+type AnyValueAlias AnyValue
+
+type AnyValueDecode struct {
+	AnyValueAlias
+
+	IntValueRaw *json.RawMessage `json:"intValue"`
 }
 
 func (av *AnyValue) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -203,31 +209,25 @@ func (av *AnyValue) unmarshalProtobuf(src []byte) (err error) {
 }
 
 func (av *AnyValue) UnmarshalJSON(b []byte) (err error) {
-	type Alias AnyValue
+	avDecode := AnyValueDecode{}
 
-	tmp := struct {
-		Alias
-		IntValueRaw json.RawMessage `json:"intValue"`
-	}{}
-
-	if err := json.Unmarshal(b, &tmp); err != nil {
+	if err := json.Unmarshal(b, &avDecode); err != nil {
 		return err
 	}
-	*av = AnyValue(tmp.Alias)
-	av.IntValueRaw = &tmp.IntValueRaw
+	*av = AnyValue(avDecode.AnyValueAlias)
 
-	// decode IntValueRaw and treat it as int64 to field IntValue
-	if av.IntValueRaw != nil && len(*av.IntValueRaw) > 0 {
-		firstByte := (*av.IntValueRaw)[0]
+	// decode intValueRaw and treat it as int64 to field IntValue
+	if avDecode.IntValueRaw != nil && len(*avDecode.IntValueRaw) > 0 {
+		firstByte := (*avDecode.IntValueRaw)[0]
 		if firstByte == '-' || (firstByte >= '0' && firstByte <= '9') {
 			var intVal int64
-			err = json.Unmarshal(*av.IntValueRaw, &intVal)
+			err = json.Unmarshal(*avDecode.IntValueRaw, &intVal)
 			if err != nil {
 				return err
 			}
 			av.IntValue = &intVal
 		} else {
-			unquoted, err := strconv.Unquote(string(*av.IntValueRaw))
+			unquoted, err := strconv.Unquote(string(*avDecode.IntValueRaw))
 			if err != nil {
 				return err
 			}
@@ -238,7 +238,6 @@ func (av *AnyValue) UnmarshalJSON(b []byte) (err error) {
 			av.IntValue = &int64Value
 		}
 	}
-	av.IntValueRaw = nil
 	return nil
 }
 
