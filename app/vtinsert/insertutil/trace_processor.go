@@ -77,7 +77,8 @@ func (tsp *traceSpanProcessor) MustClose() {
 func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID, fields []logstorage.Field) bool {
 	var (
 		traceID      string
-		parentSpanID string
+		parentSpanID = "unset"
+		statusCode   string
 		startTime    int64
 		endTime      int64
 		err          error
@@ -96,7 +97,7 @@ func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID,
 		return false
 	}
 
-	// find endTimeNano, startTimeNano, and parentSpanID of the span in reverse order.
+	// find endTimeNano, startTimeNano, parentSpanID, and statusCode of the span in reverse order.
 	for i = i - 1; i >= 0; i-- {
 		switch fields[i].Name {
 		case otelpb.EndTimeUnixNanoField:
@@ -113,8 +114,10 @@ func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID,
 			}
 		case otelpb.ParentSpanIDField:
 			parentSpanID = fields[i].Value
+		case otelpb.StatusCodeField:
+			statusCode = fields[i].Value
 		}
-		if startTime != 0 && endTime != 0 {
+		if startTime != 0 && endTime != 0 && parentSpanID != "unset" && statusCode != "" {
 			break
 		}
 	}
@@ -127,7 +130,7 @@ func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID,
 		endTime = time.Now().UnixNano()
 	}
 
-	return pushIndexToQueue(tenant, traceID, startTime, endTime, parentSpanID == "")
+	return pushIndexToQueue(tenant, traceID, startTime, endTime, parentSpanID == "", statusCode == "2")
 }
 
 // The following methods are for native data ingestion protocol. They must be called from `internalinsert`.
@@ -149,7 +152,8 @@ func (tsp *traceSpanProcessor) AddInsertRow(r *logstorage.InsertRow) {
 func (tsp *traceSpanProcessor) pushNativeRowToIndexQueue(r *logstorage.InsertRow) bool {
 	var (
 		traceID      string
-		parentSpanID string
+		parentSpanID = "unset"
+		statusCode   string
 		startTime    int64
 		endTime      int64
 		err          error
@@ -186,8 +190,11 @@ func (tsp *traceSpanProcessor) pushNativeRowToIndexQueue(r *logstorage.InsertRow
 			}
 		case otelpb.ParentSpanIDField:
 			parentSpanID = r.Fields[i].Value
+		case otelpb.StatusCodeField:
+			statusCode = r.Fields[i].Value
 		}
-		if startTime != 0 && endTime != 0 {
+
+		if startTime != 0 && endTime != 0 && statusCode != "" && parentSpanID != "unset" {
 			break
 		}
 	}
@@ -200,5 +207,5 @@ func (tsp *traceSpanProcessor) pushNativeRowToIndexQueue(r *logstorage.InsertRow
 		endTime = time.Now().UnixNano()
 	}
 
-	return pushIndexToQueue(r.TenantID, traceID, startTime, endTime, parentSpanID == "")
+	return pushIndexToQueue(r.TenantID, traceID, startTime, endTime, parentSpanID == "", statusCode == "2")
 }
