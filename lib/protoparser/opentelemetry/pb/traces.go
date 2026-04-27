@@ -126,8 +126,8 @@ func (r *ExportTraceServiceRequest) UnmarshalJSONCustom(src []byte) (err error) 
 
 func parseUnixTimestampByte(b []byte) (uintVal uint64, err error) {
 	firstByte := b[0]
-	if firstByte == '-' || (firstByte >= '0' && firstByte <= '9') {
-		// number
+	if firstByte >= '0' && firstByte <= '9' {
+		// positive number
 		err = json.Unmarshal(b, &uintVal)
 		if err != nil {
 			return 0, err
@@ -380,15 +380,15 @@ func (is *InstrumentationScope) unmarshalProtobuf(src []byte) (err error) {
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L88
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L380
 type Span struct {
-	TraceID                string   `json:"traceId"`
-	SpanID                 string   `json:"spanId"`
-	TraceState             string   `json:"traceState"`
-	ParentSpanID           string   `json:"parentSpanID"`
-	Flags                  uint32   `json:"flags"`
-	Name                   string   `json:"name"`
-	Kind                   SpanKind `json:"kind"`
-	StartTimeUnixNano      uint64
-	EndTimeUnixNano        uint64
+	TraceID                string       `json:"traceId"`
+	SpanID                 string       `json:"spanId"`
+	TraceState             string       `json:"traceState"`
+	ParentSpanID           string       `json:"parentSpanID"`
+	Flags                  uint32       `json:"flags"`
+	Name                   string       `json:"name"`
+	Kind                   SpanKind     `json:"kind"`
+	StartTimeUnixNano      uint64       `json:"-"`
+	EndTimeUnixNano        uint64       `json:"-"`
 	Attributes             []*KeyValue  `json:"attributes"`
 	DroppedAttributesCount uint32       `json:"droppedAttributesCount"`
 	Events                 []*SpanEvent `json:"events"`
@@ -590,7 +590,7 @@ func (s *Span) unmarshalProtobuf(src []byte) (err error) {
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L222
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L613
 type SpanEvent struct {
-	TimeUnixNano           uint64
+	TimeUnixNano           uint64      `json:"-"`
 	Name                   string      `json:"name"`
 	Attributes             []*KeyValue `json:"attributes"`
 	DroppedAttributesCount uint32      `json:"droppedAttributesCount"`

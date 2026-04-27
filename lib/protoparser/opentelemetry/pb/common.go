@@ -106,10 +106,10 @@ type AnyValue struct {
 	BytesValue   *[]byte       `json:"BytesValue"`
 }
 
-type AnyValueAlias AnyValue
+type anyValueAlias AnyValue
 
-type AnyValueDecode struct {
-	AnyValueAlias
+type anyValueDecode struct {
+	anyValueAlias
 
 	IntValueRaw *json.RawMessage `json:"intValue"`
 }
@@ -209,12 +209,12 @@ func (av *AnyValue) unmarshalProtobuf(src []byte) (err error) {
 }
 
 func (av *AnyValue) UnmarshalJSON(b []byte) (err error) {
-	avDecode := AnyValueDecode{}
+	avDecode := anyValueDecode{}
 
 	if err := json.Unmarshal(b, &avDecode); err != nil {
 		return err
 	}
-	*av = AnyValue(avDecode.AnyValueAlias)
+	*av = AnyValue(avDecode.anyValueAlias)
 
 	// decode intValueRaw and treat it as int64 to field IntValue
 	if avDecode.IntValueRaw != nil && len(*avDecode.IntValueRaw) > 0 {
