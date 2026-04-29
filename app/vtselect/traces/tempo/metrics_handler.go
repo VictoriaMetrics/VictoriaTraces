@@ -98,6 +98,7 @@ var compareExcludedFields = map[string]bool{
 	otelpb.TraceIDIndexFieldName:          true,
 	otelpb.TraceIDIndexStartTimeFieldName: true,
 	otelpb.TraceIDIndexEndTimeFieldName:   true,
+	otelpb.TraceIDIndexHasRootSpan:        true,
 	// service graph fields
 	otelpb.ServiceGraphStreamName:         true,
 	otelpb.ServiceGraphParentFieldName:    true,
@@ -112,50 +113,26 @@ type compareAttrResult struct {
 	attrName  string                       // VT field name
 	baseline  map[string]map[int64]float64 // value → timestamp → count
 	selection map[string]map[int64]float64
+
+	// hitsBaseline and hitsSelection are total span counts where the attribute is observed,
+	// taken from the cheap GetFieldNames pre-rank. Used for volume-weighting in the final sort.
+	hitsBaseline  uint64
+	hitsSelection uint64
+	// coverageShift = |selectionHits/selTotal - baselineHits/baseTotal|, captured from pass 1.
+	coverageShift float64
 }
+
+const (
+	// compareCoverageThreshold filters out attributes whose presence/absence
+	// doesn't shift meaningfully between baseline and selection.
+	compareCoverageThreshold = 0.001 // 0.1 percentage point
+	// maxCompareAttributes caps pass-2 fan-out for pathological cases (hundreds of
+	// shifting attributes). Sorted-by-coverage-shift, so the most signal is preserved.
+	maxCompareAttributes = 100
+)
 
 // executeCompareQuery discovers attributes and runs per-attribute count queries for compare().
 func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *metricsQueryTranslation, params *metricsQueryRangeParam) ([]tempoMetricsSeries, error) {
-	// Step 1: Discover attributes via GetFieldNames (it handles discovery internally).
-	q, err := logstorage.ParseQueryAtTimestamp(t.baseFilter, params.end.UnixNano())
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse field_names query: %w", err)
-	}
-	q.AddTimeFilter(params.start.UnixNano(), params.end.UnixNano())
-
-	cpDiscover := *cp
-	cpDiscover.Query = q
-	qctx := cpDiscover.NewQueryContext(ctx)
-	fieldNames, err := vtstorage.GetFieldNames(qctx)
-	cpDiscover.UpdatePerQueryStatsMetrics()
-	if err != nil {
-		return nil, fmt.Errorf("cannot discover field names: %w", err)
-	}
-
-	// Step 2: Filter excluded fields.
-	var attrs []string
-	for _, fn := range fieldNames {
-		if compareExcludedFields[fn.Value] {
-			continue
-		}
-		// Skip event/link sub-fields.
-		if strings.HasPrefix(fn.Value, otelpb.EventPrefix) || strings.HasPrefix(fn.Value, otelpb.LinkPrefix) {
-			continue
-		}
-		attrs = append(attrs, fn.Value)
-	}
-
-	if len(attrs) == 0 {
-		return nil, nil
-	}
-
-	// Step 3: Per-attribute parallel queries.
-	results := make([]compareAttrResult, len(attrs))
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 16) // concurrency limit
-	var queryErr error
-	var queryErrMu sync.Mutex
-
 	// Build the selection filter (base AND compare filter).
 	selFilter := t.baseFilter
 	if t.compareFilter != "" && t.compareFilter != "*" {
@@ -174,18 +151,93 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 		selEndNs = t.selectionEndNs
 	}
 
-	for i, attr := range attrs {
+	// Pass 1 (cheap pre-rank): discover field names + per-attribute hit counts on both sides.
+	baselineHits, baselineTotal, err := discoverFieldHits(ctx, cp, t.baseFilter, params.start.UnixNano(), params.end.UnixNano())
+	if err != nil {
+		return nil, fmt.Errorf("cannot discover baseline field hits: %w", err)
+	}
+	selectionHits, selectionTotal, err := discoverFieldHits(ctx, cp, selFilter, selStartNs, selEndNs)
+	if err != nil {
+		return nil, fmt.Errorf("cannot discover selection field hits: %w", err)
+	}
+
+	// Filter attributes by coverage shift; exclude internal/excluded fields.
+	type candidate struct {
+		name          string
+		hitsBaseline  uint64
+		hitsSelection uint64
+		coverageShift float64
+	}
+	var candidates []candidate
+	seen := make(map[string]bool)
+	consider := func(name string) {
+		if seen[name] {
+			return
+		}
+		seen[name] = true
+		if compareExcludedFields[name] {
+			return
+		}
+		if strings.HasPrefix(name, otelpb.EventPrefix) || strings.HasPrefix(name, otelpb.LinkPrefix) {
+			return
+		}
+		hb := baselineHits[name]
+		hs := selectionHits[name]
+		var bCov, sCov float64
+		if baselineTotal > 0 {
+			bCov = float64(hb) / float64(baselineTotal)
+		}
+		if selectionTotal > 0 {
+			sCov = float64(hs) / float64(selectionTotal)
+		}
+		shift := math.Abs(sCov - bCov)
+		if shift <= compareCoverageThreshold {
+			return
+		}
+		candidates = append(candidates, candidate{name, hb, hs, shift})
+	}
+	for name := range baselineHits {
+		consider(name)
+	}
+	for name := range selectionHits {
+		consider(name)
+	}
+
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	// If too many candidates, keep top maxCompareAttributes by coverage shift.
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].coverageShift > candidates[j].coverageShift
+	})
+	if len(candidates) > maxCompareAttributes {
+		candidates = candidates[:maxCompareAttributes]
+	}
+
+	// Pass 2: per-attribute parallel queries on the filtered list.
+	results := make([]compareAttrResult, len(candidates))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 16) // concurrency limit
+	var queryErr error
+	var queryErrMu sync.Mutex
+
+	for i, c := range candidates {
 		wg.Add(1)
-		go func(i int, attr string) {
+		go func(i int, c candidate) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
+			attr := c.name
 			quotedAttr := quoteLogsQLField(attr)
 			ar := compareAttrResult{
-				attrName:  attr,
-				baseline:  make(map[string]map[int64]float64),
-				selection: make(map[string]map[int64]float64),
+				attrName:      attr,
+				baseline:      make(map[string]map[int64]float64),
+				selection:     make(map[string]map[int64]float64),
+				hitsBaseline:  c.hitsBaseline,
+				hitsSelection: c.hitsSelection,
+				coverageShift: c.coverageShift,
 			}
 
 			// Filter out rows without this attribute — otherwise empty values dominate the grouping.
@@ -214,7 +266,7 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 			ar.selection = selCounts
 
 			results[i] = ar
-		}(i, attr)
+		}(i, c)
 	}
 	wg.Wait()
 
@@ -227,6 +279,63 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 }
 
 // runCountQuery runs a `stats by (attr) count()` query and returns value → timestamp → count.
+// discoverFieldHits returns a map of attribute_name → hits (number of spans where the attribute
+// is observed) using vtstorage.GetFieldNames, plus the total span count matching the filter.
+// The total is used as the denominator when computing coverage = hits / total per attribute.
+func discoverFieldHits(ctx context.Context, cp *tracecommon.CommonParams, filterStr string, startNs, endNs int64) (map[string]uint64, uint64, error) {
+	// Field hits.
+	q, err := logstorage.ParseQueryAtTimestamp(filterStr, endNs)
+	if err != nil {
+		return nil, 0, fmt.Errorf("cannot parse filter [%s]: %w", filterStr, err)
+	}
+	q.AddTimeFilter(startNs, endNs)
+	cpFn := *cp
+	cpFn.Query = q
+	qctx := cpFn.NewQueryContext(ctx)
+	fieldNames, err := vtstorage.GetFieldNames(qctx)
+	cpFn.UpdatePerQueryStatsMetrics()
+	if err != nil {
+		return nil, 0, err
+	}
+	hits := make(map[string]uint64, len(fieldNames))
+	for _, fn := range fieldNames {
+		hits[fn.Value] = fn.Hits
+	}
+
+	// Total span count.
+	totalQ, err := logstorage.ParseQueryAtTimestamp(filterStr+" | stats count() as total", endNs)
+	if err != nil {
+		return nil, 0, fmt.Errorf("cannot parse total query: %w", err)
+	}
+	totalQ.AddTimeFilter(startNs, endNs)
+	cpTot := *cp
+	cpTot.Query = totalQ
+	qctxTot := cpTot.NewQueryContext(ctx)
+	defer cpTot.UpdatePerQueryStatsMetrics()
+
+	var total uint64
+	var totalMu sync.Mutex
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		rowsCount := db.RowsCount()
+		columns := db.GetColumns(false)
+		for _, c := range columns {
+			if c.Name != "total" {
+				continue
+			}
+			for i := 0; i < rowsCount; i++ {
+				v, _ := strconv.ParseUint(c.Values[i], 10, 64)
+				totalMu.Lock()
+				total += v
+				totalMu.Unlock()
+			}
+		}
+	}
+	if err := vtstorage.RunQuery(qctxTot, writeBlock); err != nil {
+		return nil, 0, err
+	}
+	return hits, total, nil
+}
+
 func runCountQuery(ctx context.Context, cp *tracecommon.CommonParams, logsQLStr, attrName string, startNs, endNs, stepNs int64) (map[string]map[int64]float64, error) {
 	q, err := logstorage.ParseQueryAtTimestamp(logsQLStr, endNs)
 	if err != nil {
@@ -295,29 +404,28 @@ func buildCompareSeries(results []compareAttrResult, topN int) []tempoMetricsSer
 		topN = 10
 	}
 
-	// Compute divergence per attribute and sort by it descending.
-	type attrDivergence struct {
-		idx        int
-		divergence float64
+	// Order by coverage shift (already computed during pass-1 filtering). The UI
+	// (e.g. Grafana Traces Drilldown) re-sorts attributes client-side anyway, so we
+	// just return them in a deterministic order — no need for a custom score.
+	type attrOrder struct {
+		idx   int
+		score float64
 	}
-	divergences := make([]attrDivergence, 0, len(results))
+	scores := make([]attrOrder, 0, len(results))
 	for i, ar := range results {
 		if len(ar.baseline) == 0 && len(ar.selection) == 0 {
 			continue
 		}
-		divergences = append(divergences, attrDivergence{
-			idx:        i,
-			divergence: computeDivergence(ar),
-		})
+		scores = append(scores, attrOrder{idx: i, score: ar.coverageShift})
 	}
-	sort.Slice(divergences, func(i, j int) bool {
-		return divergences[i].divergence > divergences[j].divergence
+	sort.Slice(scores, func(i, j int) bool {
+		return scores[i].score > scores[j].score
 	})
 
 	var allSeries []tempoMetricsSeries
 
-	for _, ad := range divergences {
-		ar := results[ad.idx]
+	for _, s := range scores {
+		ar := results[s.idx]
 
 		traceQLName := traceql.VTFieldToTraceQL(ar.attrName)
 
@@ -403,51 +511,6 @@ func buildCompareSeries(results []compareAttrResult, topN int) []tempoMetricsSer
 	}
 
 	return allSeries
-}
-
-// computeDivergence computes the total variation distance between the baseline and selection
-// distributions for a single attribute. Higher values mean the attribute's distribution changed
-// more between baseline and selection — making it more interesting for root-cause analysis.
-func computeDivergence(ar compareAttrResult) float64 {
-	// Sum total counts across all timestamps.
-	baseTotal := 0.0
-	selTotal := 0.0
-	baseCounts := make(map[string]float64)
-	selCounts := make(map[string]float64)
-
-	for v, tsCounts := range ar.baseline {
-		for _, c := range tsCounts {
-			baseCounts[v] += c
-			baseTotal += c
-		}
-	}
-	for v, tsCounts := range ar.selection {
-		for _, c := range tsCounts {
-			selCounts[v] += c
-			selTotal += c
-		}
-	}
-
-	if baseTotal == 0 || selTotal == 0 {
-		return 0
-	}
-
-	// Total variation distance: sum of |p_sel(v) - p_base(v)| over all values.
-	allValues := make(map[string]bool)
-	for v := range baseCounts {
-		allValues[v] = true
-	}
-	for v := range selCounts {
-		allValues[v] = true
-	}
-
-	divergence := 0.0
-	for v := range allValues {
-		baseProp := baseCounts[v] / baseTotal
-		selProp := selCounts[v] / selTotal
-		divergence += math.Abs(selProp - baseProp)
-	}
-	return divergence
 }
 
 func remapStatusValues(counts map[string]map[int64]float64) map[string]map[int64]float64 {
