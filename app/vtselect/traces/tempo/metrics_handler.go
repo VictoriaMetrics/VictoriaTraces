@@ -126,10 +126,24 @@ const (
 	// compareCoverageThreshold filters out attributes whose presence/absence
 	// doesn't shift meaningfully between baseline and selection.
 	compareCoverageThreshold = 0.001 // 0.1 percentage point
-	// maxCompareAttributes caps pass-2 fan-out for pathological cases (hundreds of
-	// shifting attributes). Sorted-by-coverage-shift, so the most signal is preserved.
-	maxCompareAttributes = 100
+	// maxCompareAttributes caps pass-2 fan-out. Set to 16 to match the parallel
+	// query semaphore — a single batch — instead of multiple queued waves.
+	// Selection is volume-weighted (coverageShift × log(1 + max(hits))), so the
+	// kept attributes are the ones that move at meaningful absolute volume.
+	maxCompareAttributes = 16
 )
+
+// compareCandidateScore ranks compare attributes by combining how much their
+// presence shifts between baseline and selection (coverageShift) with the
+// log of the larger raw hit count. The log factor keeps the scale similar
+// across orders of magnitude while suppressing rare-but-shifty noise.
+func compareCandidateScore(hitsBaseline, hitsSelection uint64, coverageShift float64) float64 {
+	h := hitsBaseline
+	if hitsSelection > h {
+		h = hitsSelection
+	}
+	return coverageShift * math.Log1p(float64(h))
+}
 
 // executeCompareQuery discovers attributes and runs per-attribute count queries for compare().
 func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *metricsQueryTranslation, params *metricsQueryRangeParam) ([]tempoMetricsSeries, error) {
@@ -207,9 +221,11 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 		return nil, nil
 	}
 
-	// If too many candidates, keep top maxCompareAttributes by coverage shift.
+	// Keep top maxCompareAttributes by volume-weighted score so we don't burn the
+	// pass-2 budget on tiny-but-shifty attributes that describe a handful of spans.
 	sort.Slice(candidates, func(i, j int) bool {
-		return candidates[i].coverageShift > candidates[j].coverageShift
+		return compareCandidateScore(candidates[i].hitsBaseline, candidates[i].hitsSelection, candidates[i].coverageShift) >
+			compareCandidateScore(candidates[j].hitsBaseline, candidates[j].hitsSelection, candidates[j].coverageShift)
 	})
 	if len(candidates) > maxCompareAttributes {
 		candidates = candidates[:maxCompareAttributes]
@@ -243,9 +259,15 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 			// Filter out rows without this attribute — otherwise empty values dominate the grouping.
 			nonEmptyFilter := quotedAttr + `:*`
 
+			// Pass step=0 — no `_time:step` bucketing — so each pass-2 query produces
+			// one row per attr value instead of one per (value, time-bucket). The
+			// per-query CPU cost drops ~2× (block scan + decompression are unchanged
+			// but the time-bucketing aggregation overhead disappears) and Drilldown's
+			// compare panels render as bar charts instead of time-series, which is
+			// the intended UX for compare anyway.
 			// Baseline: count per value over full time range.
 			baseQ := t.baseFilter + " AND " + nonEmptyFilter + " | stats by (" + quotedAttr + ") count() as value"
-			baseCounts, err := runCountQuery(ctx, cp, baseQ, attr, params.start.UnixNano(), params.end.UnixNano(), params.step)
+			baseCounts, err := runCountQuery(ctx, cp, baseQ, attr, params.start.UnixNano(), params.end.UnixNano(), 0)
 			if err != nil {
 				queryErrMu.Lock()
 				queryErr = err
@@ -256,7 +278,7 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 
 			// Selection: count per value over selection window.
 			selQ := selFilter + " AND " + nonEmptyFilter + " | stats by (" + quotedAttr + ") count() as value"
-			selCounts, err := runCountQuery(ctx, cp, selQ, attr, selStartNs, selEndNs, params.step)
+			selCounts, err := runCountQuery(ctx, cp, selQ, attr, selStartNs, selEndNs, 0)
 			if err != nil {
 				queryErrMu.Lock()
 				queryErr = err
@@ -404,9 +426,10 @@ func buildCompareSeries(results []compareAttrResult, topN int) []tempoMetricsSer
 		topN = 10
 	}
 
-	// Order by coverage shift (already computed during pass-1 filtering). The UI
-	// (e.g. Grafana Traces Drilldown) re-sorts attributes client-side anyway, so we
-	// just return them in a deterministic order — no need for a custom score.
+	// Order by the same volume-weighted score used during pass-1 selection so the
+	// emit order matches the trim order. Drilldown re-sorts client-side anyway, but
+	// keeping the orderings consistent makes the response deterministic and aligned
+	// with the candidates we actually queried.
 	type attrOrder struct {
 		idx   int
 		score float64
@@ -416,7 +439,10 @@ func buildCompareSeries(results []compareAttrResult, topN int) []tempoMetricsSer
 		if len(ar.baseline) == 0 && len(ar.selection) == 0 {
 			continue
 		}
-		scores = append(scores, attrOrder{idx: i, score: ar.coverageShift})
+		scores = append(scores, attrOrder{
+			idx:   i,
+			score: compareCandidateScore(ar.hitsBaseline, ar.hitsSelection, ar.coverageShift),
+		})
 	}
 	sort.Slice(scores, func(i, j int) bool {
 		return scores[i].score > scores[j].score
