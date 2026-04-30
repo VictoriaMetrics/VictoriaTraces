@@ -108,17 +108,21 @@ var compareExcludedFields = map[string]bool{
 	"_msg": true, "_time": true, "_stream": true, "_stream_id": true,
 }
 
-// compareAttrResult holds per-attribute counts for baseline and selection.
+// compareAttrResult holds per-attribute facet counts for baseline and selection.
+//
+// We don't bucket by time — facets returns one count per (attribute, value) over
+// the whole window. The Drilldown comparison panel ranks by total magnitudes, not
+// per-step shapes, so single-sample series is sufficient.
 type compareAttrResult struct {
-	attrName  string                       // VT field name
-	baseline  map[string]map[int64]float64 // value → timestamp → count
-	selection map[string]map[int64]float64
+	attrName  string            // VT field name
+	baseline  map[string]uint64 // value → hits in baseline window
+	selection map[string]uint64 // value → hits in selection window
 
-	// hitsBaseline and hitsSelection are total span counts where the attribute is observed,
-	// taken from the cheap GetFieldNames pre-rank. Used for volume-weighting in the final sort.
+	// hitsBaseline / hitsSelection are sums across all values (i.e. total spans
+	// where the attribute is observed). Used for volume-weighting in the final sort.
 	hitsBaseline  uint64
 	hitsSelection uint64
-	// coverageShift = |selectionHits/selTotal - baselineHits/baseTotal|, captured from pass 1.
+	// coverageShift = |selectionHits/selTotal - baselineHits/baseTotal|.
 	coverageShift float64
 }
 
@@ -145,7 +149,12 @@ func compareCandidateScore(hitsBaseline, hitsSelection uint64, coverageShift flo
 	return coverageShift * math.Log1p(float64(h))
 }
 
-// executeCompareQuery discovers attributes and runs per-attribute count queries for compare().
+// executeCompareQuery runs the compare() pipeline for a TraceQL metrics query.
+//
+// Strategy: two `| facets` queries (baseline + selection windows) in parallel +
+// two `| stats count()` queries for total span counts (denominators). The facets
+// pipe returns top values per field for ALL attributes in one go, replacing what
+// used to be a 32-query fan-out (16 attrs × 2 windows).
 func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *metricsQueryTranslation, params *metricsQueryRangeParam) ([]tempoMetricsSeries, error) {
 	// Build the selection filter (base AND compare filter).
 	selFilter := t.baseFilter
@@ -165,25 +174,62 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 		selEndNs = t.selectionEndNs
 	}
 
-	// Pass 1 (cheap pre-rank): discover field names + per-attribute hit counts on both sides.
-	baselineHits, baselineTotal, err := discoverFieldHits(ctx, cp, t.baseFilter, params.start.UnixNano(), params.end.UnixNano())
-	if err != nil {
-		return nil, fmt.Errorf("cannot discover baseline field hits: %w", err)
+	// Per-value cap: for the panel we want at least topN values per attribute,
+	// but we ask facets for a bit more so we can intersect baseline and selection
+	// and still have headroom after merging.
+	valuesPerField := t.topN
+	if valuesPerField <= 0 {
+		valuesPerField = 10
 	}
-	selectionHits, selectionTotal, err := discoverFieldHits(ctx, cp, selFilter, selStartNs, selEndNs)
-	if err != nil {
-		return nil, fmt.Errorf("cannot discover selection field hits: %w", err)
+	if valuesPerField < 50 {
+		valuesPerField = 50
 	}
 
-	// Filter attributes by coverage shift; exclude internal/excluded fields.
+	// Run facets + totals for both windows in parallel.
+	var (
+		baseFacets    facetResults
+		selFacets     facetResults
+		baselineTotal uint64
+		selectionTotal uint64
+		errBase, errSel, errBaseTot, errSelTot error
+		wg sync.WaitGroup
+	)
+	wg.Add(4)
+	go func() {
+		defer wg.Done()
+		baseFacets, errBase = runFacetsQuery(ctx, cp, t.baseFilter, params.start.UnixNano(), params.end.UnixNano(), valuesPerField)
+	}()
+	go func() {
+		defer wg.Done()
+		selFacets, errSel = runFacetsQuery(ctx, cp, selFilter, selStartNs, selEndNs, valuesPerField)
+	}()
+	go func() {
+		defer wg.Done()
+		baselineTotal, errBaseTot = runTotalCount(ctx, cp, t.baseFilter, params.start.UnixNano(), params.end.UnixNano())
+	}()
+	go func() {
+		defer wg.Done()
+		selectionTotal, errSelTot = runTotalCount(ctx, cp, selFilter, selStartNs, selEndNs)
+	}()
+	wg.Wait()
+	for _, e := range []error{errBase, errSel, errBaseTot, errSelTot} {
+		if e != nil {
+			return nil, e
+		}
+	}
+
+	// Build candidate list from union of facet field names. Apply exclusions and
+	// coverage threshold; keep top-N by volume-weighted score.
 	type candidate struct {
-		name          string
+		attrName      string
+		baseline      map[string]uint64
+		selection     map[string]uint64
 		hitsBaseline  uint64
 		hitsSelection uint64
 		coverageShift float64
 	}
-	var candidates []candidate
 	seen := make(map[string]bool)
+	var candidates []candidate
 	consider := func(name string) {
 		if seen[name] {
 			return
@@ -195,8 +241,18 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 		if strings.HasPrefix(name, otelpb.EventPrefix) || strings.HasPrefix(name, otelpb.LinkPrefix) {
 			return
 		}
-		hb := baselineHits[name]
-		hs := selectionHits[name]
+		baseValues := baseFacets[name]
+		selValues := selFacets[name]
+		if len(baseValues) == 0 && len(selValues) == 0 {
+			return
+		}
+		var hb, hs uint64
+		for _, c := range baseValues {
+			hb += c
+		}
+		for _, c := range selValues {
+			hs += c
+		}
 		var bCov, sCov float64
 		if baselineTotal > 0 {
 			bCov = float64(hb) / float64(baselineTotal)
@@ -208,12 +264,19 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 		if shift <= compareCoverageThreshold {
 			return
 		}
-		candidates = append(candidates, candidate{name, hb, hs, shift})
+		candidates = append(candidates, candidate{
+			attrName:      name,
+			baseline:      baseValues,
+			selection:     selValues,
+			hitsBaseline:  hb,
+			hitsSelection: hs,
+			coverageShift: shift,
+		})
 	}
-	for name := range baselineHits {
+	for name := range baseFacets {
 		consider(name)
 	}
-	for name := range selectionHits {
+	for name := range selFacets {
 		consider(name)
 	}
 
@@ -221,8 +284,6 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 		return nil, nil
 	}
 
-	// Keep top maxCompareAttributes by volume-weighted score so we don't burn the
-	// pass-2 budget on tiny-but-shifty attributes that describe a handful of spans.
 	sort.Slice(candidates, func(i, j int) bool {
 		return compareCandidateScore(candidates[i].hitsBaseline, candidates[i].hitsSelection, candidates[i].coverageShift) >
 			compareCandidateScore(candidates[j].hitsBaseline, candidates[j].hitsSelection, candidates[j].coverageShift)
@@ -231,112 +292,100 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 		candidates = candidates[:maxCompareAttributes]
 	}
 
-	// Pass 2: per-attribute parallel queries on the filtered list.
 	results := make([]compareAttrResult, len(candidates))
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 16) // concurrency limit
-	var queryErr error
-	var queryErrMu sync.Mutex
-
 	for i, c := range candidates {
-		wg.Add(1)
-		go func(i int, c candidate) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			attr := c.name
-			quotedAttr := quoteLogsQLField(attr)
-			ar := compareAttrResult{
-				attrName:      attr,
-				baseline:      make(map[string]map[int64]float64),
-				selection:     make(map[string]map[int64]float64),
-				hitsBaseline:  c.hitsBaseline,
-				hitsSelection: c.hitsSelection,
-				coverageShift: c.coverageShift,
-			}
-
-			// Filter out rows without this attribute — otherwise empty values dominate the grouping.
-			nonEmptyFilter := quotedAttr + `:*`
-
-			// Pass step=0 — no `_time:step` bucketing — so each pass-2 query produces
-			// one row per attr value instead of one per (value, time-bucket). The
-			// per-query CPU cost drops ~2× (block scan + decompression are unchanged
-			// but the time-bucketing aggregation overhead disappears) and Drilldown's
-			// compare panels render as bar charts instead of time-series, which is
-			// the intended UX for compare anyway.
-			// Baseline: count per value over full time range.
-			baseQ := t.baseFilter + " AND " + nonEmptyFilter + " | stats by (" + quotedAttr + ") count() as value"
-			baseCounts, err := runCountQuery(ctx, cp, baseQ, attr, params.start.UnixNano(), params.end.UnixNano(), 0)
-			if err != nil {
-				queryErrMu.Lock()
-				queryErr = err
-				queryErrMu.Unlock()
-				return
-			}
-			ar.baseline = baseCounts
-
-			// Selection: count per value over selection window.
-			selQ := selFilter + " AND " + nonEmptyFilter + " | stats by (" + quotedAttr + ") count() as value"
-			selCounts, err := runCountQuery(ctx, cp, selQ, attr, selStartNs, selEndNs, 0)
-			if err != nil {
-				queryErrMu.Lock()
-				queryErr = err
-				queryErrMu.Unlock()
-				return
-			}
-			ar.selection = selCounts
-
-			results[i] = ar
-		}(i, c)
-	}
-	wg.Wait()
-
-	if queryErr != nil {
-		return nil, queryErr
+		results[i] = compareAttrResult{
+			attrName:      c.attrName,
+			baseline:      c.baseline,
+			selection:     c.selection,
+			hitsBaseline:  c.hitsBaseline,
+			hitsSelection: c.hitsSelection,
+			coverageShift: c.coverageShift,
+		}
 	}
 
-	// Step 4: Build series with topN.
-	return buildCompareSeries(results, t.topN), nil
+	// Use the time range end as the single sample timestamp for emitted series.
+	endTimestampMs := params.end.UnixNano() / 1e6
+	return buildCompareSeries(results, t.topN, endTimestampMs, baselineTotal, selectionTotal), nil
 }
 
-// runCountQuery runs a `stats by (attr) count()` query and returns value → timestamp → count.
-// discoverFieldHits returns a map of attribute_name → hits (number of spans where the attribute
-// is observed) using vtstorage.GetFieldNames, plus the total span count matching the filter.
-// The total is used as the denominator when computing coverage = hits / total per attribute.
-func discoverFieldHits(ctx context.Context, cp *tracecommon.CommonParams, filterStr string, startNs, endNs int64) (map[string]uint64, uint64, error) {
-	// Field hits.
-	q, err := logstorage.ParseQueryAtTimestamp(filterStr, endNs)
+// facetResults maps field_name → field_value → hits.
+type facetResults map[string]map[string]uint64
+
+// runFacetsQuery runs a `<filter> | facets <limit>` query and returns the field/value/hits map.
+// maxFacetUniqueValuesPerField caps how many distinct values facets tracks per field
+// before dropping the field entirely. Lower = faster (less hash table churn), at the
+// cost of dropping high-cardinality fields. 500 is a conservative choice that keeps
+// most useful comparison dimensions while pruning trace_id / span_id / http.url-style
+// fields that aren't useful for compare.
+const maxFacetUniqueValuesPerField = 500
+
+func runFacetsQuery(ctx context.Context, cp *tracecommon.CommonParams, filterStr string, startNs, endNs int64, valuesPerField int) (facetResults, error) {
+	if valuesPerField <= 0 {
+		valuesPerField = 50
+	}
+	qStr := fmt.Sprintf("%s | facets %d max_values_per_field %d", filterStr, valuesPerField, maxFacetUniqueValuesPerField)
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, endNs)
 	if err != nil {
-		return nil, 0, fmt.Errorf("cannot parse filter [%s]: %w", filterStr, err)
+		return nil, fmt.Errorf("cannot parse facets query [%s]: %w", qStr, err)
 	}
 	q.AddTimeFilter(startNs, endNs)
-	cpFn := *cp
-	cpFn.Query = q
-	qctx := cpFn.NewQueryContext(ctx)
-	fieldNames, err := vtstorage.GetFieldNames(qctx)
-	cpFn.UpdatePerQueryStatsMetrics()
-	if err != nil {
-		return nil, 0, err
-	}
-	hits := make(map[string]uint64, len(fieldNames))
-	for _, fn := range fieldNames {
-		hits[fn.Value] = fn.Hits
+
+	results := make(facetResults)
+	var mu sync.Mutex
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		rowsCount := db.RowsCount()
+		columns := db.GetColumns(false)
+		var fnCol, fvCol, hitsCol *logstorage.BlockColumn
+		for i := range columns {
+			switch columns[i].Name {
+			case "field_name":
+				fnCol = &columns[i]
+			case "field_value":
+				fvCol = &columns[i]
+			case "hits":
+				hitsCol = &columns[i]
+			}
+		}
+		if fnCol == nil || fvCol == nil || hitsCol == nil {
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		for i := 0; i < rowsCount; i++ {
+			name := strings.Clone(fnCol.Values[i])
+			value := strings.Clone(fvCol.Values[i])
+			hits, _ := strconv.ParseUint(hitsCol.Values[i], 10, 64)
+			m := results[name]
+			if m == nil {
+				m = make(map[string]uint64)
+				results[name] = m
+			}
+			m[value] += hits
+		}
 	}
 
-	// Total span count.
-	totalQ, err := logstorage.ParseQueryAtTimestamp(filterStr+" | stats count() as total", endNs)
-	if err != nil {
-		return nil, 0, fmt.Errorf("cannot parse total query: %w", err)
+	cpCopy := *cp
+	cpCopy.Query = q
+	qctx := cpCopy.NewQueryContext(ctx)
+	defer cpCopy.UpdatePerQueryStatsMetrics()
+	if err := vtstorage.RunQuery(qctx, writeBlock); err != nil {
+		return nil, err
 	}
-	totalQ.AddTimeFilter(startNs, endNs)
-	cpTot := *cp
-	cpTot.Query = totalQ
-	qctxTot := cpTot.NewQueryContext(ctx)
-	defer cpTot.UpdatePerQueryStatsMetrics()
+	return results, nil
+}
+
+// runTotalCount runs a `<filter> | stats count() as total` query and returns the total.
+func runTotalCount(ctx context.Context, cp *tracecommon.CommonParams, filterStr string, startNs, endNs int64) (uint64, error) {
+	qStr := filterStr + " | stats count() as total"
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, endNs)
+	if err != nil {
+		return 0, fmt.Errorf("cannot parse total query: %w", err)
+	}
+	q.AddTimeFilter(startNs, endNs)
 
 	var total uint64
-	var totalMu sync.Mutex
+	var mu sync.Mutex
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		rowsCount := db.RowsCount()
 		columns := db.GetColumns(false)
@@ -346,90 +395,40 @@ func discoverFieldHits(ctx context.Context, cp *tracecommon.CommonParams, filter
 			}
 			for i := 0; i < rowsCount; i++ {
 				v, _ := strconv.ParseUint(c.Values[i], 10, 64)
-				totalMu.Lock()
-				total += v
-				totalMu.Unlock()
-			}
-		}
-	}
-	if err := vtstorage.RunQuery(qctxTot, writeBlock); err != nil {
-		return nil, 0, err
-	}
-	return hits, total, nil
-}
-
-func runCountQuery(ctx context.Context, cp *tracecommon.CommonParams, logsQLStr, attrName string, startNs, endNs, stepNs int64) (map[string]map[int64]float64, error) {
-	q, err := logstorage.ParseQueryAtTimestamp(logsQLStr, endNs)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse query [%s]: %w", logsQLStr, err)
-	}
-	q.AddTimeFilter(startNs, endNs)
-
-	labelFields, err := q.GetStatsLabelsAddGroupingByTime(stepNs, 0)
-	if err != nil {
-		return nil, fmt.Errorf("cannot prepare stats query: %w", err)
-	}
-
-	counts := make(map[string]map[int64]float64)
-	var mu sync.Mutex
-
-	writeBlock := func(_ uint, db *logstorage.DataBlock) {
-		rowsCount := db.RowsCount()
-		columns := db.GetColumns(false)
-
-		for i := range rowsCount {
-			ts := q.GetTimestamp()
-			var attrValue string
-
-			for _, c := range columns {
-				if c.Name == "_time" {
-					nsec, ok := logstorage.TryParseTimestampRFC3339Nano(c.Values[i])
-					if ok {
-						ts = nsec
-					}
-					continue
-				}
-				if slices.Contains(labelFields, c.Name) && c.Name == attrName {
-					attrValue = strings.Clone(c.Values[i])
-				}
-			}
-
-			for _, c := range columns {
-				if slices.Contains(labelFields, c.Name) || c.Name == "_time" {
-					continue
-				}
-				v, _ := strconv.ParseFloat(c.Values[i], 64)
 				mu.Lock()
-				if counts[attrValue] == nil {
-					counts[attrValue] = make(map[int64]float64)
-				}
-				counts[attrValue][ts] = v
+				total += v
 				mu.Unlock()
 			}
 		}
 	}
-
 	cpCopy := *cp
 	cpCopy.Query = q
 	qctx := cpCopy.NewQueryContext(ctx)
 	defer cpCopy.UpdatePerQueryStatsMetrics()
-
 	if err := vtstorage.RunQuery(qctx, writeBlock); err != nil {
-		return nil, err
+		return 0, err
 	}
-	return counts, nil
+	return total, nil
 }
 
 // buildCompareSeries builds the Tempo compare response series from per-attribute results.
-func buildCompareSeries(results []compareAttrResult, topN int) []tempoMetricsSeries {
+//
+// Series carry a single sample at endTimestampMs since facets returns one count per
+// (attribute, value) over the whole window — Drilldown's compare panel ranks by total
+// magnitudes, not per-step shapes.
+//
+// baselineTotalSpans / selectionTotalSpans are the GLOBAL span counts (regardless of
+// attribute presence). They're emitted as `baseline_total` / `selection_total` series
+// so Drilldown computes percentages against a consistent denominator across all
+// attributes — sparse attributes like has_error don't get truncated denominators.
+func buildCompareSeries(results []compareAttrResult, topN int, endTimestampMs int64, baselineTotalSpans, selectionTotalSpans uint64) []tempoMetricsSeries {
 	if topN <= 0 {
 		topN = 10
 	}
 
-	// Order by the same volume-weighted score used during pass-1 selection so the
-	// emit order matches the trim order. Drilldown re-sorts client-side anyway, but
-	// keeping the orderings consistent makes the response deterministic and aligned
-	// with the candidates we actually queried.
+	// Order by the same volume-weighted score used during pre-rank so the emit order
+	// matches the trim order. Drilldown re-sorts client-side, but keeping the orderings
+	// consistent makes the response deterministic.
 	type attrOrder struct {
 		idx   int
 		score float64
@@ -464,18 +463,14 @@ func buildCompareSeries(results []compareAttrResult, topN int) []tempoMetricsSer
 		// Rank values by total count (baseline + selection combined).
 		type valueTotal struct {
 			value string
-			total float64
+			total uint64
 		}
-		totals := make(map[string]float64)
-		for v, tsCounts := range ar.baseline {
-			for _, c := range tsCounts {
-				totals[v] += c
-			}
+		totals := make(map[string]uint64)
+		for v, c := range ar.baseline {
+			totals[v] += c
 		}
-		for v, tsCounts := range ar.selection {
-			for _, c := range tsCounts {
-				totals[v] += c
-			}
+		for v, c := range ar.selection {
+			totals[v] += c
 		}
 
 		ranked := make([]valueTotal, 0, len(totals))
@@ -489,95 +484,51 @@ func buildCompareSeries(results []compareAttrResult, topN int) []tempoMetricsSer
 			ranked = ranked[:topN]
 		}
 
-		// Collect all timestamps across baseline and selection.
-		tsSet := make(map[int64]bool)
-		for _, tsCounts := range ar.baseline {
-			for ts := range tsCounts {
-				tsSet[ts] = true
-			}
-		}
-		for _, tsCounts := range ar.selection {
-			for ts := range tsCounts {
-				tsSet[ts] = true
-			}
-		}
-		timestamps := make([]int64, 0, len(tsSet))
-		for ts := range tsSet {
-			timestamps = append(timestamps, ts)
-		}
-		sort.Slice(timestamps, func(i, j int) bool { return timestamps[i] < timestamps[j] })
-
-		// Compute totals per timestamp (across ALL values, not just topN).
-		baseTotalByTs := make(map[int64]float64)
-		selTotalByTs := make(map[int64]float64)
-		for _, tsCounts := range ar.baseline {
-			for ts, c := range tsCounts {
-				baseTotalByTs[ts] += c
-			}
-		}
-		for _, tsCounts := range ar.selection {
-			for ts, c := range tsCounts {
-				selTotalByTs[ts] += c
-			}
-		}
-
 		// Emit per-value series for topN values.
 		for _, vt := range ranked {
 			allSeries = append(allSeries,
-				makeCompareSeries("baseline", traceQLName, vt.value, ar.baseline[vt.value], timestamps),
-				makeCompareSeries("selection", traceQLName, vt.value, ar.selection[vt.value], timestamps),
+				makeCompareSeries("baseline", traceQLName, vt.value, ar.baseline[vt.value], endTimestampMs),
+				makeCompareSeries("selection", traceQLName, vt.value, ar.selection[vt.value], endTimestampMs),
 			)
 		}
 
-		// Emit total series (one per attribute, not per value).
+		// Emit total series — one per attribute. Uses the GLOBAL span counts so the
+		// denominator is consistent across attributes (sparse attrs like has_error
+		// don't get truncated totals from per-attribute facet sums).
 		allSeries = append(allSeries,
-			makeCompareSeriesTotals("baseline_total", traceQLName, baseTotalByTs, timestamps),
-			makeCompareSeriesTotals("selection_total", traceQLName, selTotalByTs, timestamps),
+			makeCompareSeriesTotals("baseline_total", traceQLName, baselineTotalSpans, endTimestampMs),
+			makeCompareSeriesTotals("selection_total", traceQLName, selectionTotalSpans, endTimestampMs),
 		)
 	}
 
 	return allSeries
 }
 
-func remapStatusValues(counts map[string]map[int64]float64) map[string]map[int64]float64 {
-	result := make(map[string]map[int64]float64, len(counts))
-	for v, ts := range counts {
-		result[traceql.StatusCodeToName(v)] = ts
+func remapStatusValues(counts map[string]uint64) map[string]uint64 {
+	result := make(map[string]uint64, len(counts))
+	for v, c := range counts {
+		result[traceql.StatusCodeToName(v)] = c
 	}
 	return result
 }
 
-func makeCompareSeries(metaType, attrName, attrValue string, tsCounts map[int64]float64, timestamps []int64) tempoMetricsSeries {
-	samples := make([]tempoSample, len(timestamps))
-	for i, ts := range timestamps {
-		samples[i] = tempoSample{
-			TimestampMs: ts / 1e6,
-			Value:       tsCounts[ts], // 0 if missing
-		}
-	}
+func makeCompareSeries(metaType, attrName, attrValue string, count uint64, timestampMs int64) tempoMetricsSeries {
 	return tempoMetricsSeries{
 		Labels: []tempoLabel{
 			{Key: "__meta_type", Value: metaType},
 			{Key: attrName, Value: attrValue},
 		},
-		Samples: samples,
+		Samples: []tempoSample{{TimestampMs: timestampMs, Value: float64(count)}},
 	}
 }
 
-func makeCompareSeriesTotals(metaType, attrName string, totalByTs map[int64]float64, timestamps []int64) tempoMetricsSeries {
-	samples := make([]tempoSample, len(timestamps))
-	for i, ts := range timestamps {
-		samples[i] = tempoSample{
-			TimestampMs: ts / 1e6,
-			Value:       totalByTs[ts],
-		}
-	}
+func makeCompareSeriesTotals(metaType, attrName string, total uint64, timestampMs int64) tempoMetricsSeries {
 	return tempoMetricsSeries{
 		Labels: []tempoLabel{
 			{Key: "__meta_type", Value: metaType},
 			{Key: attrName, Value: ""},
 		},
-		Samples: samples,
+		Samples: []tempoSample{{TimestampMs: timestampMs, Value: float64(total)}},
 	}
 }
 
