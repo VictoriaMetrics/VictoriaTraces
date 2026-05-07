@@ -22,8 +22,6 @@ type indexEntry struct {
 	tenantID      logstorage.TenantID
 	startTimeNano int64
 	endTimeNano   int64
-	hasRootSpan   bool
-	hasError      bool
 }
 
 type indexWorker struct {
@@ -50,13 +48,13 @@ var (
 
 // pushIndexToQueue organize index data (from LogMessageProcessor interface or InsertRowProcessor interface)
 // and push it to the queue.
-func pushIndexToQueue(tenantID logstorage.TenantID, traceID string, startTime, endTime int64, isRootSpan, hasError bool) bool {
+func pushIndexToQueue(tenantID logstorage.TenantID, traceID string, startTime, endTime int64) bool {
 	select {
 	case <-stopCh:
 		// during stop, no data should be pushed to the queue anymore.
 		return false
 	default:
-		mustPushIndex(tenantID, traceID, startTime, endTime, isRootSpan, hasError)
+		mustPushIndex(tenantID, traceID, startTime, endTime)
 	}
 	return true
 }
@@ -64,7 +62,7 @@ func pushIndexToQueue(tenantID logstorage.TenantID, traceID string, startTime, e
 // mustPushIndex compose an (or update an existing) indexEntry with tenantID, startTime and endTime for a trace,
 // and put it to the traceIDIndex map.
 // The indexEntry should indicate the real min(startTime) and max(endTime) of a trace, and be flushed to disk later.
-func mustPushIndex(tenantID logstorage.TenantID, traceID string, startTime, endTime int64, isRootSpan, hasError bool) {
+func mustPushIndex(tenantID logstorage.TenantID, traceID string, startTime, endTime int64) {
 	tb := [32]byte{}
 	copy(tb[:], traceID)
 
@@ -80,8 +78,6 @@ func mustPushIndex(tenantID logstorage.TenantID, traceID string, startTime, endT
 	if ok {
 		idxEntry.startTimeNano = min(startTime, idxEntry.startTimeNano)
 		idxEntry.endTimeNano = max(endTime, idxEntry.endTimeNano)
-		idxEntry.hasRootSpan = idxEntry.hasRootSpan || isRootSpan
-		idxEntry.hasError = idxEntry.hasError || hasError
 		worker.traceIDIndexMapCur[tb] = idxEntry
 		return
 	}
@@ -90,7 +86,6 @@ func mustPushIndex(tenantID logstorage.TenantID, traceID string, startTime, endT
 	if ok {
 		idxEntry.startTimeNano = min(startTime, idxEntry.startTimeNano)
 		idxEntry.endTimeNano = max(endTime, idxEntry.endTimeNano)
-		idxEntry.hasRootSpan = idxEntry.hasRootSpan || isRootSpan
 		worker.traceIDIndexMapPrev[tb] = idxEntry
 		return
 	}
@@ -100,7 +95,6 @@ func mustPushIndex(tenantID logstorage.TenantID, traceID string, startTime, endT
 	idxEntry.tenantID = tenantID
 	idxEntry.startTimeNano = startTime
 	idxEntry.endTimeNano = endTime
-	idxEntry.hasRootSpan = isRootSpan
 
 	worker.traceIDIndexMapCur[tb] = idxEntry
 }
@@ -185,14 +179,6 @@ func (w *indexWorker) flushIndexInMap(tb [32]byte, idxEntry indexEntry) bool {
 
 	startTimestamp := idxEntry.startTimeNano
 	endTimestamp := idxEntry.endTimeNano
-	hasRootSpan := "0"
-	hasError := "0"
-	if idxEntry.hasRootSpan {
-		hasRootSpan = "1"
-	}
-	if idxEntry.hasError {
-		hasError = "1"
-	}
 	lmp.AddRow(startTimestamp,
 		// fields
 		[]logstorage.Field{
@@ -202,8 +188,6 @@ func (w *indexWorker) flushIndexInMap(tb [32]byte, idxEntry indexEntry) bool {
 			{Name: otelpb.TraceIDIndexStartTimeFieldName, Value: strconv.FormatInt(startTimestamp, 10)},
 			{Name: otelpb.TraceIDIndexEndTimeFieldName, Value: strconv.FormatInt(endTimestamp, 10)},
 			{Name: otelpb.TraceIDIndexDuration, Value: strconv.FormatInt(endTimestamp-startTimestamp, 10)},
-			{Name: otelpb.TraceIDIndexHasRootSpan, Value: hasRootSpan},
-			{Name: otelpb.TraceIDIndexHasError, Value: hasError},
 		},
 		1,
 	)

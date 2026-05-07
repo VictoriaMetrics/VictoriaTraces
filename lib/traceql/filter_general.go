@@ -1,7 +1,6 @@
 package traceql
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -52,14 +51,7 @@ func (fc *filterCommon) String() string {
 	// known to contain a root span, orders of magnitude faster than scanning
 	// parent_span_id across all spans.
 	if fc.fieldName == "nestedSetParent" && fc.op == "<" && fc.value == "0" {
-		return fmt.Sprintf(
-			`%s:="" AND %s:in({%s!=""} %s:=1 | fields %s)`,
-			otelpb.ParentSpanIDField,
-			otelpb.TraceIDField,
-			otelpb.TraceIDIndexStreamName,
-			otelpb.TraceIDIndexHasRootSpan,
-			otelpb.TraceIDIndexFieldName,
-		)
+		return otelpb.ParentSpanIDField + `:=""`
 	}
 
 	// TraceQL's `attr = nil` / `attr != nil` map to LogsQL's empty-value and

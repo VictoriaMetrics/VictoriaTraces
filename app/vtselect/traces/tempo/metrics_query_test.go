@@ -50,7 +50,7 @@ func TestTranslateMetricsQueryFull(t *testing.T) {
 
 	// nestedSetParent → root spans; intersect with trace ID index via in(subquery)
 	f(`{nestedSetParent < 0} | rate()`,
-		`parent_span_id:="" AND trace_id:in({trace_id_idx_stream!=""} has_root_span:=1 | fields trace_id_idx) | stats rate() as value`)
+		`parent_span_id:="" | stats rate() as value`)
 
 	// `attr != nil` → any-value filter; `attr = nil` → empty-value filter.
 	f(`{resource.service.name != nil} | rate()`,

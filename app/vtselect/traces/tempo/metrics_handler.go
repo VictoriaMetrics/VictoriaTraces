@@ -92,13 +92,12 @@ var compareExcludedFields = map[string]bool{
 	otelpb.DroppedAttributesCountField: true,
 	otelpb.DroppedEventsCountField:     true,
 	otelpb.DroppedLinksCountField:      true,
-	otelpb.DurationField: true,
+	otelpb.DurationField:               true,
 	// internal index fields
 	otelpb.TraceIDIndexStreamName:         true,
 	otelpb.TraceIDIndexFieldName:          true,
 	otelpb.TraceIDIndexStartTimeFieldName: true,
 	otelpb.TraceIDIndexEndTimeFieldName:   true,
-	otelpb.TraceIDIndexHasRootSpan:        true,
 	// service graph fields
 	otelpb.ServiceGraphStreamName:         true,
 	otelpb.ServiceGraphParentFieldName:    true,
@@ -187,12 +186,12 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 
 	// Run facets + totals for both windows in parallel.
 	var (
-		baseFacets    facetResults
-		selFacets     facetResults
-		baselineTotal uint64
-		selectionTotal uint64
+		baseFacets                             facetResults
+		selFacets                              facetResults
+		baselineTotal                          uint64
+		selectionTotal                         uint64
 		errBase, errSel, errBaseTot, errSelTot error
-		wg sync.WaitGroup
+		wg                                     sync.WaitGroup
 	)
 	wg.Add(4)
 	go func() {
