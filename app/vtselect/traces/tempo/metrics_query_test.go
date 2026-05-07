@@ -29,53 +29,53 @@ func TestTranslateMetricsQueryFull(t *testing.T) {
 	}
 
 	// Basic rate
-	f(`{} | rate()`, `* | stats rate() as value`)
+	f(`{} | rate()`, `{resource_attr:service.name!=""} AND * | stats rate() as value`)
 
 	// Status value mapping
-	f(`{status = error} | rate()`, `status_code:=2 | stats rate() as value`)
+	f(`{status = error} | rate()`, `{resource_attr:service.name!=""} AND status_code:=2 | stats rate() as value`)
 
 	// Duration filter (100ms = 100000000ns)
-	f(`{duration > 100ms} | rate()`, `duration:>100000000 | stats rate() as value`)
+	f(`{duration > 100ms} | rate()`, `{resource_attr:service.name!=""} AND duration:>100000000 | stats rate() as value`)
 
 	// Resource attribute filter
 	f(`{resource.service.name = "api"} | rate()`,
-		`"resource_attr:service.name":=api | stats rate() as value`)
+		`{resource_attr:service.name!=""} AND "resource_attr:service.name":=api | stats rate() as value`)
 
 	// Span attribute filter
 	f(`{span.http.status_code >= 400} | count_over_time()`,
-		`"span_attr:http.status_code":>=400 | stats count() as value`)
+		`{resource_attr:service.name!=""} AND "span_attr:http.status_code":>=400 | stats count() as value`)
 
 	// Name filter
-	f(`{name = "http_request"} | rate()`, `name:=http_request | stats rate() as value`)
+	f(`{name = "http_request"} | rate()`, `{resource_attr:service.name!=""} AND name:=http_request | stats rate() as value`)
 
 	// nestedSetParent → root spans; intersect with trace ID index via in(subquery)
 	f(`{nestedSetParent < 0} | rate()`,
-		`parent_span_id:="" | stats rate() as value`)
+		`{resource_attr:service.name!=""} AND parent_span_id:="" | stats rate() as value`)
 
 	// `attr != nil` → any-value filter; `attr = nil` → empty-value filter.
 	f(`{resource.service.name != nil} | rate()`,
-		`"resource_attr:service.name":* | stats rate() as value`)
+		`{resource_attr:service.name!=""} AND "resource_attr:service.name":* | stats rate() as value`)
 	f(`{resource.service.name = nil} | rate()`,
-		`"resource_attr:service.name":"" | stats rate() as value`)
+		`{resource_attr:service.name!=""} AND "resource_attr:service.name":"" | stats rate() as value`)
 
 	// Grafana sends {true && true}
-	f(`{true && true} | rate()`, `* and * | stats rate() as value`)
+	f(`{true && true} | rate()`, `{resource_attr:service.name!=""} AND * and * | stats rate() as value`)
 
 	// All aggregation functions
-	f(`{} | count_over_time()`, `* | stats count() as value`)
-	f(`{} | min_over_time(duration)`, `* | stats min(duration) as value`)
-	f(`{} | max_over_time(duration)`, `* | stats max(duration) as value`)
-	f(`{} | avg_over_time(duration)`, `* | stats avg(duration) as value`)
-	f(`{} | sum_over_time(duration)`, `* | stats sum(duration) as value`)
-	f(`{} | histogram_over_time(duration)`, `* | stats histogram(duration) as value`)
-	f(`{} | quantile_over_time(duration, 0.9)`, `* | stats quantile(0.9, duration) as value`)
+	f(`{} | count_over_time()`, `{resource_attr:service.name!=""} AND * | stats count() as value`)
+	f(`{} | min_over_time(duration)`, `{resource_attr:service.name!=""} AND * | stats min(duration) as value`)
+	f(`{} | max_over_time(duration)`, `{resource_attr:service.name!=""} AND * | stats max(duration) as value`)
+	f(`{} | avg_over_time(duration)`, `{resource_attr:service.name!=""} AND * | stats avg(duration) as value`)
+	f(`{} | sum_over_time(duration)`, `{resource_attr:service.name!=""} AND * | stats sum(duration) as value`)
+	f(`{} | histogram_over_time(duration)`, `{resource_attr:service.name!=""} AND * | stats histogram(duration) as value`)
+	f(`{} | quantile_over_time(duration, 0.9)`, `{resource_attr:service.name!=""} AND * | stats quantile(0.9, duration) as value`)
 
 	// Field name mapping in aggregation
-	f(`{} | sum_over_time(span.kafka.lag)`, `* | stats sum("span_attr:kafka.lag") as value`)
+	f(`{} | sum_over_time(span.kafka.lag)`, `{resource_attr:service.name!=""} AND * | stats sum("span_attr:kafka.lag") as value`)
 	f(`{} | avg_over_time(span.http.response_content_length)`,
-		`* | stats avg("span_attr:http.response_content_length") as value`)
+		`{resource_attr:service.name!=""} AND * | stats avg("span_attr:http.response_content_length") as value`)
 	f(`{} | max_over_time(span.http.status_code)`,
-		`* | stats max("span_attr:http.status_code") as value`)
+		`{resource_attr:service.name!=""} AND * | stats max("span_attr:http.status_code") as value`)
 }
 
 func TestTranslateMetricsQueryByFields(t *testing.T) {

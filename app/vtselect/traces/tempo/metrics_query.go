@@ -40,11 +40,17 @@ func translateMetricsQuery(traceQLStr string, timestamp int64) (*metricsQueryTra
 		return nil, err
 	}
 
+	// Only span streams should be taken into account. Internal streams such as index and service graph streams
+	// must be excluded.
+	baseFilterStr := `{resource_attr:service.name!=""} AND `
+
 	// Get the filter part in LogsQL format.
 	filterStr := q.Filter()
 	if filterStr == "*" || filterStr == "" {
 		filterStr = "*"
 	}
+
+	filterStr = baseFilterStr + filterStr
 
 	// Map the by-fields from TraceQL to VT field names.
 	vtByFields := make([]string, len(traceQLByFields))
