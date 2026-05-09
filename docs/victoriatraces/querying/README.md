@@ -240,7 +240,7 @@ VictoriaTraces accepts the following formats for the `hidden_fields_filters` que
 
 Make sure that the `hidden_fields_filters` value is properly encoded with [percent encoding](https://en.wikipedia.org/wiki/Percent-encoding).
 
-The attribute/field names **MUST** be consistent with how they are stored in VictoriaTraces. You can see how prefixes are attached to resource attributes and span attributes in [the VictoriaTraces data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+The attribute/field names **MUST** be consistent with how they are stored in VictoriaTraces. You can see how prefixes are attached to resource attributes and span attributes in [the VictoriaTraces data model](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model).
 Typically, resource attributes carry the prefix `resource_attr:`, and span attributes carry the prefix `span_attr:`.
 
 An **example** to config `hidden_fields_filter` with Grafana Jaeger datasource could be:
