@@ -219,3 +219,36 @@ Some valid filter examples:
 - Multiple regex filters: `span.kind=~cli.* http.status_code:~^2`
 
 Note that the examples are for user input on the Jaeger frontend, which parses and sends the request in JSON format later.
+
+## Hidden fields
+
+All the [querying APIs at VictoriaTraces](https://docs.victoriametrics.com/victorialogs/querying/#http-api) accept optional `hidden_fields_filters` query arg,
+which can be used for hiding the specific [attributes](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), also known as the [fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#other-fields) in VictoriaLogs/VictoriaTraces data model, during query execution.
+These attributes become invisible during query execution.
+
+This functionality is useful for restricting access to certain span attributes with sensitive information for the particular authorized users.
+The `hidden_fields_filters` query arg can be attached to the request by auth proxy such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
+according to [these docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#enforcing-query-args), and by Grafana if set in datasource URL.
+
+VictoriaTraces accepts the following formats for the `hidden_fields_filters` query arg:
+
+- Comma-separated list of field names or field name prefixes ending with `*`. For example, `hidden_fields_filters=pass*,pin` hides all the fields starting with `pass`
+  plus the `pin` field.
+
+- JSON array with field names or field name prefixes ending with `*`. For example, `hidden_fields_filters=["pass*","pin"]` is equivalent to the previous example.
+  JSON array formatting allows specifying field names with commas contrary to the comma-separated formatting.
+
+Make sure that the `hidden_fields_filters` value is properly encoded with [percent encoding](https://en.wikipedia.org/wiki/Percent-encoding).
+
+The attribute/field names **MUST** be consistent with how they are stored in VictoriaTraces. You can see how prefixes are attached to resource attributes and span attributes in [the VictoriaTraces data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+Typically, resource attributes carry the prefix `resource_attr:`, and span attributes carry the prefix `span_attr:`.
+
+An **example** to config `hidden_fields_filter` with Grafana Jaeger datasource could be:
+
+```
+http://<victoria-traces>:10428/select/jaeger?hidden_fields_filters=resource_attr%3Atelemetry.sdk.name
+```
+
+This will hide resource attribute `telemetry.sdk.name` in the Jaeger APIs.
+
+See also [hidden fields](https://docs.victoriametrics.com/victorialogs/querying/#hidden-fields) in VictoriaLogs for more examples and restrictions.
