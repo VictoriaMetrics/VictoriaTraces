@@ -243,7 +243,7 @@ Make sure that the `hidden_fields_filters` value is properly encoded with [perce
 The attribute/field names **MUST** be consistent with how they are stored in VictoriaTraces. You can see how prefixes are attached to resource attributes and span attributes in [the VictoriaTraces data model](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model).
 Typically, resource attributes carry the prefix `resource_attr:`, and span attributes carry the prefix `span_attr:`.
 
-An **example** to config `hidden_fields_filter` with Grafana Jaeger datasource could be:
+An **example** to config `hidden_fields_filters` with Grafana Jaeger datasource could be:
 
 ```
 http://<victoria-traces>:10428/select/jaeger?hidden_fields_filters=resource_attr%3Atelemetry.sdk.name
