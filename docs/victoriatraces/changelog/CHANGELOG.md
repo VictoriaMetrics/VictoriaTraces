@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/):  (experimental) extend Tempo API support for [Grafana Traces Drilldown](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/traces/). Thank @vshulakov-sh for [the pull request #132](https://github.com/VictoriaMetrics/VictoriaTraces/pull/132).
+
 ## [v0.8.2](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.8.2)
 
 Released at 2026-04-27
