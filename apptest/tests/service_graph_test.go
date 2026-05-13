@@ -72,9 +72,22 @@ func testServiceGraphGenerationJaegerQuery(tc *at.TestCase, sut at.VictoriaTrace
 					Child:     childServiceName,
 					CallCount: 1,
 				},
+				{
+					Parent:    parentServiceName,
+					Child:     parentServiceName + ":MongoDB",
+					CallCount: 1,
+				},
 			},
 		},
 		CmpOpts: []cmp.Option{
+			cmpopts.SortSlices(func(i, j at.DependenciesResponseData) bool {
+				if i.Parent != j.Parent {
+					return i.Parent < j.Parent
+				} else if i.Child != j.Child {
+					return i.Child < j.Child
+				}
+				return i.CallCount < j.CallCount
+			}),
 			cmpopts.IgnoreFields(at.JaegerAPIDependenciesResponse{}, "Errors", "Limit", "Offset", "Total"),
 			cmpopts.IgnoreFields(at.DependenciesResponseData{}, "CallCount"),
 		},
@@ -95,7 +108,8 @@ func prepareTraceParentAndChildSpanData(tc *at.TestCase, sut at.VictoriaTracesWr
 	spanName := "testKeyIngestQuerySpan"
 	traceID := "123456789"
 	testTagValue := "testValue"
-	testTag := []*otelpb.KeyValue{
+	testDBName := "MongoDB"
+	commonTags := []*otelpb.KeyValue{
 		{
 			Key: "testTag",
 			Value: &otelpb.AnyValue{
@@ -103,6 +117,15 @@ func prepareTraceParentAndChildSpanData(tc *at.TestCase, sut at.VictoriaTracesWr
 			},
 		},
 	}
+	databaseTags := []*otelpb.KeyValue{
+		{
+			Key: "db.system.name",
+			Value: &otelpb.AnyValue{
+				StringValue: &testDBName,
+			},
+		},
+	}
+
 	spanTime := time.Now()
 
 	parentSpanReq := &otelpb.ExportTraceServiceRequest{
@@ -135,7 +158,7 @@ func prepareTraceParentAndChildSpanData(tc *at.TestCase, sut at.VictoriaTracesWr
 								Kind:              otelpb.SpanKind(3), // parent span must be 3 or 4, 3 means client
 								StartTimeUnixNano: uint64(spanTime.UnixNano()),
 								EndTimeUnixNano:   uint64(spanTime.UnixNano()),
-								Attributes:        testTag,
+								Attributes:        append(commonTags, databaseTags...),
 								Events:            []*otelpb.SpanEvent{},
 								Links:             []*otelpb.SpanLink{},
 								Status:            otelpb.Status{},
@@ -177,7 +200,7 @@ func prepareTraceParentAndChildSpanData(tc *at.TestCase, sut at.VictoriaTracesWr
 								Kind:              otelpb.SpanKind(2), // child span must be 2 or 5, 2 means server
 								StartTimeUnixNano: uint64(spanTime.UnixNano()),
 								EndTimeUnixNano:   uint64(spanTime.UnixNano()),
-								Attributes:        testTag,
+								Attributes:        commonTags,
 								Events:            []*otelpb.SpanEvent{},
 								Links:             []*otelpb.SpanLink{},
 								Status:            otelpb.Status{},
@@ -236,7 +259,7 @@ func prepareTraceParentAndChildSpanData(tc *at.TestCase, sut at.VictoriaTracesWr
 								Kind:              otelpb.SpanKind(2), // parent span set to 2 (server), which is invalid
 								StartTimeUnixNano: uint64(spanTime.UnixNano()),
 								EndTimeUnixNano:   uint64(spanTime.UnixNano()),
-								Attributes:        testTag,
+								Attributes:        commonTags,
 								Events:            []*otelpb.SpanEvent{},
 								Links:             []*otelpb.SpanLink{},
 								Status:            otelpb.Status{},
@@ -278,7 +301,7 @@ func prepareTraceParentAndChildSpanData(tc *at.TestCase, sut at.VictoriaTracesWr
 								Kind:              otelpb.SpanKind(3), // child span set to 3 (client), which is invalid
 								StartTimeUnixNano: uint64(spanTime.UnixNano()),
 								EndTimeUnixNano:   uint64(spanTime.UnixNano()),
-								Attributes:        testTag,
+								Attributes:        commonTags,
 								Events:            []*otelpb.SpanEvent{},
 								Links:             []*otelpb.SpanLink{},
 								Status:            otelpb.Status{},
