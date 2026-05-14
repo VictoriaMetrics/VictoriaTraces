@@ -428,6 +428,7 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 	for _, row := range rows {
 		var traceID, serviceName, spanName, parentSpanID string
 		var startTimeUnixNano, endTimeUnixNano int64
+		var hasStart, hasEnd bool
 		var err error
 		for _, field := range row.Fields {
 			switch field.Name {
@@ -444,11 +445,13 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 				if err != nil {
 					return nil, err
 				}
+				hasStart = true
 			case otelpb.EndTimeUnixNanoField:
 				endTimeUnixNano, err = strconv.ParseInt(field.Value, 10, 64)
 				if err != nil {
 					return nil, err
 				}
+				hasEnd = true
 			default:
 				continue
 			}
@@ -469,8 +472,12 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 		}
 
 		summary.traceID = traceID
-		summary.startTimeUnixNano = min(summary.startTimeUnixNano, startTimeUnixNano)
-		summary.endTimeUnixNano = max(summary.endTimeUnixNano, endTimeUnixNano)
+		if hasStart {
+			summary.startTimeUnixNano = min(summary.startTimeUnixNano, startTimeUnixNano)
+		}
+		if hasEnd {
+			summary.endTimeUnixNano = max(summary.endTimeUnixNano, endTimeUnixNano)
+		}
 		// if it's the root span
 		if parentSpanID == "" {
 			summary.rootServiceName = serviceName
@@ -482,6 +489,9 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 
 	resultList := make([]traceSummary, 0, len(traceMap))
 	for _, summary := range traceMap {
+		if summary.startTimeUnixNano == math.MaxInt64 {
+			summary.startTimeUnixNano = 0
+		}
 		resultList = append(resultList, summary)
 	}
 	return resultList, nil

@@ -121,7 +121,7 @@
 	"traceID":{%q= summary.traceID %},
 	"rootServiceName":{%q= summary.rootServiceName %},
 	"rootTraceName":{%q= summary.rootTraceName %},
-	"startTimeUnixNano":{%dl= summary.startTimeUnixNano %},
+	"startTimeUnixNano":"{%dl= summary.startTimeUnixNano %}",
 	"durationMs":{%dl= (summary.endTimeUnixNano - summary.startTimeUnixNano) / 1e6 %},
 	"spanSets": []
 }
