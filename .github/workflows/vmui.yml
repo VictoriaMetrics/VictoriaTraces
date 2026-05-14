@@ -68,7 +68,7 @@ jobs:
         continue-on-error: true
 
       - name: Annotate Code Linting Results
-        uses: ataylorme/eslint-annotate-action@03bec515858fea50353ff60e3c537678826650a4  # v4.0.0-beta.1
+        uses: ataylorme/eslint-annotate-action@d57a1193d4c59cbfbf3f86c271f42612f9dbd9e9  # 3.0.0
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           report-json: app/vmui/packages/vmui/vmui-lint-report.json
