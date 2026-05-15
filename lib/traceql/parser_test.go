@@ -77,6 +77,42 @@ func Test_parseQuery(t *testing.T) {
 	f(`{(a=b && c=d && c=d)}`)
 }
 
+// Test_parseQuery_malformed asserts that malformed inputs return an error
+// rather than crashing the parser via unbounded recursion or non-progressing
+// loops. Previously, queries like "{&&}" caused parseFilterGeneric to recurse
+// into parseFilterAnd without consuming the operator token, overflowing the
+// goroutine stack.
+func Test_parseQuery_malformed(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		_, err := ParseQuery(s)
+		if err == nil {
+			t.Fatalf("expected error for malformed query %q, got nil", s)
+		}
+	}
+
+	// Orphaned binary operators inside a filter — previously recursed forever.
+	f(`{&&}`)
+	f(`{||}`)
+	f(`{and}`)
+	f(`{or}`)
+	f(`{&& a}`)
+	f(`{|| a}`)
+	f(`{a &&}`)
+	f(`{a ||}`)
+	f(`{a && && b}`)
+	f(`{a || || b}`)
+	f(`{a && (b || )}`)
+	f(`{(a && && b)}`)
+
+	// Unary operators are not implemented — previously returned (nil, nil)
+	// silently, spinning the caller's loop without consuming the token.
+	f(`{not}`)
+	f(`{!}`)
+	f(`{-}`)
+	f(`{not a}`)
+}
+
 func TestGetTraceDurationFilters(t *testing.T) {
 	f := func(s string) {
 		t.Helper()

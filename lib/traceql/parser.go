@@ -255,6 +255,8 @@ func parseFilterOr(lex *lexer, fieldName string) (filter, error) {
 			return fo, nil
 		case lex.isKeyword("or", "||"):
 			lex.nextToken()
+		default:
+			return nil, fmt.Errorf("unexpected token %q; expecting 'or', '||' or end of filter", lex.token)
 		}
 	}
 }
@@ -278,9 +280,8 @@ func parseFilterAnd(lex *lexer, fieldName string) (filter, error) {
 			return fa, nil
 		case lex.isKeyword("and", "&&"):
 			lex.nextToken()
-			//case lex.isKeyword("or", "||"):
-			//	parseFilterOr(lex, fieldName)
-			//	lex.nextToken()
+		default:
+			return nil, fmt.Errorf("unexpected token %q; expecting 'and', '&&' or end of filter", lex.token)
 		}
 	}
 }
@@ -331,12 +332,10 @@ func parseFilterGeneric(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterParens(lex, fieldName)
 	case lex.isKeyword(">", "<", ">=", "<=", "=", "=~", "!=", "!~"):
 		return parseFilterCommon(lex, fieldName)
-	case lex.isKeyword("&&"):
-		return parseFilterAnd(lex, fieldName)
-	case lex.isKeyword("||"):
-		return parseFilterOr(lex, fieldName)
+	case lex.isKeyword("&&", "||", "and", "or"):
+		return nil, fmt.Errorf("unexpected operator %q at filter start; binary operators need a left operand", lex.token)
 	case lex.isKeyword("not", "!", "-"):
-		return nil, nil
+		return nil, fmt.Errorf("unary operator %q is not supported", lex.token)
 	case lex.isKeyword("true", "false"):
 		return parseFilterTrue(lex, fieldName)
 	default:
