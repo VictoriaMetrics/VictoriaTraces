@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/bits"
 	"net/http"
 	"slices"
 	"sort"
@@ -600,18 +601,36 @@ func executeStatsQuery(ctx context.Context, cp *tracecommon.CommonParams, logsQL
 				if v == "[]" || strings.HasPrefix(v, `[{"vmrange":"`) {
 					var buckets []histogramBucket
 					if err := json.Unmarshal([]byte(v), &buckets); err == nil {
+						// Re-bin VictoriaLogs' fine log-scale buckets into Tempo's
+						// Log2Bucketize layout (next power of 2 in nanoseconds). Multiple
+						// vmranges that map to the same Tempo bin have their hits summed,
+						// so the response matches Tempo's coarser histogram_over_time
+						// shape used by Grafana's heatmap renderer.
+						binHits := make(map[uint64]uint64, len(buckets))
 						for _, bucket := range buckets {
+							binNs := tempoBucketNs(bucket.VMRange)
+							if binNs == 0 {
+								// VictoriaLogs emits a "0" vmrange for sub-resolution samples.
+								// Tempo has no equivalent bucket — drop them.
+								continue
+							}
+							binHits[binNs] += bucket.Hits
+						}
+						for binNs, hits := range binHits {
 							bucketLabels := make([]logstorage.Field, 0, len(labels)+1)
 							bucketLabels = append(bucketLabels, filterByFields(labels, byFields)...)
+							// Match Tempo's response shape: numeric `__bucket` label so
+							// Grafana's Tempo datasource recognises the series as heatmap
+							// rows. The encoder emits this label as doubleValue.
 							bucketLabels = append(bucketLabels, logstorage.Field{
-								Name:  "duration",
-								Value: vmrangeToSeconds(bucket.VMRange),
+								Name:  histogramBucketLabelName,
+								Value: strconv.FormatFloat(float64(binNs)/1e9, 'g', -1, 64),
 							})
 							bp := metricsStatsPoint{
 								Timestamp: ts,
-								Value:     strconv.FormatUint(bucket.Hits, 10),
+								Value:     strconv.FormatUint(hits, 10),
 							}
-							bucketKey := fmt.Sprintf("%d:%s:vmrange=%s", j, marshalLabels(labels), bucket.VMRange)
+							bucketKey := fmt.Sprintf("%d:%s:bin=%d", j, marshalLabels(labels), binNs)
 							addPoint(bucketKey, bucketLabels, bp)
 						}
 						continue
@@ -737,8 +756,14 @@ type histogramBucket struct {
 	Hits    uint64 `json:"hits"`
 }
 
+// histogramBucketLabelName is the label key VT uses for the per-bucket boundary
+// in histogram_over_time responses. It matches Tempo's `__bucket` convention so
+// Grafana's Tempo datasource renders the result as a heatmap. The label value
+// is the geometric-mean bucket midpoint in seconds and is emitted as a numeric
+// (doubleValue) JSON field by transformToTempoSeriesImpl.
+const histogramBucketLabelName = "__bucket"
+
 // vmrangeToSeconds converts a vmrange (nanosecond boundaries) to its geometric mean in seconds.
-// This matches Tempo's convention: Log2Bucketize(durationNanos) / time.Second
 // e.g., "5.995e+08...6.813e+08" → "0.639" (seconds)
 func vmrangeToSeconds(vmrange string) string {
 	parts := strings.SplitN(vmrange, "...", 2)
@@ -753,6 +778,36 @@ func vmrangeToSeconds(vmrange string) string {
 	mid := math.Sqrt(lo * hi)
 	seconds := mid / 1e9
 	return strconv.FormatFloat(seconds, 'g', -1, 64)
+}
+
+// tempoBucketNs returns the Tempo Log2Bucketize bin (next power of 2 in
+// nanoseconds) that the vmrange's upper bound falls into. This matches
+// Tempo's histogram_over_time response, which uses 2^k nanosecond bins
+// instead of VictoriaLogs' ~18-per-decade log-scale ladder.
+//
+// vmrange may be either a single number ("0", "1e-5") representing a point
+// bucket, or a "lo...hi" pair. The bin is computed from `hi` so that hits
+// in [lo, hi] map to the smallest power-of-2 bin covering hi — the same
+// rule Tempo applies to each span duration.
+//
+// Returns 0 for the underflow bucket (sub-nanosecond `hi`) so the caller
+// can drop it. Tempo never emits a sub-microsecond bucket — these are
+// degenerate zero-duration spans VictoriaLogs lumps into `"0...1e-09"`.
+func tempoBucketNs(vmrange string) uint64 {
+	hi := 0.0
+	if parts := strings.SplitN(vmrange, "...", 2); len(parts) == 2 {
+		hi, _ = strconv.ParseFloat(parts[1], 64)
+	} else {
+		hi, _ = strconv.ParseFloat(vmrange, 64)
+	}
+	if hi < 1 {
+		return 0
+	}
+	n := uint64(math.Ceil(hi))
+	if n <= 1 {
+		return 1
+	}
+	return 1 << bits.Len64(n-1)
 }
 
 const defaultMaxExemplars = 100

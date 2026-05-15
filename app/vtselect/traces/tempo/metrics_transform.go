@@ -24,15 +24,31 @@ type tempoExemplar struct {
 }
 
 // tempoLabel represents a label in the Tempo OTEL KeyValue format.
+//
+// Numeric marks the label as carrying a numeric (doubleValue) instead of a
+// stringValue. Tempo emits numeric labels for histogram bucket boundaries
+// (`__bucket`) and quantile percentiles (`p`); Grafana's Tempo datasource
+// stringifies stringValue labels with JSON quoting, which breaks heatmap
+// binning when the value is meant to be ordinal.
 type tempoLabel struct {
-	Key   string
-	Value string
+	Key     string
+	Value   string
+	Numeric bool
 }
 
 // tempoSample represents a single data point in a time series.
 type tempoSample struct {
 	TimestampMs int64
 	Value       float64
+}
+
+// isNumericLabel reports whether the label's value should be encoded as a
+// JSON doubleValue in the Tempo OTEL KeyValue response. Tempo emits histogram
+// boundaries (`__bucket`) and quantile percentiles (`p`) as numeric labels;
+// stringValue labels are JSON-quoted by Grafana's Tempo datasource, which
+// breaks heatmap binning and percentile ordering.
+func isNumericLabel(name string) bool {
+	return name == "__bucket" || name == "p"
 }
 
 // metricsStatsSeries mirrors the statsSeries from logsql but is local to avoid cross-package dependency.
@@ -65,8 +81,9 @@ func transformToTempoSeriesImpl(rows []*metricsStatsSeries, valueScale float64) 
 		// Convert label field names back from VT internal names to TraceQL names.
 		for _, label := range ss.Labels {
 			ts.Labels = append(ts.Labels, tempoLabel{
-				Key:   traceql.VTFieldToTraceQL(label.Name),
-				Value: label.Value,
+				Key:     traceql.VTFieldToTraceQL(label.Name),
+				Value:   label.Value,
+				Numeric: isNumericLabel(label.Name),
 			})
 		}
 

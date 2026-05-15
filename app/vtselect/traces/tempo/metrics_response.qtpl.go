@@ -208,77 +208,89 @@ func streammetricsLabelJson(qw422016 *qt422016.Writer, l *tempoLabel) {
 //line app/vtselect/traces/tempo/metrics_response.qtpl:69
 	qw422016.N().Q(l.Key)
 //line app/vtselect/traces/tempo/metrics_response.qtpl:69
-	qw422016.N().S(`,"value":{"stringValue":`)
+	qw422016.N().S(`,"value":{`)
 //line app/vtselect/traces/tempo/metrics_response.qtpl:71
-	qw422016.N().Q(l.Value)
+	if l.Numeric {
 //line app/vtselect/traces/tempo/metrics_response.qtpl:71
+		qw422016.N().S(`"doubleValue":`)
+//line app/vtselect/traces/tempo/metrics_response.qtpl:72
+		qw422016.N().S(l.Value)
+//line app/vtselect/traces/tempo/metrics_response.qtpl:73
+	} else {
+//line app/vtselect/traces/tempo/metrics_response.qtpl:73
+		qw422016.N().S(`"stringValue":`)
+//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+		qw422016.N().Q(l.Value)
+//line app/vtselect/traces/tempo/metrics_response.qtpl:75
+	}
+//line app/vtselect/traces/tempo/metrics_response.qtpl:75
 	qw422016.N().S(`}}`)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 }
 
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 func writemetricsLabelJson(qq422016 qtio422016.Writer, l *tempoLabel) {
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 	streammetricsLabelJson(qw422016, l)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 }
 
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 func metricsLabelJson(l *tempoLabel) string {
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 	writemetricsLabelJson(qb422016, l)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 	return qs422016
-//line app/vtselect/traces/tempo/metrics_response.qtpl:74
+//line app/vtselect/traces/tempo/metrics_response.qtpl:78
 }
 
-//line app/vtselect/traces/tempo/metrics_response.qtpl:76
+//line app/vtselect/traces/tempo/metrics_response.qtpl:80
 func streammetricsSampleJson(qw422016 *qt422016.Writer, s *tempoSample) {
-//line app/vtselect/traces/tempo/metrics_response.qtpl:76
+//line app/vtselect/traces/tempo/metrics_response.qtpl:80
 	qw422016.N().S(`{"timestampMs":"`)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:78
+//line app/vtselect/traces/tempo/metrics_response.qtpl:82
 	qw422016.N().S(strconv.FormatInt(s.TimestampMs, 10))
-//line app/vtselect/traces/tempo/metrics_response.qtpl:78
+//line app/vtselect/traces/tempo/metrics_response.qtpl:82
 	qw422016.N().S(`","value":`)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:79
+//line app/vtselect/traces/tempo/metrics_response.qtpl:83
 	qw422016.N().F(s.Value)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:79
+//line app/vtselect/traces/tempo/metrics_response.qtpl:83
 	qw422016.N().S(`}`)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 }
 
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 func writemetricsSampleJson(qq422016 qtio422016.Writer, s *tempoSample) {
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 	streammetricsSampleJson(qw422016, s)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 }
 
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 func metricsSampleJson(s *tempoSample) string {
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 	writemetricsSampleJson(qb422016, s)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 	return qs422016
-//line app/vtselect/traces/tempo/metrics_response.qtpl:81
+//line app/vtselect/traces/tempo/metrics_response.qtpl:85
 }

@@ -68,7 +68,11 @@
 {
 	"key":{%q= l.Key %},
 	"value":{
+		{% if l.Numeric %}
+		"doubleValue":{%s= l.Value %}
+		{% else %}
 		"stringValue":{%q= l.Value %}
+		{% endif %}
 	}
 }
 {% endfunc %}
