@@ -55,10 +55,6 @@ func transformToTempoSeriesScaled(rows []*metricsStatsSeries, valueScale float64
 	return transformToTempoSeriesImpl(rows, valueScale)
 }
 
-func transformToTempoSeries(rows []*metricsStatsSeries) []tempoMetricsSeries {
-	return transformToTempoSeriesImpl(rows, 1)
-}
-
 func transformToTempoSeriesImpl(rows []*metricsStatsSeries, valueScale float64) []tempoMetricsSeries {
 	result := make([]tempoMetricsSeries, 0, len(rows))
 	for _, ss := range rows {

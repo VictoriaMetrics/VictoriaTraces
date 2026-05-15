@@ -293,14 +293,7 @@ func executeCompareQuery(ctx context.Context, cp *tracecommon.CommonParams, t *m
 
 	results := make([]compareAttrResult, len(candidates))
 	for i, c := range candidates {
-		results[i] = compareAttrResult{
-			attrName:      c.attrName,
-			baseline:      c.baseline,
-			selection:     c.selection,
-			hitsBaseline:  c.hitsBaseline,
-			hitsSelection: c.hitsSelection,
-			coverageShift: c.coverageShift,
-		}
+		results[i] = compareAttrResult(c)
 	}
 
 	// Use the time range end as the single sample timestamp for emitted series.

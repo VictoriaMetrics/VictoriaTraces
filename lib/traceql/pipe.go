@@ -57,8 +57,8 @@ func initPipeParsers() {
 		"max_over_time":       parsePipeOverTime,
 		"avg_over_time":       parsePipeOverTime,
 		"sum_over_time":       parsePipeOverTime,
-		"histogram_over_time":  parsePipeOverTime,
-		"quantile_over_time":   parsePipeQuantileOverTime,
+		"histogram_over_time": parsePipeOverTime,
+		"quantile_over_time":  parsePipeQuantileOverTime,
 
 		// Complex metrics (fallback to rate)
 		"compare": parsePipeCompare,
