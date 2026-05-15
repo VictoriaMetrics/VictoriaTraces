@@ -17,6 +17,13 @@ type metricsQueryTranslation struct {
 	// (stored as nanoseconds). Sample values need /1e9 so Grafana renders them as seconds.
 	scaleDurationToSeconds bool
 
+	// valueColumnLabelKey, when non-empty, instructs the executor to attach a
+	// synthetic label `{valueColumnLabelKey: valueColumnLabels[columnName]}` to
+	// each emitted point. Used for quantile_over_time where Tempo returns one
+	// series per quantile with a `p=<value>` label.
+	valueColumnLabelKey string
+	valueColumnLabels   map[string]string // LogsQL column alias → label value
+
 	// compare-specific fields (only set when isCompare=true)
 	baseFilter       string // LogsQL filter for base (outer filter)
 	compareFilter    string // LogsQL filter for selection (inner filter)
@@ -35,7 +42,7 @@ func translateMetricsQuery(traceQLStr string, timestamp int64) (*metricsQueryTra
 		return nil, fmt.Errorf("cannot parse TraceQL query: %w", err)
 	}
 
-	funcName, fieldName, quantile, compareParams, traceQLByFields, err := q.MetricsComponents()
+	funcName, fieldName, quantiles, compareParams, traceQLByFields, err := q.MetricsComponents()
 	if err != nil {
 		return nil, err
 	}
@@ -74,11 +81,17 @@ func translateMetricsQuery(traceQLStr string, timestamp int64) (*metricsQueryTra
 	}
 
 	// Standard metrics query.
-	statsExpr, err := metricsToLogsQLStats(funcName, fieldName, quantile)
+	statsExpr, valueColumnLabels, err := metricsToLogsQLStats(funcName, fieldName, quantiles)
 	if err != nil {
 		return nil, err
 	}
 	result.baseQuery = buildStatsQuery(filterStr, vtByFields, statsExpr)
+	if len(valueColumnLabels) > 0 {
+		// Tempo emits `quantile_over_time` series with a `p=<quantile>` label,
+		// regardless of whether one or many quantiles were requested.
+		result.valueColumnLabelKey = "p"
+		result.valueColumnLabels = valueColumnLabels
+	}
 
 	// Duration values are stored as nanoseconds in VictoriaTraces, but Grafana
 	// renders metric values on duration panels as seconds. Aggregations like
@@ -111,28 +124,57 @@ func buildStatsQuery(filterStr string, vtByFields []string, statsExpr string) st
 }
 
 // metricsToLogsQLStats converts a TraceQL metrics function to its LogsQL stats expression.
-func metricsToLogsQLStats(funcName, fieldName, quantile string) (string, error) {
+//
+// For quantile_over_time it returns one `quantile(...) as <alias>` clause per
+// quantile and a map of alias→quantile-value so the executor can attach a `p`
+// label that distinguishes the resulting series.
+func metricsToLogsQLStats(funcName, fieldName string, quantiles []string) (statsExpr string, valueColumnLabels map[string]string, err error) {
 	vtField := quoteLogsQLField(traceql.TraceQLFieldToVTField(fieldName))
 	switch funcName {
 	case "rate":
-		return "rate() as value", nil
+		return "rate() as value", nil, nil
 	case "count_over_time":
-		return "count() as value", nil
+		return "count() as value", nil, nil
 	case "min_over_time":
-		return "min(" + vtField + ") as value", nil
+		return "min(" + vtField + ") as value", nil, nil
 	case "max_over_time":
-		return "max(" + vtField + ") as value", nil
+		return "max(" + vtField + ") as value", nil, nil
 	case "avg_over_time":
-		return "avg(" + vtField + ") as value", nil
+		return "avg(" + vtField + ") as value", nil, nil
 	case "sum_over_time":
-		return "sum(" + vtField + ") as value", nil
+		return "sum(" + vtField + ") as value", nil, nil
 	case "histogram_over_time":
-		return "histogram(" + vtField + ") as value", nil
+		return "histogram(" + vtField + ") as value", nil, nil
 	case "quantile_over_time":
-		return "quantile(" + quantile + ", " + vtField + ") as value", nil
+		if len(quantiles) == 0 {
+			return "", nil, fmt.Errorf("quantile_over_time requires at least one quantile")
+		}
+		var sb strings.Builder
+		labels := make(map[string]string, len(quantiles))
+		for i, q := range quantiles {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			alias := quantileAlias(i)
+			sb.WriteString("quantile(")
+			sb.WriteString(q)
+			sb.WriteString(", ")
+			sb.WriteString(vtField)
+			sb.WriteString(") as ")
+			sb.WriteString(alias)
+			labels[alias] = q
+		}
+		return sb.String(), labels, nil
 	default:
-		return "", fmt.Errorf("unsupported metrics function: %s", funcName)
+		return "", nil, fmt.Errorf("unsupported metrics function: %s", funcName)
 	}
+}
+
+// quantileAlias returns a deterministic LogsQL-safe alias for the i-th
+// quantile in a quantile_over_time output. It is decoupled from the
+// quantile value (which can contain '.') to keep aliases identifier-safe.
+func quantileAlias(i int) string {
+	return fmt.Sprintf("p_%d", i)
 }
 
 // quoteLogsQLField quotes a field name for LogsQL if it contains special characters.

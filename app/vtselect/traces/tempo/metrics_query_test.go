@@ -72,7 +72,10 @@ func TestTranslateMetricsQueryFull(t *testing.T) {
 	f(`{} | avg_over_time(duration)`, `{resource_attr:service.name!=""} AND * | stats avg(duration) as value`)
 	f(`{} | sum_over_time(duration)`, `{resource_attr:service.name!=""} AND * | stats sum(duration) as value`)
 	f(`{} | histogram_over_time(duration)`, `{resource_attr:service.name!=""} AND * | stats histogram(duration) as value`)
-	f(`{} | quantile_over_time(duration, 0.9)`, `{resource_attr:service.name!=""} AND * | stats quantile(0.9, duration) as value`)
+	f(`{} | quantile_over_time(duration, 0.9)`, `{resource_attr:service.name!=""} AND * | stats quantile(0.9, duration) as p_0`)
+	// Multiple quantiles emit one stats output per quantile so each becomes its own series.
+	f(`{} | quantile_over_time(duration, 0.5, 0.9, 0.99)`,
+		`{resource_attr:service.name!=""} AND * | stats quantile(0.5, duration) as p_0, quantile(0.9, duration) as p_1, quantile(0.99, duration) as p_2`)
 
 	// Field name mapping in aggregation
 	f(`{} | sum_over_time(span.kafka.lag)`, `{resource_attr:service.name!=""} AND * | stats sum("span_attr:kafka.lag") as value`)
@@ -122,7 +125,10 @@ func TestTranslateMetricsQueryByFields(t *testing.T) {
 
 	// Quantile with by
 	f(`{} | quantile_over_time(duration, 0.5) | by(resource.service.name)`,
-		`{resource_attr:service.name!=""} AND * | stats by ("resource_attr:service.name") quantile(0.5, duration) as value`)
+		`{resource_attr:service.name!=""} AND * | stats by ("resource_attr:service.name") quantile(0.5, duration) as p_0`)
+	// Multi-quantile with by
+	f(`{} | quantile_over_time(duration, 0.5, 0.9) | by(resource.service.name)`,
+		`{resource_attr:service.name!=""} AND * | stats by ("resource_attr:service.name") quantile(0.5, duration) as p_0, quantile(0.9, duration) as p_1`)
 
 	// Complex: filter + aggregation + by
 	f(`{resource.attr_name = "api"} | max_over_time(span.http.status_code) | by(resource.service.name)`,
@@ -263,6 +269,55 @@ func TestTranslateMetricsQueryErrors(t *testing.T) {
 	_, err = translateMetricsQuery(`{invalid`, ts)
 	if err == nil {
 		t.Fatal("expected error for invalid query")
+	}
+}
+
+// TestTranslateMetricsQueryQuantileLabels verifies that quantile_over_time
+// queries record a column→label map so the executor can attach a `p` label
+// matching Tempo's response shape (one series per quantile, single quantile
+// included).
+func TestTranslateMetricsQueryQuantileLabels(t *testing.T) {
+	ts := time.Now().UnixNano()
+
+	f := func(traceQL string, wantKey string, wantLabels map[string]string) {
+		t.Helper()
+		tr, err := translateMetricsQuery(traceQL, ts)
+		if err != nil {
+			t.Fatalf("translateMetricsQuery(%q): %s", traceQL, err)
+		}
+		if tr.valueColumnLabelKey != wantKey {
+			t.Fatalf("translateMetricsQuery(%q): valueColumnLabelKey = %q, want %q", traceQL, tr.valueColumnLabelKey, wantKey)
+		}
+		if len(tr.valueColumnLabels) != len(wantLabels) {
+			t.Fatalf("translateMetricsQuery(%q): valueColumnLabels has %d entries, want %d (got %v)", traceQL, len(tr.valueColumnLabels), len(wantLabels), tr.valueColumnLabels)
+		}
+		for k, v := range wantLabels {
+			if got := tr.valueColumnLabels[k]; got != v {
+				t.Fatalf("translateMetricsQuery(%q): valueColumnLabels[%q] = %q, want %q", traceQL, k, got, v)
+			}
+		}
+	}
+
+	// Single quantile still gets a `p` label so the response matches Tempo.
+	f(`{} | quantile_over_time(duration, 0.9)`, "p", map[string]string{"p_0": "0.9"})
+
+	// Multiple quantiles produce one column→quantile mapping per quantile.
+	f(`{} | quantile_over_time(duration, 0.5, 0.9, 0.99)`, "p", map[string]string{
+		"p_0": "0.5",
+		"p_1": "0.9",
+		"p_2": "0.99",
+	})
+
+	// Non-quantile metrics do not carry the column→label map.
+	tr, err := translateMetricsQuery(`{} | rate()`, ts)
+	if err != nil {
+		t.Fatalf("translateMetricsQuery(rate): %s", err)
+	}
+	if tr.valueColumnLabelKey != "" {
+		t.Fatalf("rate() should not set valueColumnLabelKey; got %q", tr.valueColumnLabelKey)
+	}
+	if len(tr.valueColumnLabels) != 0 {
+		t.Fatalf("rate() should have empty valueColumnLabels; got %v", tr.valueColumnLabels)
 	}
 }
 

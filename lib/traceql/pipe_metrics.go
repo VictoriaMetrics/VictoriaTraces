@@ -105,14 +105,18 @@ func parsePipeOverTime(lex *lexer) (pipe, error) {
 	return pot, nil
 }
 
-// pipeQuantileOverTime represents `quantile_over_time(field, quantile)`.
+// pipeQuantileOverTime represents `quantile_over_time(field, q1, q2, ...)`.
 type pipeQuantileOverTime struct {
 	fieldName string
-	quantile  string // kept as string to preserve original precision
+	quantiles []string // kept as strings to preserve original precision
 }
 
 func (pq *pipeQuantileOverTime) String() string {
-	return "quantile_over_time(" + quoteFieldFilterIfNeeded(pq.fieldName) + ", " + pq.quantile + ")"
+	s := "quantile_over_time(" + quoteFieldFilterIfNeeded(pq.fieldName)
+	for _, q := range pq.quantiles {
+		s += ", " + q
+	}
+	return s + ")"
 }
 
 func parsePipeQuantileOverTime(lex *lexer) (pipe, error) {
@@ -137,12 +141,25 @@ func parsePipeQuantileOverTime(lex *lexer) (pipe, error) {
 	if !lex.isKeyword(",") {
 		return nil, fmt.Errorf("expecting ',' after field in quantile_over_time; got %q", lex.token)
 	}
-	lex.nextToken()
 
-	// Parse quantile value(s). For now support a single quantile.
-	quantile, err := lex.nextCompoundToken()
-	if err != nil {
-		return nil, err
+	// Parse one or more quantile values: q1[, q2, ...]
+	var quantiles []string
+	for {
+		if !lex.isKeyword(",") {
+			return nil, fmt.Errorf("expecting ',' before quantile in quantile_over_time; got %q", lex.token)
+		}
+		lex.nextToken()
+		quantile, err := lex.nextCompoundToken()
+		if err != nil {
+			return nil, err
+		}
+		if quantile == "" {
+			return nil, fmt.Errorf("quantile_over_time() requires at least one quantile value")
+		}
+		quantiles = append(quantiles, quantile)
+		if !lex.isKeyword(",") {
+			break
+		}
 	}
 
 	if !lex.isKeyword(")") {
@@ -152,7 +169,7 @@ func parsePipeQuantileOverTime(lex *lexer) (pipe, error) {
 
 	pq := &pipeQuantileOverTime{
 		fieldName: fieldName,
-		quantile:  quantile,
+		quantiles: quantiles,
 	}
 
 	pa, err := parsePipeAggregator(lex)

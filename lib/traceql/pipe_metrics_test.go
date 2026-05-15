@@ -153,6 +153,86 @@ func TestParsePipeOverTimeErrors(t *testing.T) {
 	}
 }
 
+// TestParsePipeQuantileOverTime covers the single- and multi-quantile forms.
+// Tempo accepts `quantile_over_time(field, q1[, q2, ...])`; previously VT only
+// parsed the single-quantile form and returned a 400 on the multi form sent by
+// the Traces Drilldown plugin.
+func TestParsePipeQuantileOverTime(t *testing.T) {
+	f := func(input string, wantField string, wantQuantiles []string) {
+		t.Helper()
+		q, err := ParseQuery(input)
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", input, err)
+		}
+		funcName, fieldName, quantiles, _, _, err := q.MetricsComponents()
+		if err != nil {
+			t.Fatalf("MetricsComponents(%q): %s", input, err)
+		}
+		if funcName != "quantile_over_time" {
+			t.Fatalf("funcName = %q; want quantile_over_time", funcName)
+		}
+		if fieldName != wantField {
+			t.Fatalf("fieldName = %q; want %q", fieldName, wantField)
+		}
+		if len(quantiles) != len(wantQuantiles) {
+			t.Fatalf("quantiles = %v; want %v", quantiles, wantQuantiles)
+		}
+		for i, q := range quantiles {
+			if q != wantQuantiles[i] {
+				t.Fatalf("quantiles[%d] = %q; want %q", i, q, wantQuantiles[i])
+			}
+		}
+	}
+
+	// Single quantile.
+	f(`{} | quantile_over_time(duration, 0.9)`, "duration", []string{"0.9"})
+
+	// Multi quantile — the failing case from Traces Drilldown.
+	f(`{} | quantile_over_time(duration, 0.5, 0.9)`, "duration", []string{"0.5", "0.9"})
+	f(`{} | quantile_over_time(duration, 0.5, 0.9, 0.99)`, "duration", []string{"0.5", "0.9", "0.99"})
+
+	// Multi quantile without spaces (matches the URL-encoded form Drilldown sends).
+	f(`{} | quantile_over_time(duration,0.5,0.9)`, "duration", []string{"0.5", "0.9"})
+}
+
+func TestParsePipeQuantileOverTimeErrors(t *testing.T) {
+	// No quantile.
+	if _, err := ParseQuery(`{} | quantile_over_time(duration)`); err == nil {
+		t.Fatal("expected error for quantile_over_time without quantile")
+	}
+	// Empty quantile after comma.
+	if _, err := ParseQuery(`{} | quantile_over_time(duration, )`); err == nil {
+		t.Fatal("expected error for empty quantile")
+	}
+	// Trailing comma.
+	if _, err := ParseQuery(`{} | quantile_over_time(duration, 0.5,)`); err == nil {
+		t.Fatal("expected error for trailing comma")
+	}
+	// Missing field.
+	if _, err := ParseQuery(`{} | quantile_over_time()`); err == nil {
+		t.Fatal("expected error for quantile_over_time without field")
+	}
+}
+
+// TestPipeQuantileOverTimeString verifies the String() round-trip preserves
+// all quantiles.
+func TestPipeQuantileOverTimeString(t *testing.T) {
+	f := func(input, want string) {
+		t.Helper()
+		q, err := ParseQuery(input)
+		if err != nil {
+			t.Fatalf("cannot parse %q: %s", input, err)
+		}
+		got := q.String()
+		if got != want {
+			t.Fatalf("String() = %q; want %q", got, want)
+		}
+	}
+
+	f(`{} | quantile_over_time(duration, 0.9)`, `* | quantile_over_time(duration, 0.9)`)
+	f(`{} | quantile_over_time(duration, 0.5, 0.9, 0.99)`, `* | quantile_over_time(duration, 0.5, 0.9, 0.99)`)
+}
+
 func TestIsMetricsQueryFalse(t *testing.T) {
 	// Regular queries should not be metrics queries.
 	q, err := ParseQuery(`{resource.service.name = "frontend"}`)

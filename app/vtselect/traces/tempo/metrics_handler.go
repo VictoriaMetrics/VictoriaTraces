@@ -63,7 +63,7 @@ func processMetricsQueryRangeRequest(ctx context.Context, w http.ResponseWriter,
 		if translation.scaleDurationToSeconds {
 			valueScale = 1e-9
 		}
-		allSeries, err = executeStatsQuery(ctx, cp, translation.baseQuery, translation.byFields, params, valueScale)
+		allSeries, err = executeStatsQuery(ctx, cp, translation.baseQuery, translation.byFields, params, valueScale, translation.valueColumnLabelKey, translation.valueColumnLabels)
 		if err != nil {
 			httpserver.Errorf(w, r, "cannot execute query: %s", err)
 			return
@@ -526,7 +526,12 @@ func makeCompareSeriesTotals(metaType, attrName string, total uint64, timestampM
 
 // executeStatsQuery runs a single LogsQL stats query and returns Tempo series.
 // valueScale scales sample values (1 = no scaling, 1e-9 = ns → seconds for duration aggregations).
-func executeStatsQuery(ctx context.Context, cp *tracecommon.CommonParams, logsQLStr string, byFields []string, params *metricsQueryRangeParam, valueScale float64) ([]tempoMetricsSeries, error) {
+//
+// When valueColumnLabelKey is non-empty, each non-label value column produces a
+// separate Tempo series with an extra label {valueColumnLabelKey:
+// valueColumnLabels[columnName]}. This is how Tempo distinguishes per-quantile
+// series in `quantile_over_time(...)` responses.
+func executeStatsQuery(ctx context.Context, cp *tracecommon.CommonParams, logsQLStr string, byFields []string, params *metricsQueryRangeParam, valueScale float64, valueColumnLabelKey string, valueColumnLabels map[string]string) ([]tempoMetricsSeries, error) {
 	q, err := logstorage.ParseQueryAtTimestamp(logsQLStr, params.end.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", logsQLStr, err)
@@ -617,8 +622,20 @@ func executeStatsQuery(ctx context.Context, cp *tracecommon.CommonParams, logsQL
 					Timestamp: ts,
 					Value:     v,
 				}
+				pointLabels := filterByFields(labels, byFields)
+				if valueColumnLabelKey != "" {
+					if labelValue, ok := valueColumnLabels[c.Name]; ok {
+						extended := make([]logstorage.Field, 0, len(pointLabels)+1)
+						extended = append(extended, pointLabels...)
+						extended = append(extended, logstorage.Field{
+							Name:  valueColumnLabelKey,
+							Value: labelValue,
+						})
+						pointLabels = extended
+					}
+				}
 				key := fmt.Sprintf("%d:%s", j, marshalLabels(labels))
-				addPoint(key, filterByFields(labels, byFields), p)
+				addPoint(key, pointLabels, p)
 			}
 		}
 	}

@@ -109,9 +109,12 @@ type CompareParams struct {
 // MetricsComponents extracts the components of a metrics query for translation.
 //
 // Returns an error if the query is not a valid metrics query.
-func (q *Query) MetricsComponents() (funcName string, fieldName string, quantile string, compare *CompareParams, byFields []string, err error) {
+//
+// quantiles is non-empty only for quantile_over_time queries; it carries one or
+// more quantile values as their original strings (e.g. "0.5", "0.9").
+func (q *Query) MetricsComponents() (funcName string, fieldName string, quantiles []string, compare *CompareParams, byFields []string, err error) {
 	if !q.IsMetricsQuery() {
-		return "", "", "", nil, nil, fmt.Errorf("query does not contain a metrics function")
+		return "", "", nil, nil, nil, fmt.Errorf("query does not contain a metrics function")
 	}
 
 	extractCompare := func(pc *pipeCompare) {
@@ -139,7 +142,7 @@ func (q *Query) MetricsComponents() (funcName string, fieldName string, quantile
 		case *pipeQuantileOverTime:
 			funcName = "quantile_over_time"
 			fieldName = pt.fieldName
-			quantile = pt.quantile
+			quantiles = pt.quantiles
 		case *pipeBy:
 			byFields = pt.fieldFilters
 		case *pipeAggregator:
@@ -154,15 +157,15 @@ func (q *Query) MetricsComponents() (funcName string, fieldName string, quantile
 			case *pipeQuantileOverTime:
 				funcName = "quantile_over_time"
 				fieldName = inner.fieldName
-				quantile = inner.quantile
+				quantiles = inner.quantiles
 			}
 		}
 	}
 
 	if funcName == "" {
-		return "", "", "", nil, nil, fmt.Errorf("no metrics function found in query")
+		return "", "", nil, nil, nil, fmt.Errorf("no metrics function found in query")
 	}
-	return funcName, fieldName, quantile, compare, byFields, nil
+	return funcName, fieldName, quantiles, compare, byFields, nil
 }
 
 // Filter returns the filter expression string (in LogsQL format).
