@@ -29,6 +29,12 @@ var statusCodeMap = func() map[string]string {
 	return m
 }()
 
+// streamFieldMap contains the field names of stream fields defined by VictoriaTraces.
+var streamFieldMap = map[string]bool{
+	otelpb.ResourceAttrServiceName: true,
+	otelpb.NameField:               true,
+}
+
 // StatusCodeToName converts a numeric OTEL StatusCode ("2") to its TraceQL name ("error").
 // Returns the input unchanged if not a known status code.
 func StatusCodeToName(code string) string {
@@ -79,7 +85,13 @@ func (fc *filterCommon) String() string {
 	if duration, ok := tryParseDuration(v); ok {
 		v = strconv.FormatInt(duration, 10)
 	}
-	return quoteFieldNameIfNeeded(fc.tagToVTField()) + ":" + fc.op + quoteTokenIfNeeded(v)
+
+	fieldName := fc.tagToVTField()
+	if isStreamField(fieldName) && fc.op == "=" || fc.op == "!=" {
+		return `{` + quoteFieldNameIfNeeded(fieldName) + fc.op + quoteTokenIfNeeded(v) + `}`
+	}
+
+	return quoteFieldNameIfNeeded(fieldName) + ":" + fc.op + quoteTokenIfNeeded(v)
 }
 
 func (fc *filterCommon) tagToVTField() string {
@@ -138,6 +150,10 @@ func VTFieldToTraceQL(fieldName string) string {
 
 func quoteFieldNameIfNeeded(s string) string {
 	return quoteTokenIfNeeded(s)
+}
+
+func isStreamField(fieldName string) bool {
+	return streamFieldMap[fieldName]
 }
 
 func (fc *filterCommon) GetTraceDurationFilters() []*filterCommon {

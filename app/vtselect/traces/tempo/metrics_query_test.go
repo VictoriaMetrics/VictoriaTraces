@@ -38,15 +38,19 @@ func TestTranslateMetricsQueryFull(t *testing.T) {
 	f(`{duration > 100ms} | rate()`, `{resource_attr:service.name!=""} AND duration:>100000000 | stats rate() as value`)
 
 	// Resource attribute filter
+	f(`{resource.attr_name = "api"} | rate()`,
+		`{resource_attr:service.name!=""} AND "resource_attr:attr_name":=api | stats rate() as value`)
+
+	// Resource attribute (stream field) filter
 	f(`{resource.service.name = "api"} | rate()`,
-		`{resource_attr:service.name!=""} AND "resource_attr:service.name":=api | stats rate() as value`)
+		`{resource_attr:service.name!=""} AND {"resource_attr:service.name"=api} | stats rate() as value`)
 
 	// Span attribute filter
 	f(`{span.http.status_code >= 400} | count_over_time()`,
 		`{resource_attr:service.name!=""} AND "span_attr:http.status_code":>=400 | stats count() as value`)
 
 	// Name filter
-	f(`{name = "http_request"} | rate()`, `{resource_attr:service.name!=""} AND name:=http_request | stats rate() as value`)
+	f(`{name = "http_request"} | rate()`, `{resource_attr:service.name!=""} AND {name=http_request} | stats rate() as value`)
 
 	// nestedSetParent → root spans; intersect with trace ID index via in(subquery)
 	f(`{nestedSetParent < 0} | rate()`,
@@ -98,31 +102,36 @@ func TestTranslateMetricsQueryByFields(t *testing.T) {
 
 	// Tempo-style by() without | separator
 	f(`{} | rate() by(resource.service.name)`,
-		`* | stats by ("resource_attr:service.name") rate() as value`)
+		`{resource_attr:service.name!=""} AND * | stats by ("resource_attr:service.name") rate() as value`)
 
 	// With explicit | separator
 	f(`{} | rate() | by(resource.service.name)`,
-		`* | stats by ("resource_attr:service.name") rate() as value`)
+		`{resource_attr:service.name!=""} AND * | stats by ("resource_attr:service.name") rate() as value`)
 
 	// Intrinsic field
 	f(`{} | rate() | by(name)`,
-		`* | stats by (name) rate() as value`)
+		`{resource_attr:service.name!=""} AND * | stats by (name) rate() as value`)
 
 	// Status field mapping in by()
 	f(`{} | rate() | by(status)`,
-		`* | stats by (status_code) rate() as value`)
+		`{resource_attr:service.name!=""} AND * | stats by (status_code) rate() as value`)
 
 	// Multiple by fields
 	f(`{} | avg_over_time(duration) | by(resource.service.name, span.http.method)`,
-		`* | stats by ("resource_attr:service.name", "span_attr:http.method") avg(duration) as value`)
+		`{resource_attr:service.name!=""} AND * | stats by ("resource_attr:service.name", "span_attr:http.method") avg(duration) as value`)
 
 	// Quantile with by
 	f(`{} | quantile_over_time(duration, 0.5) | by(resource.service.name)`,
-		`* | stats by ("resource_attr:service.name") quantile(0.5, duration) as value`)
+		`{resource_attr:service.name!=""} AND * | stats by ("resource_attr:service.name") quantile(0.5, duration) as value`)
 
 	// Complex: filter + aggregation + by
+	f(`{resource.attr_name = "api"} | max_over_time(span.http.status_code) | by(resource.service.name)`,
+		`{resource_attr:service.name!=""} AND "resource_attr:attr_name":=api | stats by ("resource_attr:service.name") max("span_attr:http.status_code") as value`)
+
+	// Complex: stream filter
 	f(`{resource.service.name = "api"} | max_over_time(span.http.status_code) | by(resource.service.name)`,
-		`"resource_attr:service.name":=api | stats by ("resource_attr:service.name") max("span_attr:http.status_code") as value`)
+		`{resource_attr:service.name!=""} AND {"resource_attr:service.name"=api} | stats by ("resource_attr:service.name") max("span_attr:http.status_code") as value`)
+
 }
 
 func TestTranslateMetricsQueryWithHints(t *testing.T) {
@@ -175,7 +184,7 @@ func TestTranslateMetricsQueryCompare(t *testing.T) {
 	if !tr.isCompare {
 		t.Fatal("expected isCompare=true")
 	}
-	if tr.baseFilter != "*" {
+	if tr.baseFilter != `{resource_attr:service.name!=""} AND *` {
 		t.Fatalf("expected baseFilter=*; got %q", tr.baseFilter)
 	}
 	if !strings.Contains(tr.compareFilter, "status_code") {
