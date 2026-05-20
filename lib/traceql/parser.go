@@ -51,6 +51,128 @@ func (q *Query) HasPipe() bool {
 	return len(q.pipes) > 0
 }
 
+// HasNonHintPipe returns true if the query contains pipes other than display hints
+// (select, by, with). These hint pipes are safe to ignore in search/tag queries.
+func (q *Query) HasNonHintPipe() bool {
+	for _, p := range q.pipes {
+		switch p.(type) {
+		case *pipeSelect, *pipeBy, *pipeWith:
+			continue
+		default:
+			return true
+		}
+	}
+	return false
+}
+
+// StripHintPipes removes display-hint pipes (select, by, with) from the query
+// so they don't leak into LogsQL where they have different semantics.
+func (q *Query) StripHintPipes() {
+	var kept []pipe
+	for _, p := range q.pipes {
+		switch p.(type) {
+		case *pipeSelect, *pipeBy, *pipeWith:
+			continue
+		default:
+			kept = append(kept, p)
+		}
+	}
+	q.pipes = kept
+}
+
+// IsMetricsQuery returns true if this query contains metrics pipes (rate, *_over_time).
+func (q *Query) IsMetricsQuery() bool {
+	for _, p := range q.pipes {
+		switch p.(type) {
+		case *pipeRate, *pipeOverTime, *pipeQuantileOverTime, *pipeCompare:
+			return true
+		}
+		// Also check inside pipeAggregator wrappers (e.g. rate() > 5).
+		if pa, ok := p.(*pipeAggregator); ok {
+			switch pa.aggregator.(type) {
+			case *pipeRate, *pipeOverTime, *pipeQuantileOverTime, *pipeCompare:
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// CompareParams holds the parsed parameters of a compare() pipe.
+type CompareParams struct {
+	Filter  string // LogsQL filter for the selection subset
+	TopN    int    // max values per attribute (default 10)
+	StartNs int64  // selection window start nanoseconds (0 = use query range)
+	EndNs   int64  // selection window end nanoseconds (0 = use query range)
+}
+
+// MetricsComponents extracts the components of a metrics query for translation.
+//
+// Returns an error if the query is not a valid metrics query.
+//
+// quantiles is non-empty only for quantile_over_time queries; it carries one or
+// more quantile values as their original strings (e.g. "0.5", "0.9").
+func (q *Query) MetricsComponents() (funcName string, fieldName string, quantiles []string, compare *CompareParams, byFields []string, err error) {
+	if !q.IsMetricsQuery() {
+		return "", "", nil, nil, nil, fmt.Errorf("query does not contain a metrics function")
+	}
+
+	extractCompare := func(pc *pipeCompare) {
+		funcName = "compare"
+		compare = &CompareParams{
+			Filter:  pc.SelectionFilterString(),
+			TopN:    pc.topN,
+			StartNs: pc.startNs,
+			EndNs:   pc.endNs,
+		}
+		if compare.TopN <= 0 {
+			compare.TopN = 10
+		}
+	}
+
+	for _, p := range q.pipes {
+		switch pt := p.(type) {
+		case *pipeRate:
+			funcName = "rate"
+		case *pipeCompare:
+			extractCompare(pt)
+		case *pipeOverTime:
+			funcName = pt.funcName
+			fieldName = pt.fieldName
+		case *pipeQuantileOverTime:
+			funcName = "quantile_over_time"
+			fieldName = pt.fieldName
+			quantiles = pt.quantiles
+		case *pipeBy:
+			byFields = pt.fieldFilters
+		case *pipeAggregator:
+			switch inner := pt.aggregator.(type) {
+			case *pipeRate:
+				funcName = "rate"
+			case *pipeCompare:
+				extractCompare(inner)
+			case *pipeOverTime:
+				funcName = inner.funcName
+				fieldName = inner.fieldName
+			case *pipeQuantileOverTime:
+				funcName = "quantile_over_time"
+				fieldName = inner.fieldName
+				quantiles = inner.quantiles
+			}
+		}
+	}
+
+	if funcName == "" {
+		return "", "", nil, nil, nil, fmt.Errorf("no metrics function found in query")
+	}
+	return funcName, fieldName, quantiles, compare, byFields, nil
+}
+
+// Filter returns the filter expression string (in LogsQL format).
+func (q *Query) Filter() string {
+	return q.f.String()
+}
+
 // ParseQuery parses s.
 func ParseQuery(s string) (*Query, error) {
 	timestamp := time.Now().UnixNano()
@@ -136,6 +258,8 @@ func parseFilterOr(lex *lexer, fieldName string) (filter, error) {
 			return fo, nil
 		case lex.isKeyword("or", "||"):
 			lex.nextToken()
+		default:
+			return nil, fmt.Errorf("unexpected token %q; expecting 'or', '||' or end of filter", lex.token)
 		}
 	}
 }
@@ -159,9 +283,8 @@ func parseFilterAnd(lex *lexer, fieldName string) (filter, error) {
 			return fa, nil
 		case lex.isKeyword("and", "&&"):
 			lex.nextToken()
-			//case lex.isKeyword("or", "||"):
-			//	parseFilterOr(lex, fieldName)
-			//	lex.nextToken()
+		default:
+			return nil, fmt.Errorf("unexpected token %q; expecting 'and', '&&' or end of filter", lex.token)
 		}
 	}
 }
@@ -181,6 +304,11 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 		case lex.isKeyword(")", ""):
 			return pipes, nil
 		default:
+			// Allow pipe keywords (like "by") without an explicit "|" separator.
+			// This supports Tempo-style syntax: rate() by(resource.service.name)
+			if isPipeName(strings.ToLower(lex.token)) {
+				continue
+			}
 			return nil, fmt.Errorf("unexpected token after [%s]: %q; expecting '|' or ')'", pipes[len(pipes)-1], lex.token)
 		}
 	}
@@ -207,12 +335,10 @@ func parseFilterGeneric(lex *lexer, fieldName string) (filter, error) {
 		return parseFilterParens(lex, fieldName)
 	case lex.isKeyword(">", "<", ">=", "<=", "=", "=~", "!=", "!~"):
 		return parseFilterCommon(lex, fieldName)
-	case lex.isKeyword("&&"):
-		return parseFilterAnd(lex, fieldName)
-	case lex.isKeyword("||"):
-		return parseFilterOr(lex, fieldName)
+	case lex.isKeyword("&&", "||", "and", "or"):
+		return nil, fmt.Errorf("unexpected operator %q at filter start; binary operators need a left operand", lex.token)
 	case lex.isKeyword("not", "!", "-"):
-		return nil, nil
+		return nil, fmt.Errorf("unary operator %q is not supported", lex.token)
 	case lex.isKeyword("true", "false"):
 		return parseFilterTrue(lex, fieldName)
 	default:

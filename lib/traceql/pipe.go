@@ -50,6 +50,22 @@ func initPipeParsers() {
 		"min":   parsePipeAggregatorOnField,
 		"sum":   parsePipeAggregatorOnField,
 
+		// Metrics aggregators
+		"rate":                parsePipeRate,
+		"count_over_time":     parsePipeOverTime,
+		"min_over_time":       parsePipeOverTime,
+		"max_over_time":       parsePipeOverTime,
+		"avg_over_time":       parsePipeOverTime,
+		"sum_over_time":       parsePipeOverTime,
+		"histogram_over_time": parsePipeOverTime,
+		"quantile_over_time":  parsePipeQuantileOverTime,
+
+		// Complex metrics (fallback to rate)
+		"compare": parsePipeCompare,
+
+		// Query hints (silently ignored)
+		"with": parsePipeWith,
+
 		// Selection
 		"select": parsePipeSelect,
 

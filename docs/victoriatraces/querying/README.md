@@ -43,7 +43,8 @@ There are three modes of displaying query results:
 
 VictoriaTraces provides the same [HTTP endpoints](https://docs.victoriametrics.com/victorialogs/querying/#http-api) that VictoriaLogs provides.
 
-Additionally, [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json) are available.
+Additionally, [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json) and
+[Grafana Tempo HTTP APIs](https://grafana.com/docs/tempo/v2.10.x/api_docs/) (experimental) are available.
 
 ### Jaeger HTTP API
 

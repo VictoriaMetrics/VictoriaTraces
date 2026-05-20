@@ -29,7 +29,8 @@ and visit the [VictoriaTraces playground](https://play-vtraces.victoriametrics.c
 
 ### Install
 
-To quickly try VictoriaTraces, just download the [VictoriaTraces executable](https://github.com/VictoriaMetrics/VictoriaTraces/releases/) or docker image from [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-traces/) or [Quay](https://quay.io/repository/victoriametrics/victoria-traces) and start it with the desired command-line flags. See also [QuickStart guide](https://docs.victoriametrics.com/victoriatraces/quick-start/) for additional information.
+To quickly try VictoriaTraces, just download the [VictoriaTraces executable](https://github.com/VictoriaMetrics/VictoriaTraces/releases/) or docker image from [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-traces/) or [Quay](https://quay.io/repository/victoriametrics/victoria-traces) and start it with the desired command-line flags. 
+For Kubernetes deployments, we provide both [helm charts](https://docs.victoriametrics.com/victoriatraces/quick-start/#helm-charts) and the [Operator](https://docs.victoriametrics.com/victoriatraces/quick-start/#victoriametrics-operator). See the [Quick Start guide](https://docs.victoriametrics.com/victoriatraces/quick-start/) for more information.
 
 ### How to build from sources
 

@@ -12,7 +12,9 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): (experimental) extend Tempo API support for [Grafana Traces Drilldown](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/traces/). Thank @vshulakov-sh for [the pull request #132](https://github.com/VictoriaMetrics/VictoriaTraces/pull/132).
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): add ability to hide the given span attributes on a per-query basis. This may be useful for restricting access to span attributes with sensitive information, by specifying the list of the fields to hide via `hidden_fields_filters` query arg. See [these docs](https://docs.victoriametrics.com/victoriatraces/querying/#hidden-fields) for details. 
+
 
 ## [v0.8.2](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.8.2)
 

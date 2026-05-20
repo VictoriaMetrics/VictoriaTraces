@@ -76,9 +76,10 @@ func (tsp *traceSpanProcessor) MustClose() {
 // Each item in the queue will be popped after certain interval, and carries the min(startTimeNano), max(endTimeNano) of this trace ID.
 func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID, fields []logstorage.Field) bool {
 	var (
-		traceID            string
-		startTime, endTime int64
-		err                error
+		traceID   string
+		startTime int64
+		endTime   int64
+		err       error
 	)
 
 	i := len(fields) - 1
@@ -94,26 +95,23 @@ func (tsp *traceSpanProcessor) pushTraceToIndexQueue(tenant logstorage.TenantID,
 		return false
 	}
 
-	// find endTimeNano of the span in reverse order, it should be right before trace ID field.
+	// find endTimeNano, startTimeNano in reverse order.
 	for i = i - 1; i >= 0; i-- {
-		if fields[i].Name == otelpb.EndTimeUnixNanoField {
+		switch fields[i].Name {
+		case otelpb.EndTimeUnixNanoField:
 			endTime, err = strconv.ParseInt(fields[i].Value, 10, 64)
 			if err != nil {
 				logger.Errorf("cannot parse endTime %s for traceID %q: %v", fields[i].Value, traceID, err)
 				return false
 			}
-			break
-		}
-	}
-
-	// find startTimeNano of the span in reverse order, it should be right before endTimeNano field.
-	for i = i - 1; i >= 0; i-- {
-		if fields[i].Name == otelpb.StartTimeUnixNanoField {
+		case otelpb.StartTimeUnixNanoField:
 			startTime, err = strconv.ParseInt(fields[i].Value, 10, 64)
 			if err != nil {
 				logger.Errorf("cannot parse startTime %s for traceID %q: %v", fields[i].Value, traceID, err)
 				return false
 			}
+		}
+		if startTime != 0 && endTime != 0 {
 			break
 		}
 	}
@@ -147,9 +145,10 @@ func (tsp *traceSpanProcessor) AddInsertRow(r *logstorage.InsertRow) {
 // Each item in the queue will be popped after certain interval, and carries the min(startTimeNano), max(endTimeNano) of this trace ID.
 func (tsp *traceSpanProcessor) pushNativeRowToIndexQueue(r *logstorage.InsertRow) bool {
 	var (
-		traceID            string
-		startTime, endTime int64
-		err                error
+		traceID   string
+		startTime int64
+		endTime   int64
+		err       error
 	)
 
 	i := len(r.Fields) - 1
@@ -166,26 +165,24 @@ func (tsp *traceSpanProcessor) pushNativeRowToIndexQueue(r *logstorage.InsertRow
 		return false
 	}
 
-	// find endTimeNano of the span in reverse order, it should be right before trace ID field.
+	// find endTimeNano, startTimeNano in reverse order.
 	for i = i - 1; i >= 0; i-- {
-		if r.Fields[i].Name == otelpb.EndTimeUnixNanoField {
+		switch r.Fields[i].Name {
+		case otelpb.EndTimeUnixNanoField:
 			endTime, err = strconv.ParseInt(r.Fields[i].Value, 10, 64)
 			if err != nil {
 				logger.Errorf("cannot parse endTime %s for traceID %q: %v", r.Fields[i].Value, traceID, err)
 				return false
 			}
-			break
-		}
-	}
-
-	// find startTimeNano of the span in reverse order, it should be right before endTimeNano field.
-	for i = i - 1; i >= 0; i-- {
-		if r.Fields[i].Name == otelpb.StartTimeUnixNanoField {
+		case otelpb.StartTimeUnixNanoField:
 			startTime, err = strconv.ParseInt(r.Fields[i].Value, 10, 64)
 			if err != nil {
 				logger.Errorf("cannot parse startTime %s for traceID %q: %v", r.Fields[i].Value, traceID, err)
 				return false
 			}
+		}
+
+		if startTime != 0 && endTime != 0 {
 			break
 		}
 	}
