@@ -87,7 +87,7 @@ func (fc *filterCommon) String() string {
 	}
 
 	fieldName := fc.tagToVTField()
-	if isStreamField(fieldName) && fc.op == "=" || fc.op == "!=" {
+	if isStreamField(fieldName) && (fc.op == "=" || fc.op == "!=") {
 		return `{` + quoteFieldNameIfNeeded(fieldName) + fc.op + quoteTokenIfNeeded(v) + `}`
 	}
 
