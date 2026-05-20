@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return Tempo-compatible string values (`unset`, `ok`, `error`) instead of raw OTLP integers (`0`, `1`, `2`) from the `/api/v2/search/tag/status/values` endpoint, so the Grafana Tempo datasource displays the correct options in the `status` dropdown.
+
 ## [v0.9.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.0)
 
 Released at 2026-05-20
