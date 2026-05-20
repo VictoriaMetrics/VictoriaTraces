@@ -13,14 +13,12 @@ aliases:
 - /victoriatraces/troubleshooting.html
 ---
 
-## Troubleshooting
-
 This document contains troubleshooting guides for most common issues when working with VictoriaTraces:
 
 - [Data ingestion](#data-ingestion)
 - [Querying](#querying)
 
-### Data ingestion
+## Data ingestion
 
 The following command can be used for verifying whether the data is successfully ingested into VictoriaTraces:
 
@@ -57,5 +55,3 @@ VictoriaTraces exposes various metrics, which may help debugging data ingestion 
   since the last VictoriaTraces restart. If this metric grows rapidly during extended periods of time, then this may lead
   to [high cardinality issues](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#high-cardinality).
   The newly created trace streams can be inspected in traces by passing `-logNewStreams` command-line flag to VictoriaTraces.
-
-### Querying

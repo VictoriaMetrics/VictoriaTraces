@@ -36,6 +36,9 @@ var (
 
 	tempoQueryV2Requests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/v2/traces/*"}`)
 	tempoQueryV2Duration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/v2/traces/*"}`)
+
+	tempoMetricsQueryRangeRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/metrics/query_range"}`)
+	tempoMetricsQueryRangeDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/metrics/query_range"}`)
 )
 
 var (
@@ -64,6 +67,11 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		tempoSearchRequests.Inc()
 		processSearchRequest(ctx, w, r)
 		tempoSearchDuration.UpdateDuration(startTime)
+		return true
+	} else if path == "/select/tempo/api/metrics/query_range" {
+		tempoMetricsQueryRangeRequests.Inc()
+		processMetricsQueryRangeRequest(ctx, w, r)
+		tempoMetricsQueryRangeDuration.UpdateDuration(startTime)
 		return true
 	} else if strings.HasPrefix(path, "/select/tempo/api/v2/traces/") && len(path) > len("/select/tempo/api/v2/traces/") {
 		tempoQueryV2Requests.Inc()
@@ -251,10 +259,11 @@ func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr st
 		filterQuery = defaultNoopFilter
 	}
 
-	// exclude queries that contains pipe(s).
-	if filterQuery.HasPipe() {
+	// exclude queries that contain non-hint pipes (select/by/with are OK to ignore).
+	if filterQuery.HasNonHintPipe() {
 		return nil, fmt.Errorf("cannot use query pipes in search tag values API: %s", traceQLStr)
 	}
+	filterQuery.StripHintPipes()
 
 	scopes := ``
 	pipeLimit := limit
@@ -342,10 +351,11 @@ func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLS
 		filterQuery = defaultNoopFilter
 	}
 
-	// exclude queries that contains pipe(s).
-	if filterQuery.HasPipe() {
+	// exclude queries that contain non-hint pipes (select/by/with are OK to ignore).
+	if filterQuery.HasNonHintPipe() {
 		return nil, fmt.Errorf("cannot use query pipes in search tag values API: %s", traceQLStr)
 	}
+	filterQuery.StripHintPipes()
 
 	qStr := fmt.Sprintf(`%s | fields %q | field_values %q | fields %q`,
 		filterQuery.String(), tagName, tagName, tagName,
@@ -393,13 +403,16 @@ func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr 
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
 	filterQuery, err := traceql.ParseQuery(traceQLStr)
 	if err != nil {
-		return nil, err
+		// Return empty results for malformed queries (e.g., "duration > " with no value)
+		// rather than erroring, since Grafana may send incomplete filters during user editing.
+		return nil, nil
 	}
 
-	// exclude queries that contains pipe(s).
-	if filterQuery.HasPipe() {
+	// exclude queries that contain non-hint pipes (select/by/with are OK to ignore).
+	if filterQuery.HasNonHintPipe() {
 		return nil, fmt.Errorf("cannot use query pipes in search tag values API: %s", traceQLStr)
 	}
+	filterQuery.StripHintPipes()
 
 	_, rows, err := GetTraceList(ctx, cp, filterQuery, start, end, limit)
 	if err != nil {

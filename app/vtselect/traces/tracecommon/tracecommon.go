@@ -2,10 +2,12 @@ package tracecommon
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
@@ -67,10 +69,38 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		return nil, fmt.Errorf("cannot obtain tenantID: %w", err)
 	}
 	tenantIDs := []logstorage.TenantID{tenantID}
-	cp := &CommonParams{
-		TenantIDs: tenantIDs,
+
+	hiddenFieldsFilters, err := getStringSliceFromRequest(r, "hidden_fields_filters")
+	if err != nil {
+		return nil, err
 	}
+
+	cp := &CommonParams{
+		TenantIDs:           tenantIDs,
+		HiddenFieldsFilters: hiddenFieldsFilters,
+	}
+
 	return cp, nil
+}
+
+func getStringSliceFromRequest(r *http.Request, argName string) ([]string, error) {
+	s := r.FormValue(argName)
+	if s == "" {
+		return nil, nil
+	}
+
+	if strings.HasPrefix(s, "[") {
+		// Parse as a JSON array of strings.
+		var a []string
+		if err := json.Unmarshal([]byte(s), &a); err != nil {
+			return nil, fmt.Errorf("cannot unmarshal JSON array from %s=%q: %w", argName, s, err)
+		}
+		return a, nil
+	}
+
+	// Parse as a comma-separated list of strings
+	a := strings.Split(s, ",")
+	return a, nil
 }
 
 // Row represent the query result of a trace span.

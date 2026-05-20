@@ -255,6 +255,7 @@ func decodeSpan(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (startTimeUnix
 		fc              easyproto.FieldContext
 		ok              bool
 		endTimeUnixNano uint64
+		statusCode      int64
 		eventIdx        int
 		linkIdx         int
 
@@ -371,7 +372,8 @@ func decodeSpan(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (startTimeUnix
 			if !ok {
 				return startTimeUnixNano, fmt.Errorf("cannot read span status data")
 			}
-			if err = decodeStatus(data, fs, fb); err != nil {
+			statusCode, err = decodeStatus(data, fs, fb)
+			if err != nil {
 				return startTimeUnixNano, fmt.Errorf("cannot decode span status: %w", err)
 			}
 		case 16:
@@ -388,6 +390,7 @@ func decodeSpan(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (startTimeUnix
 	}
 
 	// special fields that should be placed at the tail for faster lookup
+	fs.Add(pb.StatusCodeField, strconv.FormatInt(statusCode, 10))
 	if startTimeUnixNano > 0 {
 		fs.Add(pb.StartTimeUnixNanoField, strconv.FormatUint(startTimeUnixNano, 10))
 	}
@@ -522,7 +525,7 @@ func decodeLink(src []byte, fs *logstorage.Fields, fb *fmtBuffer, linkIdx int) (
 //
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L306
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L791
-func decodeStatus(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (err error) {
+func decodeStatus(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (statusCode int64, err error) {
 	//message Status {
 	//	reserved 1;
 	//	string message = 2;
@@ -532,24 +535,24 @@ func decodeStatus(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (err error) 
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
-			return fmt.Errorf("cannot read next field in Status: %w", err)
+			return 0, fmt.Errorf("cannot read next field in Status: %w", err)
 		}
 		switch fc.FieldNum {
 		case 2:
 			message, ok := fc.String()
 			if !ok {
-				return fmt.Errorf("cannot read status message")
+				return 0, fmt.Errorf("cannot read status message")
 			}
 			fs.Add(pb.StatusMessageField, message)
 		case 3:
 			code, ok := fc.Int32()
 			if !ok {
-				return fmt.Errorf("cannot read status code")
+				return 0, fmt.Errorf("cannot read status code")
 			}
-			fs.Add(pb.StatusCodeField, strconv.FormatInt(int64(code), 10))
+			statusCode = int64(code)
 		}
 	}
-	return nil
+	return statusCode, nil
 }
 
 // decodeKeyValueWithPrefixSuffix parses a KeyValue message from src.
