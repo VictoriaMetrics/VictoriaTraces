@@ -763,23 +763,6 @@ type histogramBucket struct {
 // (doubleValue) JSON field by transformToTempoSeriesImpl.
 const histogramBucketLabelName = "__bucket"
 
-// vmrangeToSeconds converts a vmrange (nanosecond boundaries) to its geometric mean in seconds.
-// e.g., "5.995e+08...6.813e+08" → "0.639" (seconds)
-func vmrangeToSeconds(vmrange string) string {
-	parts := strings.SplitN(vmrange, "...", 2)
-	if len(parts) != 2 {
-		return vmrange
-	}
-	lo, errLo := strconv.ParseFloat(parts[0], 64)
-	hi, errHi := strconv.ParseFloat(parts[1], 64)
-	if errLo != nil || errHi != nil {
-		return vmrange
-	}
-	mid := math.Sqrt(lo * hi)
-	seconds := mid / 1e9
-	return strconv.FormatFloat(seconds, 'g', -1, 64)
-}
-
 // tempoBucketNs returns the Tempo Log2Bucketize bin (next power of 2 in
 // nanoseconds) that the vmrange's upper bound falls into. This matches
 // Tempo's histogram_over_time response, which uses 2^k nanosecond bins

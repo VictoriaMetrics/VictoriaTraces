@@ -21,9 +21,9 @@ func TestTempoBucketNs(t *testing.T) {
 	f("4096...8192", 8192)
 
 	// Non-power-of-2 upper bounds round up to the next power of 2.
-	f("0...100000", 131072)        // ceil(log2(100000))=17 → 2^17 = 131072
-	f("50000...106583", 131072)    // upper 106583 → 2^17
-	f("106583...226974", 262144)   // upper 226974 → 2^18
+	f("0...100000", 131072)      // ceil(log2(100000))=17 → 2^17 = 131072
+	f("50000...106583", 131072)  // upper 106583 → 2^17
+	f("106583...226974", 262144) // upper 226974 → 2^18
 
 	// Realistic vmrange in scientific notation (nanosecond boundaries).
 	f("5.995e+08...6.813e+08", 1<<30) // hi=681300000 → 2^30 = 1073741824
