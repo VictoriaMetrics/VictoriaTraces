@@ -31,7 +31,7 @@ Finally, click "Save & Test" at the bottom to complete the process.
 ## Grafana Tempo Datasource
 
 > Grafana Tempo datasource support is **experimental**. It's implemented as a complement to the Jaeger datasource, to allow using the [Grafana Traces Drilldown](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/traces/).
-> It may not some of the syntax in TraceQL or panels in drilldown.
+> It may not support some of the syntax in TraceQL or panels in drilldown.
 
 Click "Add new data source" on Grafana, and then fill your VictoriaTraces URL to "Connection.URL".
 
