@@ -113,6 +113,40 @@ func Test_parseQuery_malformed(t *testing.T) {
 	f(`{not a}`)
 }
 
+func TestRegexFilterConversion(t *testing.T) {
+	f := func(in, want string) {
+		t.Helper()
+		q, err := ParseQuery(in)
+		if err != nil {
+			t.Fatalf("parse error for %q: %v", in, err)
+		}
+		got := q.String()
+		if got != want {
+			t.Fatalf("for %q: got %q, want %q", in, got, want)
+		}
+	}
+
+	// span.* attribute regex. The internal field name "span_attr:http.status_code"
+	// contains ':' so quoteFieldNameIfNeeded wraps it in quotes.
+	f(`{span.http.status_code =~ "^[1-5].."}`, `"span_attr:http.status_code":~"^[1-5].."`)
+
+	// resource.service.name is a stream field but the stream-filter shortcut
+	// only fires for =/!=, so regex falls through to the regular branch.
+	f(`{resource.service.name !~ "test-.*"}`, `"resource_attr:service.name":!~"test-.*"`)
+
+	// status field: name -> code rewrite at word boundaries.
+	f(`{status =~ "ok|error"}`, `status_code:~"1|2"`)
+	f(`{status =~ "^(ok|error)$"}`, `status_code:~"^(1|2)$"`)
+	f(`{status !~ "unset"}`, `status_code:!~"0"`)
+
+	// status field: case-insensitive name match.
+	f(`{status =~ "OK|Error"}`, `status_code:~"1|2"`)
+
+	// Regression: existing operators still translate the same way.
+	f(`{span.http.status_code = "200"}`, `"span_attr:http.status_code":=200`)
+	f(`{status = "error"}`, `status_code:=2`)
+}
+
 func TestGetTraceDurationFilters(t *testing.T) {
 	f := func(s string) {
 		t.Helper()

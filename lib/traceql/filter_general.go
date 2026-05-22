@@ -1,11 +1,23 @@
 package traceql
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
+
+// statusNameRegex matches the three TraceQL status name keywords at word
+// boundaries so they can be rewritten into their numeric OTel StatusCode
+// equivalents inside regex patterns on the `status` field.
+var statusNameRegex = regexp.MustCompile(`(?i)\b(unset|ok|error)\b`)
+
+func rewriteStatusNamesInRegex(s string) string {
+	return statusNameRegex.ReplaceAllStringFunc(s, func(m string) string {
+		return statusValueMap[strings.ToLower(m)]
+	})
+}
 
 type filterCommon struct {
 	fieldName string
@@ -71,6 +83,23 @@ func (fc *filterCommon) String() string {
 		case "!=":
 			return quoteFieldNameIfNeeded(fc.tagToVTField()) + ":*"
 		}
+	}
+
+	// Regex ops translate to LogsQL's :~ / :!~ filters.
+	// Status is stored as the numeric OTel StatusCode, so for regex on `status`
+	// we rewrite the three known name keywords (unset/ok/error) into their
+	// numeric equivalents at word boundaries — preserving the invariant that
+	// status queries always use human-readable names.
+	if fc.op == "=~" || fc.op == "!~" {
+		pattern := fc.value
+		if fc.fieldName == "status" {
+			pattern = rewriteStatusNamesInRegex(pattern)
+		}
+		op := ":~"
+		if fc.op == "!~" {
+			op = ":!~"
+		}
+		return quoteFieldNameIfNeeded(fc.tagToVTField()) + op + strconv.Quote(pattern)
 	}
 
 	v := fc.value
