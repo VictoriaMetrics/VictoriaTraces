@@ -203,29 +203,33 @@ func (sn *storageNode) runQuery(qctx *logstorage.QueryContext, processBlock func
 	}
 }
 
-func (sn *storageNode) getFieldNames(qctx *logstorage.QueryContext) ([]logstorage.ValueWithHits, error) {
+func (sn *storageNode) getFieldNames(qctx *logstorage.QueryContext, filter string) ([]logstorage.ValueWithHits, error) {
 	args := sn.getCommonArgs(FieldNamesProtocolVersion, qctx)
+	args.Set("filter", filter)
 
 	return sn.getValuesWithHits(qctx, "/internal/select/field_names", args)
 }
 
-func (sn *storageNode) getFieldValues(qctx *logstorage.QueryContext, fieldName string, limit uint64) ([]logstorage.ValueWithHits, error) {
+func (sn *storageNode) getFieldValues(qctx *logstorage.QueryContext, fieldName, filter string, limit uint64) ([]logstorage.ValueWithHits, error) {
 	args := sn.getCommonArgs(FieldValuesProtocolVersion, qctx)
 	args.Set("field", fieldName)
+	args.Set("filter", filter)
 	args.Set("limit", fmt.Sprintf("%d", limit))
 
 	return sn.getValuesWithHits(qctx, "/internal/select/field_values", args)
 }
 
-func (sn *storageNode) getStreamFieldNames(qctx *logstorage.QueryContext) ([]logstorage.ValueWithHits, error) {
+func (sn *storageNode) getStreamFieldNames(qctx *logstorage.QueryContext, filter string) ([]logstorage.ValueWithHits, error) {
 	args := sn.getCommonArgs(StreamFieldNamesProtocolVersion, qctx)
+	args.Set("filter", filter)
 
 	return sn.getValuesWithHits(qctx, "/internal/select/stream_field_names", args)
 }
 
-func (sn *storageNode) getStreamFieldValues(qctx *logstorage.QueryContext, fieldName string, limit uint64) ([]logstorage.ValueWithHits, error) {
+func (sn *storageNode) getStreamFieldValues(qctx *logstorage.QueryContext, fieldName, filter string, limit uint64) ([]logstorage.ValueWithHits, error) {
 	args := sn.getCommonArgs(StreamFieldValuesProtocolVersion, qctx)
 	args.Set("field", fieldName)
+	args.Set("filter", filter)
 	args.Set("limit", fmt.Sprintf("%d", limit))
 
 	return sn.getValuesWithHits(qctx, "/internal/select/stream_field_values", args)
@@ -427,38 +431,46 @@ func (s *Storage) runQuery(stopCh <-chan struct{}, qctx *logstorage.QueryContext
 }
 
 // GetFieldNames executes qctx and returns field names seen in results.
-func (s *Storage) GetFieldNames(qctx *logstorage.QueryContext) ([]logstorage.ValueWithHits, error) {
+//
+// If the filter is non-empty, then only the field names containing the filter substring are returned.
+func (s *Storage) GetFieldNames(qctx *logstorage.QueryContext, filter string) ([]logstorage.ValueWithHits, error) {
 	return s.getValuesWithHits(qctx, 0, false, func(ctx context.Context, sn *storageNode) ([]logstorage.ValueWithHits, error) {
 		qctxLocal := qctx.WithContext(ctx)
-		return sn.getFieldNames(qctxLocal)
+		return sn.getFieldNames(qctxLocal, filter)
 	})
 }
 
 // GetFieldValues executes qctx and returns unique values for the fieldName seen in results.
 //
+// If the filter is non-empty, then only the field values containing the filter substring are returned.
+//
 // If limit > 0, then up to limit unique values are returned.
-func (s *Storage) GetFieldValues(qctx *logstorage.QueryContext, fieldName string, limit uint64) ([]logstorage.ValueWithHits, error) {
+func (s *Storage) GetFieldValues(qctx *logstorage.QueryContext, fieldName, filter string, limit uint64) ([]logstorage.ValueWithHits, error) {
 	return s.getValuesWithHits(qctx, limit, true, func(ctx context.Context, sn *storageNode) ([]logstorage.ValueWithHits, error) {
 		qctxLocal := qctx.WithContext(ctx)
-		return sn.getFieldValues(qctxLocal, fieldName, limit)
+		return sn.getFieldValues(qctxLocal, fieldName, filter, limit)
 	})
 }
 
 // GetStreamFieldNames executes qctx and returns stream field names seen in results.
-func (s *Storage) GetStreamFieldNames(qctx *logstorage.QueryContext) ([]logstorage.ValueWithHits, error) {
+//
+// If the filter is non-empty, then only the field names containing the filter substring are returned.
+func (s *Storage) GetStreamFieldNames(qctx *logstorage.QueryContext, filter string) ([]logstorage.ValueWithHits, error) {
 	return s.getValuesWithHits(qctx, 0, false, func(ctx context.Context, sn *storageNode) ([]logstorage.ValueWithHits, error) {
 		qctxLocal := qctx.WithContext(ctx)
-		return sn.getStreamFieldNames(qctxLocal)
+		return sn.getStreamFieldNames(qctxLocal, filter)
 	})
 }
 
 // GetStreamFieldValues executes qctx and returns stream field values for the given fieldName seen in results.
 //
+// If the filter is non-empty, then only the field values containing the filter substring are returned.
+//
 // If limit > 0, then up to limit unique stream field values are returned.
-func (s *Storage) GetStreamFieldValues(qctx *logstorage.QueryContext, fieldName string, limit uint64) ([]logstorage.ValueWithHits, error) {
+func (s *Storage) GetStreamFieldValues(qctx *logstorage.QueryContext, fieldName, filter string, limit uint64) ([]logstorage.ValueWithHits, error) {
 	return s.getValuesWithHits(qctx, limit, true, func(ctx context.Context, sn *storageNode) ([]logstorage.ValueWithHits, error) {
 		qctxLocal := qctx.WithContext(ctx)
-		return sn.getStreamFieldValues(qctxLocal, fieldName, limit)
+		return sn.getStreamFieldValues(qctxLocal, fieldName, filter, limit)
 	})
 }
 

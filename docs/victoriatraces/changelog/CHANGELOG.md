@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.47.0 to v1.50.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.47.0...v1.50.0).
+
 ## [v0.9.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.0)
 
 Released at 2026-05-20

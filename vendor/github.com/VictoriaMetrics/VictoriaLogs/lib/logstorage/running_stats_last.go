@@ -14,11 +14,10 @@ type runningStatsLast struct {
 }
 
 func (sl *runningStatsLast) String() string {
-	s := "last(" + quoteTokenIfNeeded(sl.fieldName)
+	s := "last(" + quoteTokenIfNeeded(sl.fieldName) + ")"
 	if sl.offset > 0 {
-		s += fmt.Sprintf(", %d", sl.offset)
+		s += fmt.Sprintf(" offset %d", sl.offset)
 	}
-	s += ")"
 	return s
 }
 
@@ -67,24 +66,23 @@ func parseRunningStatsLast(lex *lexer) (runningStatsFunc, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(args) == 0 {
-		return nil, fmt.Errorf("missing the field name inside last()")
-	}
-	if len(args) > 2 {
-		return nil, fmt.Errorf("too many args for the last() function; got %d; want 1 or 2 args; args: %q", len(args), args)
+	if len(args) != 1 {
+		return nil, fmt.Errorf("unexpeccted number of args for the last() function; got %d; want 1; args: %q", len(args), args)
 	}
 
 	fieldName := args[0]
 
 	offset := 0
-	if len(args) == 2 {
-		offsetStr := args[1]
+	if lex.isKeyword("offset") {
+		lex.nextToken()
+		offsetStr := lex.token
+		lex.nextToken()
 		n, err := strconv.Atoi(offsetStr)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse offset=%q at last(%q, %q): %w", offsetStr, fieldName, offsetStr, err)
+			return nil, fmt.Errorf("cannot parse offset=%q at last(%q): %w", offsetStr, fieldName, err)
 		}
 		if n < 0 {
-			return nil, fmt.Errorf("offset=%d cannot be negative at last(%q, %q)", n, fieldName, offsetStr)
+			return nil, fmt.Errorf("offset=%d cannot be negative at last(%q)", n, fieldName)
 		}
 		offset = n
 	}

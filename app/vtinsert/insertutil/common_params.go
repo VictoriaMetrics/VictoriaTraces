@@ -153,7 +153,7 @@ type LogRowsStorage interface {
 	// CanWriteData must returns non-nil error if logs cannot be added to the underlying storage.
 	CanWriteData() error
 
-	// IsLocalStorage tells the caller whether the current instance is using local storage.
+	// IsLocalStorage tells the caller whether the current instance is using local storage. This function is needed by VictoriaTraces.
 	IsLocalStorage() bool
 }
 
