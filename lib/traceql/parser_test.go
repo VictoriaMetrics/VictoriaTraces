@@ -91,6 +91,9 @@ func TestParseQuery(t *testing.T) {
 
 	// status field: case-insensitive name match.
 	f(`{status =~ "OK|Error"}`, `status_code:~"1|2"`)
+
+	// Regex match operator `=~` must become LogsQL `~` (not `=~`).
+	f(`{resource.host.name =~ "kimi-k2-a.*"}`, `"resource_attr:host.name":~"kimi-k2-a.*"`)
 }
 
 // TestParseQueryInvalid asserts that malformed inputs return an error
