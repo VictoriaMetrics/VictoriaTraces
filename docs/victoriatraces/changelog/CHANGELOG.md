@@ -15,6 +15,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 * SECURITY: upgrade Go builder from Go1.26.2 to Go1.26.3. See the list of issues addressed in [Go1.26.3](https://github.com/golang/go/issues?q=milestone%3AGo1.26.3+label%3ACherryPickApproved).
 
 * FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.47.0 to v1.50.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.47.0...v1.50.0).
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): extend TraceQL support for fuzzy match and regex syntax. Thank @vshulakov-sh for [the pull request #158](https://github.com/VictoriaMetrics/VictoriaTraces/pull/158).
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return span status in string (`unset`, `ok`, `error`) instead of integers (`0`, `1`, `2`) in Tempo `/api/v2/search/tag/status/values` endpoint. Thank @vshulakov-sh for [the pull request #155](https://github.com/VictoriaMetrics/VictoriaTraces/pull/155).
 
