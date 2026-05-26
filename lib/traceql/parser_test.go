@@ -1,7 +1,6 @@
 package traceql
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -52,37 +51,54 @@ func TestLexer(t *testing.T) {
 	f(`select(*)`, []string{"select", "(", "*", ")"})
 }
 
-func Test_parseQuery(t *testing.T) {
-	f := func(s string) {
+// TestParseQuery test the query conversion from TraceQL to LogsQL.
+func TestParseQuery(t *testing.T) {
+	f := func(s, expect string) {
 		t.Helper()
 		lex := newLexer(s, 0)
 		q, err := parseQuery(lex)
 		if err != nil {
 			t.Fatal(err)
 		}
-		fmt.Println(q.String())
+		if q.String() != expect {
+			t.Fatalf("unexpected query; got %q; want %q", q.String(), expect)
+		}
 	}
 
-	//f(`{ac.name=~".*frontend.*" && name = "POST /api/orders"} || {ac.nn="sdf"}|| {ac.nnf="sdfasf"}`)
-	//f(`{ac.name=~".*frontend.*" && name = "POST /api/orders"} && {ac.nn="sdf"}`)
-	//f(`({ac.name=~".*frontend.*" && name = "POST /api/orders"} || {ac.name=~".*frontend.*" && name = "POST /api/orders"}) && ({ac.name=~".*frontend.*" && name = "POST /api/orders"} || {ac.name=~".*frontend.*" && name = "POST /api/orders"}) `)
-	//f(`(({a=b && a=c} || {a=d}) && {a=e})`)
-	//f(`{nestedSetParent<0 && true}`)
-	//f(`{nestedSetParent<0 && true && status=error}`)
-	//f(`({nestedSetParent<0 && {true}}) && ({status=error})`)
-	//f(`{} && {nestedSetParent<0 && true && "span.app.ads.ad_request_type" != "nil"}`)
-	//f(`{} && {nestedSetParent<0 && ({true}) && "span.app.ads.ad_request_type" != "nil"}`)
-	//f(`{ span.http.request_content_length > "10 * 1024 * 1024" }`)
-	//f(`{ span.http.request_content_length > 10} | select(span.http.request_content_length) | by(span.http.request_content_length, span.http.request_content_length2) | sum(other_field) > 2m`)
-	f(`{(a=b && c=d && c=d)}`)
+	// normal queries
+	f(`{ac.name=~".*frontend.*" && name = "POST /api/orders"} && {ac.nn="sdf"} || {ac.nn="sdf"}`, `ac.name:~".*frontend.*" and {name="POST /api/orders"} and ac.nn:=sdf or ac.nn:=sdf`)
+	f(`(({a=b && a=c} || {a=d}) && {a=e})`, `(a:=b and a:=c or a:=d) and a:=e`)
+	f(`{nestedSetParent<0 && true}`, `parent_span_id:="" and *`)
+	f(`{nestedSetParent<0 && true && status=error}`, `parent_span_id:="" and * and status_code:=2`)
+	f(`{} && {nestedSetParent<0 && true && "span.app.ads.ad_request_type" != "nil"}`, `* and parent_span_id:="" and * and "span_attr:app.ads.ad_request_type":*`)
+	f(`{ span.http.request_content_length > 10} | select(span.http.request_content_length) | by(span.http.request_content_length, span.http.request_content_length2) | sum(other_field) > 2m`, `"span_attr:http.request_content_length":>10 | select(span.http.request_content_length) | by(span.http.request_content_length, span.http.request_content_length2) | sum(other_field) > 2m`)
+	f(`{(a=b && c=d && c=d)}`, `a:=b and c:=d and c:=d`)
+	f(`{span.http.status_code = "200"}`, `"span_attr:http.status_code":=200`)
+	f(`{status = "error"}`, `status_code:=2`)
+
+	// span.* attribute regex. The internal field name "span_attr:http.status_code"
+	// contains ':' so quoteFieldNameIfNeeded wraps it in quotes.
+	f(`{span.http.status_code =~ "^[1-5].."}`, `"span_attr:http.status_code":~"^[1-5].."`)
+
+	// resource.service.name is a stream field but the stream-filter shortcut
+	// only fires for =/!=, so regex falls through to the regular branch.
+	f(`{resource.service.name !~ "test-.*"}`, `"resource_attr:service.name":!~"test-.*"`)
+
+	// status field: name -> code rewrite at word boundaries.
+	f(`{status =~ "ok|error"}`, `status_code:~"1|2"`)
+	f(`{status =~ "^(ok|error)$"}`, `status_code:~"^(1|2)$"`)
+	f(`{status !~ "unset"}`, `status_code:!~"0"`)
+
+	// status field: case-insensitive name match.
+	f(`{status =~ "OK|Error"}`, `status_code:~"1|2"`)
 }
 
-// Test_parseQuery_malformed asserts that malformed inputs return an error
+// TestParseQueryInvalid asserts that malformed inputs return an error
 // rather than crashing the parser via unbounded recursion or non-progressing
 // loops. Previously, queries like "{&&}" caused parseFilterGeneric to recurse
 // into parseFilterAnd without consuming the operator token, overflowing the
 // goroutine stack.
-func Test_parseQuery_malformed(t *testing.T) {
+func TestParseQueryInvalid(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		_, err := ParseQuery(s)
@@ -113,53 +129,21 @@ func Test_parseQuery_malformed(t *testing.T) {
 	f(`{not a}`)
 }
 
-func TestRegexFilterConversion(t *testing.T) {
-	f := func(in, want string) {
-		t.Helper()
-		q, err := ParseQuery(in)
-		if err != nil {
-			t.Fatalf("parse error for %q: %v", in, err)
-		}
-		got := q.String()
-		if got != want {
-			t.Fatalf("for %q: got %q, want %q", in, got, want)
-		}
-	}
-
-	// span.* attribute regex. The internal field name "span_attr:http.status_code"
-	// contains ':' so quoteFieldNameIfNeeded wraps it in quotes.
-	f(`{span.http.status_code =~ "^[1-5].."}`, `"span_attr:http.status_code":~"^[1-5].."`)
-
-	// resource.service.name is a stream field but the stream-filter shortcut
-	// only fires for =/!=, so regex falls through to the regular branch.
-	f(`{resource.service.name !~ "test-.*"}`, `"resource_attr:service.name":!~"test-.*"`)
-
-	// status field: name -> code rewrite at word boundaries.
-	f(`{status =~ "ok|error"}`, `status_code:~"1|2"`)
-	f(`{status =~ "^(ok|error)$"}`, `status_code:~"^(1|2)$"`)
-	f(`{status !~ "unset"}`, `status_code:!~"0"`)
-
-	// status field: case-insensitive name match.
-	f(`{status =~ "OK|Error"}`, `status_code:~"1|2"`)
-
-	// Regression: existing operators still translate the same way.
-	f(`{span.http.status_code = "200"}`, `"span_attr:http.status_code":=200`)
-	f(`{status = "error"}`, `status_code:=2`)
-}
-
 func TestGetTraceDurationFilters(t *testing.T) {
-	f := func(s string) {
+	f := func(s, expect string) {
 		t.Helper()
 		lex := newLexer(s, 0)
 		q, err := parseQuery(lex)
 		if err != nil {
 			t.Fatal(err)
 		}
-		fmt.Println(q.String())
+		if q.String() != expect {
+			t.Fatalf("for %q: got %q, want %q", s, q.String(), expect)
+		}
 	}
 
-	f(`{(a=b && c=d && c=d)}`)
-	f(`{(traceDuration=10ms && c=d && c=d)}`)
-	f(`{(traceDuration>10ms && c=d && c=d)}`)
-	f(`{(traceDuration>=10ms && traceDuration<1s && c=d)}`)
+	f(`{(a=b && c=d && c=d)}`, `a:=b and c:=d and c:=d`)
+	f(`{(traceDuration=10ms && c=d && c=d)}`, `* and c:=d and c:=d | join by (trace_id) ({trace_id_idx_stream!=""}  AND duration := 10000000  | fields trace_id_idx  | rename trace_id_idx as trace_id) inner`)
+	f(`{(traceDuration>10ms && c=d && c=d)}`, `* and c:=d and c:=d | join by (trace_id) ({trace_id_idx_stream!=""}  AND duration :> 10000000  | fields trace_id_idx  | rename trace_id_idx as trace_id) inner`)
+	f(`{(traceDuration>=10ms && traceDuration<1s && c=d)}`, `* and * and c:=d | join by (trace_id) ({trace_id_idx_stream!=""}  AND duration :>= 10000000 AND duration :< 1000000000  | fields trace_id_idx  | rename trace_id_idx as trace_id) inner`)
 }
