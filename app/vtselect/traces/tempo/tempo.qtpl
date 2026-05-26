@@ -1,5 +1,6 @@
 {% import (
 	"sort"
+	"strconv"
 ) %}
 
 {% stripspace %}
@@ -123,7 +124,27 @@
 	"rootTraceName":{%q= summary.rootTraceName %},
 	"startTimeUnixNano":{%dl= summary.startTimeUnixNano %},
 	"durationMs":{%dl= (summary.endTimeUnixNano - summary.startTimeUnixNano) / 1e6 %},
-	"spanSets": []
+	"spanSet":{%= spanSetJSON(summary) %},
+	"spanSets":[{%= spanSetJSON(summary) %}]
+}
+{% endfunc %}
+
+{% func spanSetJSON(summary traceSummary) %}
+{
+	"spans":[
+		{% if summary.rootSpanID != "" %}
+			{
+				"spanID":{%q= summary.rootSpanID %},
+				"startTimeUnixNano":{%q= strconv.FormatInt(summary.rootStartTimeUnixNano, 10) %},
+				"durationNanos":{%q= strconv.FormatInt(summary.rootEndTimeUnixNano - summary.rootStartTimeUnixNano, 10) %},
+				"attributes":[
+					{"key":"service.name","value":{"stringValue":{%q= summary.rootServiceName %}}},
+					{"key":"nestedSetParent","value":{"intValue":"-1"}}
+				]
+			}
+		{% endif %}
+	],
+	"matched":{% if summary.rootSpanID != "" %}1{% else %}0{% endif %}
 }
 {% endfunc %}
 
