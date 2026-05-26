@@ -75,6 +75,8 @@ func TestParseQuery(t *testing.T) {
 	f(`{(a=b && c=d && c=d)}`, `a:=b and c:=d and c:=d`)
 	f(`{span.http.status_code = "200"}`, `"span_attr:http.status_code":=200`)
 	f(`{status = "error"}`, `status_code:=2`)
+	f(`{status = "unset"}`, `status_code:=0`)
+	f(`{resource.service.name = "my_service"}`, `{"resource_attr:service.name"=my_service}`)
 
 	// span.* attribute regex. The internal field name "span_attr:http.status_code"
 	// contains ':' so quoteFieldNameIfNeeded wraps it in quotes.
@@ -82,7 +84,8 @@ func TestParseQuery(t *testing.T) {
 
 	// resource.service.name is a stream field but the stream-filter shortcut
 	// only fires for =/!=, so regex falls through to the regular branch.
-	f(`{resource.service.name !~ "test-.*"}`, `"resource_attr:service.name":!~"test-.*"`)
+	f(`{resource.service.name !~ "test-.*"}`, `{"resource_attr:service.name"!~"test-.*"}`)
+	f(`{resource.service.name =~ "test-.*"}`, `{"resource_attr:service.name"=~"test-.*"}`)
 
 	// status field: name -> code rewrite at word boundaries.
 	f(`{status =~ "ok|error"}`, `status_code:~"1|2"`)

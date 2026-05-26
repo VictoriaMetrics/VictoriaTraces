@@ -85,42 +85,34 @@ func (fc *filterCommon) String() string {
 		}
 	}
 
-	// Regex ops translate to LogsQL's :~ / :!~ filters.
-	// Status is stored as the numeric OTel StatusCode, so for regex on `status`
-	// we rewrite the three known name keywords (unset/ok/error) into their
-	// numeric equivalents at word boundaries — preserving the invariant that
-	// status queries always use human-readable names.
+	fieldName := fc.tagToVTField()
+	fieldValue := fc.value
+
+	// map status names (error, ok, unset) to numeric OTEL StatusCode values.
+	if fieldName == "status_code" {
+		fieldValue = rewriteStatusNamesInRegex(fieldValue)
+	}
+
+	// translate duration to nanosecond.
+	if duration, ok := tryParseDuration(fieldValue); ok {
+		fieldValue = strconv.FormatInt(duration, 10)
+	}
+
+	// for stream filter, just use the source op (=, !=, =~, !~), as they're identical in LogsQL.
+	if isStreamField(fieldName) && (fc.op == "=" || fc.op == "!=" || fc.op == "=~" || fc.op == "!~") {
+		return `{` + quoteFieldNameIfNeeded(fieldName) + fc.op + quoteTokenIfNeeded(fieldValue) + `}`
+	}
+
+	// regex ops translate to LogsQL's :~ / :!~ filters.
 	if fc.op == "=~" || fc.op == "!~" {
-		pattern := fc.value
-		if fc.fieldName == "status" {
-			pattern = rewriteStatusNamesInRegex(pattern)
-		}
 		op := ":~"
 		if fc.op == "!~" {
 			op = ":!~"
 		}
-		return quoteFieldNameIfNeeded(fc.tagToVTField()) + op + strconv.Quote(pattern)
+		return quoteFieldNameIfNeeded(fieldName) + op + strconv.Quote(fieldValue)
 	}
 
-	v := fc.value
-
-	// Map status names (error, ok, unset) to numeric OTEL StatusCode values.
-	if fc.fieldName == "status" {
-		if numeric, ok := statusValueMap[strings.ToLower(v)]; ok {
-			v = numeric
-		}
-	}
-
-	if duration, ok := tryParseDuration(v); ok {
-		v = strconv.FormatInt(duration, 10)
-	}
-
-	fieldName := fc.tagToVTField()
-	if isStreamField(fieldName) && (fc.op == "=" || fc.op == "!=") {
-		return `{` + quoteFieldNameIfNeeded(fieldName) + fc.op + quoteTokenIfNeeded(v) + `}`
-	}
-
-	return quoteFieldNameIfNeeded(fieldName) + ":" + fc.op + quoteTokenIfNeeded(v)
+	return quoteFieldNameIfNeeded(fieldName) + ":" + fc.op + quoteTokenIfNeeded(fieldValue)
 }
 
 func (fc *filterCommon) tagToVTField() string {
