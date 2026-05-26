@@ -11,6 +11,12 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 * [How to build single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/#how-to-build-from-sources)
 
 ## tip
+                                                                                                                              
+* SECURITY: upgrade Go builder from Go1.26.2 to Go1.26.3. See the list of issues addressed in [Go1.26.3](https://github.com/golang/go/issues?q=milestone%3AGo1.26.3+label%3ACherryPickApproved).
+
+* FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.47.0 to v1.50.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.47.0...v1.50.0).
+
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return span status in string (`unset`, `ok`, `error`) instead of integers (`0`, `1`, `2`) in Tempo `/api/v2/search/tag/status/values` endpoint. Thank @vshulakov-sh for [the pull request #155](https://github.com/VictoriaMetrics/VictoriaTraces/pull/155).
 
 ## [v0.9.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.0)
 

@@ -303,29 +303,30 @@ func processForceMerge(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	// Run force merge in background
-	partitionNamePrefix := r.FormValue("partition_prefix")
+	partitionPrefix := r.FormValue("partition_prefix")
 	go func() {
 		activeForceMerges.Inc()
 		defer activeForceMerges.Dec()
-		logger.Infof("forced merge for partition_prefix=%q has been started", partitionNamePrefix)
+		logger.Infof("forced merge for partition_prefix=%q has been started", partitionPrefix)
 		startTime := time.Now()
-		localStorage.MustForceMerge(partitionNamePrefix)
-		logger.Infof("forced merge for partition_prefix=%q has been successfully finished in %.3f seconds", partitionNamePrefix, time.Since(startTime).Seconds())
+		localStorage.MustForceMerge(partitionPrefix)
+		logger.Infof("forced merge for partition_prefix=%q has been successfully finished in %.3f seconds", partitionPrefix, time.Since(startTime).Seconds())
 	}()
 	return true
 }
 
 func processForceFlush(w http.ResponseWriter, r *http.Request) bool {
-	if localStorage == nil {
-		// Force merge isn't supported by non-local storage
-		return false
-	}
-
 	if !httpserver.CheckAuthFlag(w, r, forceFlushAuthKey) {
 		return true
 	}
 
 	logger.Infof("flushing storage to make pending data available for reading")
+
+	if localStorage == nil {
+		netstorageInsert.DebugFlush()
+		return true
+	}
+
 	localStorage.DebugFlush()
 	return true
 }
@@ -515,7 +516,7 @@ func writeJSONResponse(w http.ResponseWriter, response any) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write(responseBody)
+	w.Write(responseBody)
 }
 
 // Storage implements insertutil.LogRowsStorage interface
@@ -538,6 +539,7 @@ func (*Storage) CanWriteData() error {
 	return nil
 }
 
+// IsLocalStorage tells the caller whether the current instance is using local storage. This function is needed by VictoriaTraces.
 func (*Storage) IsLocalStorage() bool {
 	return localStorage != nil
 }
@@ -580,39 +582,47 @@ func RunQuery(qctx *logstorage.QueryContext, writeBlock logstorage.WriteDataBloc
 }
 
 // GetFieldNames executes qctx and returns field names seen in results.
-func GetFieldNames(qctx *logstorage.QueryContext) ([]logstorage.ValueWithHits, error) {
+//
+// If the filter isn't empty, then only the field names containing the filter substing are returned.
+func GetFieldNames(qctx *logstorage.QueryContext, filter string) ([]logstorage.ValueWithHits, error) {
 	if localStorage != nil {
-		return localStorage.GetFieldNames(qctx)
+		return localStorage.GetFieldNames(qctx, filter)
 	}
-	return netstorageSelect.GetFieldNames(qctx)
+	return netstorageSelect.GetFieldNames(qctx, filter)
 }
 
 // GetFieldValues executes the given qctx and returns unique values for the fieldName seen in results.
 //
+// If the filter isn't empty, then only the field values containing the filter substing are returned.
+//
 // If limit > 0, then up to limit unique values are returned.
-func GetFieldValues(qctx *logstorage.QueryContext, fieldName string, limit uint64) ([]logstorage.ValueWithHits, error) {
+func GetFieldValues(qctx *logstorage.QueryContext, fieldName, filter string, limit uint64) ([]logstorage.ValueWithHits, error) {
 	if localStorage != nil {
-		return localStorage.GetFieldValues(qctx, fieldName, limit)
+		return localStorage.GetFieldValues(qctx, fieldName, filter, limit)
 	}
-	return netstorageSelect.GetFieldValues(qctx, fieldName, limit)
+	return netstorageSelect.GetFieldValues(qctx, fieldName, filter, limit)
 }
 
 // GetStreamFieldNames executes the given qctx and returns stream field names seen in results.
-func GetStreamFieldNames(qctx *logstorage.QueryContext) ([]logstorage.ValueWithHits, error) {
+//
+// If the filter is non-empty, then only the field names containing the filter substring are returned.
+func GetStreamFieldNames(qctx *logstorage.QueryContext, filter string) ([]logstorage.ValueWithHits, error) {
 	if localStorage != nil {
-		return localStorage.GetStreamFieldNames(qctx)
+		return localStorage.GetStreamFieldNames(qctx, filter)
 	}
-	return netstorageSelect.GetStreamFieldNames(qctx)
+	return netstorageSelect.GetStreamFieldNames(qctx, filter)
 }
 
 // GetStreamFieldValues executes the given qctx and returns stream field values for the given fieldName seen in results.
 //
+// If the filter is non-empty, then only the field values containing the filter substring are returned.
+//
 // If limit > 0, then up to limit unique stream field values are returned.
-func GetStreamFieldValues(qctx *logstorage.QueryContext, fieldName string, limit uint64) ([]logstorage.ValueWithHits, error) {
+func GetStreamFieldValues(qctx *logstorage.QueryContext, fieldName, filter string, limit uint64) ([]logstorage.ValueWithHits, error) {
 	if localStorage != nil {
-		return localStorage.GetStreamFieldValues(qctx, fieldName, limit)
+		return localStorage.GetStreamFieldValues(qctx, fieldName, filter, limit)
 	}
-	return netstorageSelect.GetStreamFieldValues(qctx, fieldName, limit)
+	return netstorageSelect.GetStreamFieldValues(qctx, fieldName, filter, limit)
 }
 
 // GetStreams executes the given qctx and returns streams seen in query results.

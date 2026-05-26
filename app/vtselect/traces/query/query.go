@@ -49,7 +49,7 @@ func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]st
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	serviceHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.ResourceAttrServiceName, *tracecommon.TraceMaxServiceNameList)
+	serviceHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.ResourceAttrServiceName, "", *tracecommon.TraceMaxServiceNameList)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
@@ -78,7 +78,7 @@ func GetSpanNameList(ctx context.Context, cp *tracecommon.CommonParams, serviceN
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	spanNameHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.NameField, *tracecommon.TraceMaxSpanNameList)
+	spanNameHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.NameField, "", *tracecommon.TraceMaxSpanNameList)
 	if err != nil {
 		return nil, fmt.Errorf("get span name hits error: %s", err)
 	}

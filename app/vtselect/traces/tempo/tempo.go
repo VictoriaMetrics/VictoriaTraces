@@ -368,7 +368,20 @@ func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLS
 	q.AddTimeFilter(start, end)
 	q.AddPipeOffsetLimit(0, uint64(limit))
 
-	return singleFieldQueryHelper(ctx, q, cp, limit)
+	values, err := singleFieldQueryHelper(ctx, q, cp, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Map raw OTLP status_code integers (0=unset, 1=ok, 2=error) to the
+	// lowercase string names that Tempo returns from this endpoint, so the
+	// Grafana Tempo datasource displays "ok"/"error"/"unset" instead of 0/1/2.
+	if tagName == otelpb.StatusCodeField {
+		for i, v := range values {
+			values[i] = traceql.StatusCodeToName(v)
+		}
+	}
+	return values, nil
 }
 
 // singleFieldQueryHelper execute queries which contains only a single field in response, and return as []string.
