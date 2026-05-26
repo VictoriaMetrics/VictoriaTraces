@@ -27,7 +27,7 @@ curl http://<victoria-traces>:10428/select/logsql/query -d 'query=*' | head
 
 This command selects all the data ingested into VictoriaTraces via [HTTP query API](https://docs.victoriametrics.com/victoriatraces/querying/#http-api)
 using [any value filter](https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter), while `head` cancels query execution after reading the first 10 trace spans.
-See [these docs](https://docs.victoriametrics.com/victoriatraces/querying/#querying-traces) for more details on how `head` integrates with VictoriaTraces.
+See [VictoriaLogs's docs](https://docs.victoriametrics.com/victorialogs/querying/#command-line) for more details on how `head` integrates with VictoriaTraces as well.
 
 The response by default contains all the [trace span fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model).
 See [how to query specific fields](https://docs.victoriametrics.com/victorialogs/logsql/#querying-specific-fields).
