@@ -18,6 +18,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return span status in string (`unset`, `ok`, `error`) instead of integers (`0`, `1`, `2`) in Tempo `/api/v2/search/tag/status/values` endpoint. Thank @vshulakov-sh for [the pull request #155](https://github.com/VictoriaMetrics/VictoriaTraces/pull/155).
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): populate `spanSet`/`spanSets` in the Tempo `/api/search` response with a synthesized root span (`spanID`, `startTimeUnixNano`, `durationNanos`, and `service.name`/`nestedSetParent` attributes). Without this, the [Grafana Traces Drilldown](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/traces/) plugin showed no traces, and trace duration rendered as `NaN`. Thank @vshulakov-sh for [the pull request #162](https://github.com/VictoriaMetrics/VictoriaTraces/pull/162).
+
 ## [v0.9.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.0)
 
 Released at 2026-05-20
