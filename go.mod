@@ -4,9 +4,9 @@ go 1.26.3
 
 require (
 	github.com/VictoriaMetrics/VictoriaLogs v1.121.1-0.20260414190124-77df0c04d532 // v1.50.0
-	github.com/VictoriaMetrics/VictoriaMetrics v1.140.1-0.20260414051809-8a20ccf21db7
+	github.com/VictoriaMetrics/VictoriaMetrics v1.143.0
 	github.com/VictoriaMetrics/easyproto v1.2.0
-	github.com/VictoriaMetrics/metrics v1.43.1
+	github.com/VictoriaMetrics/metrics v1.43.2
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/google/go-cmp v0.7.0
 	github.com/klauspost/compress v1.18.5
@@ -18,7 +18,7 @@ require (
 )
 
 require (
-	github.com/VictoriaMetrics/metricsql v0.86.0 // indirect
+	github.com/VictoriaMetrics/metricsql v0.87.0 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	github.com/valyala/gozstd v1.24.0 // indirect
