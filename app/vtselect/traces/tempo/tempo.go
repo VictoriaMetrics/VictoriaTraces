@@ -481,7 +481,7 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 		}
 
 		if traceID == "" {
-			return nil, fmt.Errorf("trace ID found for a span %v", row)
+			return nil, fmt.Errorf("trace ID not found for a span %v", row)
 		}
 
 		// get the summary for this trace
@@ -549,7 +549,7 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 	if end != "" {
 		ts, ok := timeutil.TryParseUnixTimestamp(end)
 		if !ok {
-			return nil, fmt.Errorf("cannot parse end timestamp: %s", start)
+			return nil, fmt.Errorf("cannot parse end timestamp: %s", end)
 		}
 		p.end = time.Unix(ts/1e9, 0)
 	}
