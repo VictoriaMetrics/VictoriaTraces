@@ -129,7 +129,7 @@ func initLocalStorage() {
 		logger.Fatalf("-retention.maxDiskSpaceUsageBytes and -retention.maxDiskUsagePercent cannot be set simultaneously")
 	}
 	if *maxDiskUsagePercent < 0 || *maxDiskUsagePercent > 100 {
-		logger.Fatalf("-retention.maxDiskUsagePercent must be between 1 and 100; got %d", *maxDiskUsagePercent)
+		logger.Fatalf("-retention.maxDiskUsagePercent must be between 0 and 100; got %d", *maxDiskUsagePercent)
 	}
 	cfg := &logstorage.StorageConfig{
 		Retention:              retentionPeriod.Duration(),

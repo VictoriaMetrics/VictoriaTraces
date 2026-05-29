@@ -124,7 +124,7 @@ func initGRPCServer() {
 		}
 	}
 
-	logger.Infof("starting OTLP gPRC server at %q...", *otlpGRPCListenAddr)
+	logger.Infof("starting OTLP gRPC server at %q...", *otlpGRPCListenAddr)
 	go http2server.Serve(
 		*otlpGRPCListenAddr,
 		otlpGRPCRequestHandler,
@@ -134,9 +134,9 @@ func initGRPCServer() {
 
 func stopGRPCServer() {
 	startTime := time.Now()
-	logger.Infof("gracefully shutting down the OTLP gPRC server at %q...", *otlpGRPCListenAddr)
+	logger.Infof("gracefully shutting down the OTLP gRPC server at %q...", *otlpGRPCListenAddr)
 	if err := http2server.Stop([]string{*otlpGRPCListenAddr}); err != nil {
 		logger.Fatalf("cannot stop the OTLP gRPC server: %s", err)
 	}
-	logger.Infof("successfully shut down the OTLP gPRC in %.3f seconds", time.Since(startTime).Seconds())
+	logger.Infof("successfully shut down the OTLP gRPC in %.3f seconds", time.Since(startTime).Seconds())
 }
