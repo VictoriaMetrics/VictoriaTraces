@@ -229,11 +229,24 @@ func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, param *Tr
 	}
 	if len(param.Attributes) > 0 {
 		for k, v := range param.Attributes {
+			negated := strings.HasPrefix(k, "!")
+			if negated {
+				k = strings.TrimPrefix(k, "!")
+			}
 			if strings.HasPrefix(v, "~") {
-				// ~ prefix forces regex (e.g. tags={"key":"~value.*"})
-				qStr += fmt.Sprintf(`AND %q:re(%s) `, k, strconv.Quote(v[1:]))
+				// ~ prefix forces regex (e.g. tags={"key":"~value.*"}); Jaeger uses {"key!":"~pat"} for key!=~pat.
+				pat := strconv.Quote(v[1:])
+				if negated {
+					qStr += fmt.Sprintf(`AND !(%q:re(%s)) `, k, pat)
+				} else {
+					qStr += fmt.Sprintf(`AND %q:re(%s) `, k, pat)
+				}
 			} else {
-				qStr += fmt.Sprintf(`AND %q:=%q `, k, v)
+				if negated {
+					qStr += fmt.Sprintf(`AND !(%q:=%q) `, k, v)
+				} else {
+					qStr += fmt.Sprintf(`AND %q:=%q `, k, v)
+				}
 			}
 		}
 	}

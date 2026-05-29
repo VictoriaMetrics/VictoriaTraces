@@ -2,6 +2,9 @@ package query
 
 import (
 	"testing"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 )
 
 func TestCheckTraceIDList(t *testing.T) {
@@ -20,4 +23,17 @@ func TestCheckTraceIDList(t *testing.T) {
 	f("abcd.abcd.1234.4321", true)
 	f("abcd bcad", false)
 	f("abcd\"", false)
+}
+
+func TestInvertedTagFilterQueryParses(t *testing.T) {
+	t.Parallel()
+	ts := time.Now().UnixNano()
+	for _, qStr := range []string{
+		`* AND !("span_attr:foo":re("pat")) | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc`,
+		`* AND !("span_attr:foo":="bar") | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc`,
+	} {
+		if _, err := logstorage.ParseQueryAtTimestamp(qStr, ts); err != nil {
+			t.Fatalf("parse %q: %v", qStr, err)
+		}
+	}
 }

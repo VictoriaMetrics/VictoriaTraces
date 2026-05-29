@@ -310,6 +310,52 @@ func getDefaultIngestRequestAndAssertFunc(tc *at.TestCase, sut at.VictoriaTraces
 				cmpopts.IgnoreFields(at.JaegerAPITracesResponse{}, "Errors", "Limit", "Offset", "Total"),
 			},
 		})
+
+		// inverted regex (Jaeger encodes key!=~pattern as {"key!": "~pattern"}): inner regex does not match tag -> trace included
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /select/jaeger/api/traces response (inverted regex, non-matching pattern)",
+			Got: func() any {
+				return sut.JaegerAPITraces(t, at.JaegerQueryParam{
+					TraceQueryParam: query.TraceQueryParam{
+						ServiceName:  serviceName,
+						StartTimeMin: spanTime.Add(-10 * time.Minute),
+						StartTimeMax: spanTime.Add(10 * time.Minute),
+						Attributes: map[string]string{
+							"testTag!": "~other.*",
+						},
+					},
+				}, at.QueryOpts{})
+			},
+			Want: &at.JaegerAPITracesResponse{
+				Data: expectTraceData,
+			},
+			CmpOpts: []cmp.Option{
+				cmpopts.IgnoreFields(at.JaegerAPITracesResponse{}, "Errors", "Limit", "Offset", "Total"),
+			},
+		})
+
+		// inverted regex: inner regex matches tag -> trace excluded
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /select/jaeger/api/traces response (inverted regex, matching pattern)",
+			Got: func() any {
+				return sut.JaegerAPITraces(t, at.JaegerQueryParam{
+					TraceQueryParam: query.TraceQueryParam{
+						ServiceName:  serviceName,
+						StartTimeMin: spanTime.Add(-10 * time.Minute),
+						StartTimeMax: spanTime.Add(10 * time.Minute),
+						Attributes: map[string]string{
+							"testTag!": "~test.*",
+						},
+					},
+				}, at.QueryOpts{})
+			},
+			Want: &at.JaegerAPITracesResponse{
+				Data: []at.TracesResponseData{},
+			},
+			CmpOpts: []cmp.Option{
+				cmpopts.IgnoreFields(at.JaegerAPITracesResponse{}, "Errors", "Limit", "Offset", "Total"),
+			},
+		})
 	}
 	return req, assertFunc
 }

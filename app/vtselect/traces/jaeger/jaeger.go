@@ -371,6 +371,17 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 	// 1. retrieved from `span_attr:otel.status_description` field directly.
 	// 2. converted from `status_message` field for Jaeger API.
 	for k, v := range p.Attributes {
+		// Jaeger UI encodes key!=value as JSON {"key!": "value"}; strip "!" before field mapping.
+		negated := strings.HasSuffix(k, "!")
+		if negated {
+			k = strings.TrimSuffix(k, "!")
+		}
+		store := func(field string) {
+			if negated {
+				field = "!" + field
+			}
+			attributesFilter[field] = v
+		}
 		// convert to OpenTelemetry field name in storage.
 		if field, ok := spanAttributeMap[k]; ok {
 			// 2 special cases that need to converted value as well.
@@ -380,11 +391,11 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 			case "span.kind":
 				v = spanKindMap[v]
 			}
-			attributesFilter[field] = v
+			store(field)
 		} else if strings.HasPrefix(k, otelpb.InstrumentationScopeAttrPrefix) || strings.HasPrefix(k, otelpb.ResourceAttrPrefix) {
-			attributesFilter[k] = v
+			store(k)
 		} else {
-			attributesFilter[otelpb.SpanAttrPrefixField+k] = v
+			store(otelpb.SpanAttrPrefixField + k)
 		}
 	}
 	p.Attributes = attributesFilter
