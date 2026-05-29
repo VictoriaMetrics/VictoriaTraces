@@ -279,7 +279,15 @@ func streamsummaryJson(qw422016 *qt422016.Writer, summary traceSummary) {
 //line app/vtselect/traces/tempo/tempo.qtpl:125
 	qw422016.N().S(`,"durationMs":`)
 //line app/vtselect/traces/tempo/tempo.qtpl:126
-	qw422016.N().DL((summary.endTimeUnixNano - summary.startTimeUnixNano) / 1e6)
+	if summary.endTimeUnixNano > 0 && summary.startTimeUnixNano > 0 {
+//line app/vtselect/traces/tempo/tempo.qtpl:126
+		qw422016.N().DL((summary.endTimeUnixNano - summary.startTimeUnixNano) / 1e6)
+//line app/vtselect/traces/tempo/tempo.qtpl:126
+	} else {
+//line app/vtselect/traces/tempo/tempo.qtpl:126
+		qw422016.N().S(`0`)
+//line app/vtselect/traces/tempo/tempo.qtpl:126
+	}
 //line app/vtselect/traces/tempo/tempo.qtpl:126
 	qw422016.N().S(`,"spanSet":`)
 //line app/vtselect/traces/tempo/tempo.qtpl:127

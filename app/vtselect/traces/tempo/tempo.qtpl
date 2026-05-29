@@ -123,7 +123,7 @@
 	"rootServiceName":{%q= summary.rootServiceName %},
 	"rootTraceName":{%q= summary.rootTraceName %},
 	"startTimeUnixNano":{%dl= summary.startTimeUnixNano %},
-	"durationMs":{%dl= (summary.endTimeUnixNano - summary.startTimeUnixNano) / 1e6 %},
+	"durationMs":{% if summary.endTimeUnixNano > 0 && summary.startTimeUnixNano > 0 %}{%dl= (summary.endTimeUnixNano - summary.startTimeUnixNano) / 1e6 %}{% else %}0{% endif %},
 	"spanSet":{%= spanSetJSON(summary) %},
 	"spanSets":[{%= spanSetJSON(summary) %}]
 }
