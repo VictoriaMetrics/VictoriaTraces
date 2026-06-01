@@ -16,7 +16,7 @@ services:
 
   # Grafana instance configured with VictoriaLogs as datasource
   grafana:
-    image: grafana/grafana:12.0.2
+    image: grafana/grafana:12.3.1
     depends_on:
       - "victoriametrics"
       - "victoriatraces"
@@ -26,14 +26,15 @@ services:
       - grafanadata:/var/lib/grafana
       - ./provisioning/datasources/victoriametrics-traces-datasource/single.yml:/etc/grafana/provisioning/datasources/single.yml
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
-      - ./provisioning/plugins/:/var/lib/grafana/plugins
       - ./../../dashboards/victoriatraces.json:/var/lib/grafana/dashboards/vt.json
+    environment:
+      - "GF_INSTALL_PLUGINS=grafana-exploretraces-app"
     restart: always
 
   #  VictoriaTraces instance, a single process responsible for
   #  storing trace span and serving read queries.
   victoriatraces:
-    image: 'docker.io/victoriametrics/victoria-traces:latest'
+    image: 'docker.io/victoriametrics/victoria-traces:v0.9.1'
     ports:
       - "10428:10428"
     command:
@@ -44,7 +45,7 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # scraping, storing metrics and serve read requests.
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.120.0
+    image: victoriametrics/victoria-metrics:v1.144.0
     ports:
       - "8428:8428"
     volumes:
@@ -57,7 +58,7 @@ services:
 
   # vmalert executes alerting and recording rules on VictoriaMetrics.
   vmalert-metrics:
-    image: victoriametrics/vmalert:v1.120.0
+    image: victoriametrics/vmalert:v1.144.0
     depends_on:
       - "alertmanager"
       - "victoriametrics"
@@ -79,7 +80,7 @@ services:
 
   # vmalert executes alerting and recording rules on VictoriaTraces.
   vmalert-traces:
-    image: victoriametrics/vmalert:v1.120.0
+    image: victoriametrics/vmalert:v1.144.0
     depends_on:
       - "alertmanager"
       - "victoriatraces"
