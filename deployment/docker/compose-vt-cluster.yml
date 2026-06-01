@@ -16,7 +16,7 @@ services:
 
   # Grafana instance configured with VictoriaLogs as datasource
   grafana:
-    image: grafana/grafana:12.3.1
+    image: grafana/grafana:12.4.3
     depends_on:
       - "victoriametrics"
       - "vmauth"
@@ -26,8 +26,9 @@ services:
       - grafanadata:/var/lib/grafana
       - ./provisioning/datasources/victoriametrics-traces-datasource/cluster.yml:/etc/grafana/provisioning/datasources/cluster.yml
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
-      - ./provisioning/plugins/:/var/lib/grafana/plugins
       - ./../../dashboards/victoriatraces-cluster.json:/var/lib/grafana/dashboards/vt.json
+    environment:
+      - "GF_INSTALL_PLUGINS=grafana-exploretraces-app"
     restart: always
 
   vtinsert-1:
