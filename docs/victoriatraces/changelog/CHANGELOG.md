@@ -16,7 +16,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 Released at 2026-06-01
 
-* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): exclude unnecessary streams during trace search. These streams caused empty `trace_id` values in subsequent queries and parsing errors.
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): exclude unnecessary streams during trace search. These streams caused empty `trace_id` values in subsequent queries and parsing errors. This issue was introduced since v0.4.0.
 
 ## [v0.9.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.1)
 

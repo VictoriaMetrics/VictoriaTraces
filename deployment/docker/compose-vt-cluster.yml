@@ -32,35 +32,35 @@ services:
     restart: always
 
   vtinsert-1:
-    image: victoriametrics/victoria-traces:v0.9.1
+    image: victoriametrics/victoria-traces:v0.9.2
     command:
       - "--storageNode=vtstorage-1:10428"
       - "--storageNode=vtstorage-2:10428"
   vtinsert-2:
-    image: victoriametrics/victoria-traces:v0.9.1
+    image: victoriametrics/victoria-traces:v0.9.2
     command:
       - "--storageNode=vtstorage-1:10428"
       - "--storageNode=vtstorage-2:10428"
 
   vtselect-1:
-    image: victoriametrics/victoria-traces:v0.9.1
+    image: victoriametrics/victoria-traces:v0.9.2
     command:
       - "--storageNode=vtstorage-1:10428"
       - "--storageNode=vtstorage-2:10428"
   vtselect-2:
-    image: victoriametrics/victoria-traces:v0.9.1
+    image: victoriametrics/victoria-traces:v0.9.2
     command:
       - "--storageNode=vtstorage-1:10428"
       - "--storageNode=vtstorage-2:10428"
 
   vtstorage-1:
-    image: victoriametrics/victoria-traces:v0.9.1
+    image: victoriametrics/victoria-traces:v0.9.2
     command:
       - "--storageDataPath=/vtraces"
     volumes:
       - vtdata-1:/vtraces
   vtstorage-2:
-    image: victoriametrics/victoria-traces:v0.9.1
+    image: victoriametrics/victoria-traces:v0.9.2
     command:
       - "--storageDataPath=/vtraces"
     volumes:
