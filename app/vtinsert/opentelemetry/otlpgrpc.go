@@ -119,7 +119,7 @@ func writeExportTraceServiceResponse(w http.ResponseWriter, rejectedSpans int64,
 	// The server MUST leave the partial_success field unset in case of a successful response.
 	// https://opentelemetry.io/docs/specs/otlp/#full-success
 	resp := &otelpb.ExportTraceServiceResponse{}
-	if rejectedSpans != 0 || errorMessage == "" {
+	if rejectedSpans != 0 || errorMessage != "" {
 		resp.ExportTracePartialSuccess = &otelpb.ExportTracePartialSuccess{
 			RejectedSpans: rejectedSpans,
 			ErrorMessage:  errorMessage,

@@ -14,6 +14,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtstorage in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): expose filesystem type for storage paths via the `vm_fs_info` metric. This helps identify filesystem-specific issues during troubleshooting. See [#164](https://github.com/VictoriaMetrics/VictoriaTraces/issues/164) for details.
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtinsert in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): response empty partial success correctly when error message for OTLP ingestion is empty. Thank @immanuwell for [the pull request #170](https://github.com/VictoriaMetrics/VictoriaTraces/pull/170).
+
 ## [v0.9.2](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.2)
 
 Released at 2026-06-01
