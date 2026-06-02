@@ -1,5 +1,6 @@
 {% import (
 	"sort"
+	"strconv"
 ) %}
 
 {% stripspace %}
@@ -122,8 +123,28 @@
 	"rootServiceName":{%q= summary.rootServiceName %},
 	"rootTraceName":{%q= summary.rootTraceName %},
 	"startTimeUnixNano":{%dl= summary.startTimeUnixNano %},
-	"durationMs":{%dl= (summary.endTimeUnixNano - summary.startTimeUnixNano) / 1e6 %},
-	"spanSets": []
+	"durationMs":{% if summary.endTimeUnixNano > 0 && summary.startTimeUnixNano > 0 %}{%dl= (summary.endTimeUnixNano - summary.startTimeUnixNano) / 1e6 %}{% else %}0{% endif %},
+	"spanSet":{%= spanSetJSON(summary) %},
+	"spanSets":[{%= spanSetJSON(summary) %}]
+}
+{% endfunc %}
+
+{% func spanSetJSON(summary traceSummary) %}
+{
+	"spans":[
+		{% if summary.rootSpanID != "" %}
+			{
+				"spanID":{%q= summary.rootSpanID %},
+				"startTimeUnixNano":{%q= strconv.FormatInt(summary.rootStartTimeUnixNano, 10) %},
+				"durationNanos":{%q= strconv.FormatInt(summary.rootEndTimeUnixNano - summary.rootStartTimeUnixNano, 10) %},
+				"attributes":[
+					{"key":"service.name","value":{"stringValue":{%q= summary.rootServiceName %}}},
+					{"key":"nestedSetParent","value":{"intValue":"-1"}}
+				]
+			}
+		{% endif %}
+	],
+	"matched":{% if summary.rootSpanID != "" %}1{% else %}0{% endif %}
 }
 {% endfunc %}
 

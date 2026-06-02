@@ -37,8 +37,8 @@ type TraceQueryParam struct {
 func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]string, error) {
 	currentTime := time.Now()
 
-	// query: _time:[start, end] *
-	qStr := "*"
+	// query: _time:[start, end] {resource_attr:service.name!=""}
+	qStr := `{resource_attr:service.name!=""}`
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
@@ -98,7 +98,7 @@ func GetTrace(ctx context.Context, cp *tracecommon.CommonParams, traceID string)
 	currentTime := time.Now()
 
 	// possible partition
-	// query: {trace_id_idx="xx"} AND trace_id:traceID
+	// query: {trace_id_idx_stream="xx"} AND trace_id_idx:traceID
 	qStr := fmt.Sprintf(
 		`{%s="%d"} AND %s:=%q | stats min(_time) _time, min(%s) %s, max(%s) %s`,
 		otelpb.TraceIDIndexStreamName,
@@ -139,7 +139,7 @@ func GetTrace(ctx context.Context, cp *tracecommon.CommonParams, traceID string)
 func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, param *TraceQueryParam) ([]string, []*tracecommon.Row, error) {
 	currentTime := time.Now()
 
-	// query 1: * AND filter_conditions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
+	// query 1: {resource_attr:service.name!=""} AND filter_conditions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
 	traceIDs, startTime, err := getTraceIDList(ctx, cp, param)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get trace id error: %w", err)
@@ -219,8 +219,8 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, param *Trac
 // It also returns the earliest start time of these traces, to help reducing the time range for spans search.
 func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, param *TraceQueryParam) ([]string, time.Time, error) {
 	currentTime := time.Now()
-	// query: * AND <filter> | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
-	qStr := "* "
+	// query: {resource_attr:service.name!=""} AND <filter> | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
+	qStr := `{resource_attr:service.name!=""} `
 	if param.ServiceName != "" {
 		qStr += fmt.Sprintf("AND _stream:{"+otelpb.ResourceAttrServiceName+"=%q} ", param.ServiceName)
 	}

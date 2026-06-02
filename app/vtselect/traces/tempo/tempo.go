@@ -444,15 +444,22 @@ type traceSummary struct {
 	traceID           string
 	rootServiceName   string
 	rootTraceName     string
+	rootSpanID        string
 	startTimeUnixNano int64
 	endTimeUnixNano   int64
+	// rootStartTimeUnixNano / rootEndTimeUnixNano are the root span's own bounds,
+	// used to populate spanSets[0].spans[0].startTimeUnixNano and durationNanos.
+	// Grafana's Tempo datasource reads durationNanos from the span, not the
+	// trace-level durationMs, so we must emit it on the synthesized root span.
+	rootStartTimeUnixNano int64
+	rootEndTimeUnixNano   int64
 }
 
 func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, limit int64) ([]traceSummary, error) {
 	traceMap := make(map[string]traceSummary)
 
 	for _, row := range rows {
-		var traceID, serviceName, spanName, parentSpanID string
+		var traceID, serviceName, spanName, spanID, parentSpanID string
 		var startTimeUnixNano, endTimeUnixNano int64
 		var err error
 		for _, field := range row.Fields {
@@ -463,6 +470,8 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 				traceID = field.Value
 			case otelpb.NameField:
 				spanName = field.Value
+			case otelpb.SpanIDField:
+				spanID = field.Value
 			case otelpb.ParentSpanIDField:
 				parentSpanID = field.Value
 			case otelpb.StartTimeUnixNanoField:
@@ -481,7 +490,7 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 		}
 
 		if traceID == "" {
-			return nil, fmt.Errorf("trace ID found for a span %v", row)
+			return nil, fmt.Errorf("trace ID not found for a span %v", row)
 		}
 
 		// get the summary for this trace
@@ -501,6 +510,9 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 		if parentSpanID == "" {
 			summary.rootServiceName = serviceName
 			summary.rootTraceName = spanName
+			summary.rootSpanID = spanID
+			summary.rootStartTimeUnixNano = startTimeUnixNano
+			summary.rootEndTimeUnixNano = endTimeUnixNano
 		}
 		// summary is not a pointer so it must be put back to the map.
 		traceMap[traceID] = summary
@@ -549,7 +561,7 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 	if end != "" {
 		ts, ok := timeutil.TryParseUnixTimestamp(end)
 		if !ok {
-			return nil, fmt.Errorf("cannot parse end timestamp: %s", start)
+			return nil, fmt.Errorf("cannot parse end timestamp: %s", end)
 		}
 		p.end = time.Unix(ts/1e9, 0)
 	}

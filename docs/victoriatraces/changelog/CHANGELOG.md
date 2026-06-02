@@ -11,13 +11,25 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 * [How to build single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/#how-to-build-from-sources)
 
 ## tip
-                                                                                                                              
+
+## [v0.9.2](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.2)
+
+Released at 2026-06-01
+
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): exclude unnecessary streams during trace search. These streams caused empty `trace_id` values in subsequent queries and parsing errors. This issue was introduced since v0.4.0.
+
+## [v0.9.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.1)
+
+Released at 2026-06-01
+
 * SECURITY: upgrade Go builder from Go1.26.2 to Go1.26.3. See the list of issues addressed in [Go1.26.3](https://github.com/golang/go/issues?q=milestone%3AGo1.26.3+label%3ACherryPickApproved).
 
 * FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.47.0 to v1.50.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.47.0...v1.50.0).
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): extend TraceQL support for fuzzy match and regex syntax. Thank @vshulakov-sh for [the pull request #158](https://github.com/VictoriaMetrics/VictoriaTraces/pull/158).
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return span status in string (`unset`, `ok`, `error`) instead of integers (`0`, `1`, `2`) in Tempo `/api/v2/search/tag/status/values` endpoint. Thank @vshulakov-sh for [the pull request #155](https://github.com/VictoriaMetrics/VictoriaTraces/pull/155).
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): populate `spanSets` in the Tempo `/api/search` response with a synthesized root span (`spanID`, `startTimeUnixNano`, `durationNanos`, and `service.name`/`nestedSetParent` attributes) to allow [Grafana Traces Drilldown](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/traces/) plugin show traces. Thank @vshulakov-sh for [the pull request #162](https://github.com/VictoriaMetrics/VictoriaTraces/pull/162).
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): safeguard duration calculation for the Tempo search API when start or end time is missing. Previously, the value could exceed the int32 range and cause display errors. See [pull request #153](https://github.com/VictoriaMetrics/VictoriaTraces/pull/153) for details.
 
 ## [v0.9.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.0)
 

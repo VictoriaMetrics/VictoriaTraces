@@ -16,7 +16,7 @@ services:
 
   # Grafana instance configured with VictoriaLogs as datasource
   grafana:
-    image: grafana/grafana:12.0.2
+    image: grafana/grafana:12.4.3
     depends_on:
       - "victoriametrics"
       - "vmauth"
@@ -26,40 +26,41 @@ services:
       - grafanadata:/var/lib/grafana
       - ./provisioning/datasources/victoriametrics-traces-datasource/cluster.yml:/etc/grafana/provisioning/datasources/cluster.yml
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
-      - ./provisioning/plugins/:/var/lib/grafana/plugins
       - ./../../dashboards/victoriatraces-cluster.json:/var/lib/grafana/dashboards/vt.json
+    environment:
+      - "GF_INSTALL_PLUGINS=grafana-exploretraces-app"
     restart: always
 
   vtinsert-1:
-    image: victoriametrics/victoria-traces:latest
+    image: victoriametrics/victoria-traces:v0.9.2
     command:
       - "--storageNode=vtstorage-1:10428"
       - "--storageNode=vtstorage-2:10428"
   vtinsert-2:
-    image: victoriametrics/victoria-traces:latest
+    image: victoriametrics/victoria-traces:v0.9.2
     command:
       - "--storageNode=vtstorage-1:10428"
       - "--storageNode=vtstorage-2:10428"
 
   vtselect-1:
-    image: victoriametrics/victoria-traces:latest
+    image: victoriametrics/victoria-traces:v0.9.2
     command:
       - "--storageNode=vtstorage-1:10428"
       - "--storageNode=vtstorage-2:10428"
   vtselect-2:
-    image: victoriametrics/victoria-traces:latest
+    image: victoriametrics/victoria-traces:v0.9.2
     command:
       - "--storageNode=vtstorage-1:10428"
       - "--storageNode=vtstorage-2:10428"
 
   vtstorage-1:
-    image: victoriametrics/victoria-traces:latest
+    image: victoriametrics/victoria-traces:v0.9.2
     command:
       - "--storageDataPath=/vtraces"
     volumes:
       - vtdata-1:/vtraces
   vtstorage-2:
-    image: victoriametrics/victoria-traces:latest
+    image: victoriametrics/victoria-traces:v0.9.2
     command:
       - "--storageDataPath=/vtraces"
     volumes:
@@ -68,7 +69,7 @@ services:
   # VictoriaMetrics instance, a single process responsible for
   # scraping, storing metrics and serve read requests.
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.120.0
+    image: victoriametrics/victoria-metrics:v1.144.0
     ports:
       - "8428:8428"
     volumes:
@@ -82,7 +83,7 @@ services:
   # vmauth is a router and balancer for HTTP requests.
   # It proxies requests to VictoriaTraces cluster.
   vmauth:
-    image: victoriametrics/vmauth:v1.120.0
+    image: victoriametrics/vmauth:v1.144.0
     depends_on:
       - "vtselect-1"
       - "vtselect-2"
@@ -98,7 +99,7 @@ services:
 
   # vmalert executes alerting and recording rules on VictoriaMetrics.
   vmalert-metrics:
-    image: victoriametrics/vmalert:v1.120.0
+    image: victoriametrics/vmalert:v1.144.0
     depends_on:
       - "alertmanager"
       - "victoriametrics"
@@ -120,7 +121,7 @@ services:
 
   # vmalert executes alerting and recording rules on VictoriaTraces.
   vmalert-traces:
-    image: victoriametrics/vmalert:v1.120.0
+    image: victoriametrics/vmalert:v1.144.0
     depends_on:
       - "alertmanager"
       - "vmauth"
