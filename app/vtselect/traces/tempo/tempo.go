@@ -242,6 +242,13 @@ func getTraceByID(ctx context.Context, w http.ResponseWriter, r *http.Request, p
 	return resourceSpans, true
 }
 
+// acceptsJSON reports whether the client asked for a JSON response via the Accept
+// header. Tempo's trace-by-id APIs default to protobuf (used by Grafana's datasource);
+// JSON is returned only when explicitly requested (e.g. by the supervtrace/svt CLI).
+func acceptsJSON(r *http.Request) bool {
+	return strings.Contains(r.Header.Get("Accept"), "application/json")
+}
+
 // writeProtobufResponse marshals msg and writes it as a protobuf HTTP response.
 func writeProtobufResponse(w http.ResponseWriter, msg interface{ MarshalProtobuf([]byte) []byte }) {
 	b := bytebufferpool.Get()
@@ -265,6 +272,12 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	if acceptsJSON(r) {
+		w.Header().Set("Content-Type", "application/json")
+		WriteTraceByIDV1JSON(w, resourceSpans)
+		return
+	}
+
 	trace := otelpb.TempoTrace{
 		ResourceSpan: resourceSpans,
 	}
@@ -275,6 +288,12 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	resourceSpans, ok := getTraceByID(ctx, w, r, "/select/tempo/api/v2/traces/")
 	if !ok {
+		return
+	}
+
+	if acceptsJSON(r) {
+		w.Header().Set("Content-Type", "application/json")
+		WriteTraceByIDV2JSON(w, resourceSpans)
 		return
 	}
 
