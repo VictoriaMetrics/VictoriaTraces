@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtstorage in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): expose filesystem type for storage paths via the `vm_fs_info` metric. This helps identify filesystem-specific issues during troubleshooting. See [#164](https://github.com/VictoriaMetrics/VictoriaTraces/issues/164) for details.
+
 ## [v0.9.2](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.2)
 
 Released at 2026-06-01
