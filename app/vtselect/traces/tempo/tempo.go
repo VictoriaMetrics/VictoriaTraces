@@ -34,6 +34,9 @@ var (
 	tempoSearchRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/search"}`)
 	tempoSearchDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/search"}`)
 
+	tempoQueryRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/traces/*"}`)
+	tempoQueryDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/traces/*"}`)
+
 	tempoQueryV2Requests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/v2/traces/*"}`)
 	tempoQueryV2Duration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/v2/traces/*"}`)
 
@@ -72,6 +75,11 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		tempoMetricsQueryRangeRequests.Inc()
 		processMetricsQueryRangeRequest(ctx, w, r)
 		tempoMetricsQueryRangeDuration.UpdateDuration(startTime)
+		return true
+	} else if strings.HasPrefix(path, "/select/tempo/api/traces/") && len(path) > len("/select/tempo/api/traces/") {
+		tempoQueryRequests.Inc()
+		processQueryRequest(ctx, w, r)
+		tempoQueryDuration.UpdateDuration(startTime)
 		return true
 	} else if strings.HasPrefix(path, "/select/tempo/api/v2/traces/") && len(path) > len("/select/tempo/api/v2/traces/") {
 		tempoQueryV2Requests.Inc()
@@ -196,37 +204,77 @@ func processSearchRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 	WriteSearchResponse(w, result)
 }
 
-// processQueryV2Request handle the Tempo /api/v2/traces/<traceid> API request.
-func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+// getTraceByID fetches the trace whose ID follows pathPrefix in the request path and
+// converts it into resource spans. It is shared by the v1 (/api/traces/<id>) and
+// v2 (/api/v2/traces/<id>) trace-by-ID APIs, which differ only in the response wrapper.
+//
+// On error it writes the HTTP error response and returns ok=false.
+func getTraceByID(ctx context.Context, w http.ResponseWriter, r *http.Request, pathPrefix string) ([]*otelpb.ResourceSpans, bool) {
 	cp, err := tracecommon.GetCommonParams(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
-		return
+		return nil, false
 	}
 
 	params, err := parseTempoAPIParam(ctx, r, false)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
-		return
+		return nil, false
 	}
 
-	// extract the `trace_id`.
-	// the path must be like `/select/tempo/api/v2/traces/<trace_id>`.
-	traceID := r.URL.Path[len("/select/tempo/api/v2/traces/"):]
+	traceID := r.URL.Path[len(pathPrefix):]
 	if len(traceID) == 0 {
 		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
-		return
+		return nil, false
 	}
 
 	rows, err := GetTrace(ctx, cp, traceID, params.start, params.end)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot get traces list: %s", err)
-		return
+		return nil, false
 	}
 
 	resourceSpans, err := rowsToResourceSpans(rows)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse rows into resource spans: %s", err)
+		return nil, false
+	}
+	return resourceSpans, true
+}
+
+// writeProtobufResponse marshals msg and writes it as a protobuf HTTP response.
+func writeProtobufResponse(w http.ResponseWriter, msg interface{ MarshalProtobuf([]byte) []byte }) {
+	b := bytebufferpool.Get()
+	defer bytebufferpool.Put(b)
+
+	b.B = msg.MarshalProtobuf(b.B)
+
+	w.Header().Set("Content-Type", "application/protobuf")
+	w.Header().Set("Content-Length", strconv.Itoa(b.Len()))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(b.Bytes())
+}
+
+// processQueryRequest handle the Tempo /api/traces/<traceid> (v1) API request.
+//
+// The v1 API returns the bare Trace message, unlike the v2 API which wraps it in a
+// TraceByIDResponse.
+func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	resourceSpans, ok := getTraceByID(ctx, w, r, "/select/tempo/api/traces/")
+	if !ok {
+		return
+	}
+
+	trace := otelpb.TempoTrace{
+		ResourceSpan: resourceSpans,
+	}
+	writeProtobufResponse(w, &trace)
+}
+
+// processQueryV2Request handle the Tempo /api/v2/traces/<traceid> API request.
+func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	resourceSpans, ok := getTraceByID(ctx, w, r, "/select/tempo/api/v2/traces/")
+	if !ok {
 		return
 	}
 
@@ -235,17 +283,7 @@ func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.R
 			ResourceSpan: resourceSpans,
 		},
 	}
-
-	b := bytebufferpool.Get()
-	defer bytebufferpool.Put(b)
-
-	b.B = resp.MarshalProtobuf(b.B)
-
-	// Write results
-	w.Header().Set("Content-Type", "application/protobuf")
-	w.Header().Set("Content-Length", strconv.Itoa(b.Len()))
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(b.Bytes())
+	writeProtobufResponse(w, &resp)
 }
 
 type searchTagResult struct {

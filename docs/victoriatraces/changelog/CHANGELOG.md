@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support the Tempo `/api/traces/<trace_id>` (v1) trace-by-ID endpoint. Previously only the v2 `/api/v2/traces/<trace_id>` endpoint was served, so clients that use the v1 path (e.g. the `supervtrace`/`svt` CLI) received `unsupported path requested`. The v1 endpoint returns the bare Tempo `Trace` message, while v2 keeps the `TraceByIDResponse` wrapper.
+
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtstorage in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): expose filesystem type for storage paths via the `vm_fs_info` metric. This helps identify filesystem-specific issues during troubleshooting. See [#164](https://github.com/VictoriaMetrics/VictoriaTraces/issues/164) for details.
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtinsert in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): response empty partial success correctly when error message for OTLP ingestion is empty. Thank @immanuwell for [the pull request #170](https://github.com/VictoriaMetrics/VictoriaTraces/pull/170).
