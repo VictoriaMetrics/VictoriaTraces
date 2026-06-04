@@ -29,4 +29,10 @@ type filter interface {
 	// ToLogsQLFilter() logsql
 
 	GetTraceDurationFilters() []*filterCommon
+
+	// GetReferencedFields must return the field names referenced by the filter
+	// (in TraceQL form, e.g. "resource.service.name", "kind"). It is used to
+	// project only the queried attributes onto matched spans in the search
+	// response, mirroring Tempo's behavior.
+	GetReferencedFields() []string
 }

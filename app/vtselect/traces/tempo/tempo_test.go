@@ -5,8 +5,95 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
+
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/tracecommon"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
+
+// spanRow builds a *tracecommon.Row from the given field name/value pairs.
+func spanRow(fields map[string]string) *tracecommon.Row {
+	r := &tracecommon.Row{}
+	for name, value := range fields {
+		r.Fields = append(r.Fields, logstorage.Field{Name: name, Value: value})
+	}
+	return r
+}
+
+// TestSummarySearchTracesResult verifies that the search response is populated
+// with the spans that satisfied the filter (not the trace root span), and that
+// the matched count is independent of whether the root span is present.
+func TestSummarySearchTracesResult(t *testing.T) {
+	const (
+		traceID     = "0123456789abcdef"
+		rootSpanID  = "1111111111111111"
+		matchSpanID = "2222222222222222"
+	)
+
+	// A root span that does NOT satisfy the filter.
+	rootRow := spanRow(map[string]string{
+		otelpb.TraceIDField:            traceID,
+		otelpb.SpanIDField:             rootSpanID,
+		otelpb.ParentSpanIDField:       "",
+		otelpb.NameField:               "root-span",
+		otelpb.ResourceAttrServiceName: "service-a",
+		otelpb.StartTimeUnixNanoField:  "1000",
+		otelpb.EndTimeUnixNanoField:    "5000",
+	})
+	// A child span that satisfies the filter. The matchedMarkerField is set by
+	// query 2's 'format if' pipe on spans that match the filter.
+	matchRow := spanRow(map[string]string{
+		otelpb.TraceIDField:                      traceID,
+		otelpb.SpanIDField:                       matchSpanID,
+		otelpb.ParentSpanIDField:                 rootSpanID,
+		otelpb.NameField:                         "match-span",
+		otelpb.ResourceAttrServiceName:           "service-b",
+		otelpb.SpanAttrPrefixField + "test_attr": "test_value",
+		otelpb.StartTimeUnixNanoField:            "2000",
+		otelpb.EndTimeUnixNanoField:              "4500",
+		matchedMarkerField:                       matchedMarker,
+	})
+
+	referenced := []string{otelpb.NameField, "span.test_attr"}
+
+	// f asserts the returned matched span has the expected id/name and that the
+	// matched count equals wantCount for the given rows.
+	f := func(name string, rows []*tracecommon.Row, wantSpanID string, wantCount int, wantRootService string) {
+		t.Helper()
+		res, err := summarySearchTracesResult(rows, referenced, 3)
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %s", name, err)
+		}
+		if len(res) != 1 {
+			t.Fatalf("%s: got %d summaries; want 1", name, len(res))
+		}
+		s := res[0]
+		if s.matchedCount != wantCount {
+			t.Fatalf("%s: matchedCount=%d; want %d", name, s.matchedCount, wantCount)
+		}
+		if len(s.matchedSpans) != 1 {
+			t.Fatalf("%s: len(matchedSpans)=%d; want 1", name, len(s.matchedSpans))
+		}
+		ms := s.matchedSpans[0]
+		if ms.spanID != wantSpanID {
+			t.Fatalf("%s: matched spanID=%q; want %q (root substituted?)", name, ms.spanID, wantSpanID)
+		}
+		if ms.name != "match-span" {
+			t.Fatalf("%s: matched span name=%q; want %q", name, ms.name, "match-span")
+		}
+		if s.rootServiceName != wantRootService {
+			t.Fatalf("%s: rootServiceName=%q; want %q", name, s.rootServiceName, wantRootService)
+		}
+	}
+
+	// Decisive case: the root span exists and does not match; the matched child
+	// span must be returned, and trace metadata still comes from the root span.
+	f("root present but non-matching", []*tracecommon.Row{rootRow, matchRow}, matchSpanID, 1, "service-a")
+
+	// Root span not yet ingested: the matched child span and its count must still
+	// be reported, independent of root-span presence.
+	f("root span absent", []*tracecommon.Row{matchRow}, matchSpanID, 1, "<root span not yet received>")
+}
 
 // TestTraceByIDV1JSON verifies the bare Trace JSON shape of the Tempo
 // /api/traces/<trace_id> (v1) API: resource spans nested under "batches", base64

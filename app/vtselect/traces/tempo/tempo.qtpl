@@ -127,27 +127,69 @@
 	"startTimeUnixNano":{%dl= summary.startTimeUnixNano %},
 	"durationMs":{% if summary.endTimeUnixNano > 0 && summary.startTimeUnixNano > 0 %}{%dl= (summary.endTimeUnixNano - summary.startTimeUnixNano) / 1e6 %}{% else %}0{% endif %},
 	"spanSet":{%= spanSetJSON(summary) %},
-	"spanSets":[{%= spanSetJSON(summary) %}]
+	"spanSets":[{%= spanSetJSON(summary) %}],
+	"serviceStats":{%= serviceStatsJSON(summary.serviceStats) %}
 }
 {% endfunc %}
 
 {% func spanSetJSON(summary traceSummary) %}
 {
 	"spans":[
-		{% if summary.rootSpanID != "" %}
-			{
-				"spanID":{%q= summary.rootSpanID %},
-				"startTimeUnixNano":{%q= strconv.FormatInt(summary.rootStartTimeUnixNano, 10) %},
-				"durationNanos":{%q= strconv.FormatInt(summary.rootEndTimeUnixNano - summary.rootStartTimeUnixNano, 10) %},
-				"attributes":[
-					{"key":"service.name","value":{"stringValue":{%q= summary.rootServiceName %}}},
-					{"key":"nestedSetParent","value":{"intValue":"-1"}}
-				]
-			}
+		{% if len(summary.matchedSpans) > 0 %}
+			{%= matchedSpanJSON(summary.matchedSpans[0]) %}
+			{% for _, sp := range summary.matchedSpans[1:] %}
+				,{%= matchedSpanJSON(sp) %}
+			{% endfor %}
 		{% endif %}
 	],
-	"matched":{% if summary.rootSpanID != "" %}1{% else %}0{% endif %}
+	"matched":{%d= summary.matchedCount %}
 }
+{% endfunc %}
+
+{% func matchedSpanJSON(sp matchedSpan) %}
+{
+	"spanID":{%q= sp.spanID %},
+	{% if sp.name != "" %}"name":{%q= sp.name %},{% endif %}
+	"startTimeUnixNano":{%q= strconv.FormatInt(sp.startTimeUnixNano, 10) %},
+	"durationNanos":{%q= strconv.FormatInt(sp.endTimeUnixNano - sp.startTimeUnixNano, 10) %},
+	"attributes":[
+		{% if len(sp.attributes) > 0 %}
+			{%= attrJSON(sp.attributes[0]) %}
+			{% for _, a := range sp.attributes[1:] %}
+				,{%= attrJSON(a) %}
+			{% endfor %}
+		{% endif %}
+	]
+}
+{% endfunc %}
+
+{% func attrJSON(a spanAttr) %}
+{"key":{%q= a.key %},"value":{"stringValue":{%q= a.value %}}}
+{% endfunc %}
+
+{% func serviceStatsJSON(stats map[string]serviceStat) %}
+{
+	{% code
+		names := make([]string, 0, len(stats))
+		for name := range stats {
+			if name == "" {
+				continue
+			}
+			names = append(names, name)
+		}
+		sort.Slice(names, func(i, j int) bool { return names[i] < names[j] })
+	%}
+	{% if len(names) > 0 %}
+		{%q= names[0] %}:{%= serviceStatJSON(stats[names[0]]) %}
+		{% for _, name := range names[1:] %}
+			,{%q= name %}:{%= serviceStatJSON(stats[name]) %}
+		{% endfor %}
+	{% endif %}
+}
+{% endfunc %}
+
+{% func serviceStatJSON(stat serviceStat) %}
+{"spanCount":{%d= stat.spanCount %}{% if stat.errorCount > 0 %},"errorCount":{%d= stat.errorCount %}{% endif %}}
 {% endfunc %}
 
 {% comment %}

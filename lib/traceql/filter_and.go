@@ -31,3 +31,11 @@ func (fa *filterAnd) GetTraceDurationFilters() []*filterCommon {
 	}
 	return result
 }
+
+func (fa *filterAnd) GetReferencedFields() []string {
+	var result []string
+	for _, f := range fa.filters {
+		result = append(result, f.GetReferencedFields()...)
+	}
+	return result
+}

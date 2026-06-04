@@ -32,6 +32,15 @@ import (
 // To avoid polluting the stable Jaeger API implementation, we have temporarily placed all related queries under the tempo directory.
 // But they could be ported back to `app/vtselect/traces/query` and unified with queries already there in the future.
 
+// matchedMarkerField is an internal span field set by query 2's 'format if' pipe
+// to matchedMarker on spans that satisfy the TraceQL filter. It is read back in
+// summarySearchTracesResult to populate spanSets[].spans[], and must not collide
+// with any real OTLP span field name.
+const (
+	matchedMarkerField = "_vt_matched"
+	matchedMarker      = "1"
+)
+
 // GetTraceList returns multiple traceIDs and spans of them in []*Row format.
 // It searches for traceIDs first, and then search for the spans of these traceIDs.
 // To not miss any spans on the edge, it extends both the start time and end time
@@ -41,6 +50,12 @@ import (
 // 1. input time range: [00:00, 09:00]
 // 2. found 20 trace id, and adjust time range to: [08:00, 09:00]
 // 3. find spans on time range: [08:00-traceMaxDurationWindow, 09:00+traceMaxDurationWindow]
+//
+// Each returned row carries the matchedMarkerField field when its span satisfied
+// the TraceQL filter. This is computed within the same span scan via a 'format if'
+// pipe, so the caller can project the matched spans into spanSets[].spans[]
+// without an extra query. Non-matching spans are still returned, since trace-level
+// metadata (duration, per-service stats) is derived from all spans of the trace.
 func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery *traceql.Query, start, end time.Time, limit int64) ([]string, []*tracecommon.Row, error) {
 	currentTime := time.Now()
 
@@ -53,8 +68,13 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery
 		return nil, nil, nil
 	}
 
-	// query 2: trace_id:in(traceID, traceID, ...)
-	qStr := fmt.Sprintf(otelpb.TraceIDField+":in(%s)", strings.Join(traceIDs, ","))
+	// query 2: trace_id:in(traceID, traceID, ...) | format if (<filter>) "1" as <marker>
+	// The 'format if' pipe marks every span that satisfies the TraceQL filter, so the
+	// matched spans can be projected into the response without a second query. Non-matching
+	// spans are still returned (carrying no marker), since trace-level metadata is derived
+	// from all spans of the trace.
+	qStr := fmt.Sprintf("%s:in(%s) | format if (%s) %q as %s",
+		otelpb.TraceIDField, strings.Join(traceIDs, ","), filterQuery.Filter(), matchedMarker, matchedMarkerField)
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
@@ -117,6 +137,7 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery
 	if missingTimeColumn.Load() {
 		return nil, nil, fmt.Errorf("missing _time column in the result for the query [%s]", q)
 	}
+
 	return traceIDs, rows, nil
 }
 

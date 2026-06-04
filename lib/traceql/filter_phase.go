@@ -18,3 +18,10 @@ func (fp *filterPhrase) String() string {
 func (fp *filterPhrase) GetTraceDurationFilters() []*filterCommon {
 	return nil
 }
+
+func (fp *filterPhrase) GetReferencedFields() []string {
+	if fp.fieldName == "" {
+		return nil
+	}
+	return []string{fp.fieldName}
+}

@@ -56,6 +56,27 @@ func StatusCodeToName(code string) string {
 	return code
 }
 
+// kindCodeMap maps numeric OTEL SpanKind values to their TraceQL names.
+var kindCodeMap = map[string]string{
+	"0": "unspecified",
+	"1": "internal",
+	"2": "server",
+	"3": "client",
+	"4": "producer",
+	"5": "consumer",
+}
+
+// KindCodeToName converts a numeric OTEL SpanKind ("2") to its TraceQL name ("server").
+// Returns the input unchanged if not a known span kind. It is the output-side
+// counterpart used when projecting the `kind` attribute into search responses,
+// so Grafana displays "server" instead of the raw "2".
+func KindCodeToName(code string) string {
+	if name, ok := kindCodeMap[code]; ok {
+		return name
+	}
+	return code
+}
+
 func (fc *filterCommon) String() string {
 	// traceDuration must be treated as pipe
 	if fc.fieldName == "traceDuration" {
@@ -182,4 +203,11 @@ func (fc *filterCommon) GetTraceDurationFilters() []*filterCommon {
 		return []*filterCommon{fc}
 	}
 	return nil
+}
+
+func (fc *filterCommon) GetReferencedFields() []string {
+	if fc.fieldName == "" {
+		return nil
+	}
+	return []string{fc.fieldName}
 }

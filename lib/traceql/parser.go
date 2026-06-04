@@ -173,6 +173,29 @@ func (q *Query) Filter() string {
 	return q.f.String()
 }
 
+// ReferencedFields returns the de-duplicated list of field names referenced by
+// the query's filter, in TraceQL form (e.g. "resource.service.name", "kind").
+//
+// It is used to project only the queried attributes onto matched spans in the
+// Tempo search response, mirroring Tempo's behavior of returning the attributes
+// named in the query (which Grafana renders as the spans-table columns).
+func (q *Query) ReferencedFields() []string {
+	names := q.f.GetReferencedFields()
+	seen := make(map[string]struct{}, len(names))
+	result := make([]string, 0, len(names))
+	for _, n := range names {
+		if n == "" {
+			continue
+		}
+		if _, ok := seen[n]; ok {
+			continue
+		}
+		seen[n] = struct{}{}
+		result = append(result, n)
+	}
+	return result
+}
+
 // ParseQuery parses s.
 func ParseQuery(s string) (*Query, error) {
 	timestamp := time.Now().UnixNano()

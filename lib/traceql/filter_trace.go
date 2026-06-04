@@ -15,3 +15,7 @@ func (f *filterTrace) String() string {
 func (f *filterTrace) GetTraceDurationFilters() []*filterCommon {
 	return f.andFilter.GetTraceDurationFilters()
 }
+
+func (f *filterTrace) GetReferencedFields() []string {
+	return f.andFilter.GetReferencedFields()
+}

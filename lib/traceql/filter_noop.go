@@ -11,3 +11,7 @@ func (fn *filterNoop) String() string {
 func (fn *filterNoop) GetTraceDurationFilters() []*filterCommon {
 	return nil
 }
+
+func (fn *filterNoop) GetReferencedFields() []string {
+	return nil
+}
