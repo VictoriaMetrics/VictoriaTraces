@@ -107,7 +107,7 @@ func processSearchTagsRequest(ctx context.Context, w http.ResponseWriter, r *htt
 
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
-	WriteSearchTagsResponse(w, result.resourceTagList, result.spanTagList, result.eventTagList, result.linkTagList, result.instrumentationScopeTagList)
+	WriteSearchTagsResponse(w, result.resourceTagList, result.spanTagList, result.eventTagList, result.linkTagList, result.instrumentationScopeTagList, result.intrinsicTagList)
 }
 
 // processSearchTagValuesRequest handle the Tempo /api/v2/search/tag/*/values API request.
@@ -249,7 +249,29 @@ func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.R
 }
 
 type searchTagResult struct {
-	resourceTagList, spanTagList, eventTagList, linkTagList, instrumentationScopeTagList []string
+	resourceTagList, spanTagList, eventTagList, linkTagList, instrumentationScopeTagList, intrinsicTagList []string
+}
+
+// intrinsicTags is the static set of intrinsic span attributes advertised under
+// the "intrinsic" scope of /api/v2/search/tags, matching Tempo. Intrinsics have
+// no attribute prefix (unlike resource_attr:/span_attr:) so they are not
+// discovered by the field_names scan; without this list they never appear in
+// Grafana Traces Drilldown's attribute breakdown. Only intrinsics that
+// VictoriaTraces can filter and group by are listed, so every advertised tag
+// works in the breakdown:
+//   - name     -> NameField
+//   - kind     -> KindField
+//   - status   -> StatusCodeField (see TraceQLFieldToVTField)
+//   - duration -> DurationField
+var intrinsicTags = []string{
+	otelpb.NameField,
+	otelpb.KindField,
+	"status",
+	otelpb.DurationField,
+}
+
+func intrinsicTagsCopy() []string {
+	return append([]string{}, intrinsicTags...)
 }
 
 func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, scope string, start, end, limit int64) (*searchTagResult, error) {
@@ -281,7 +303,16 @@ func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr st
 		return nil, errors.New("scope: link is not supported yet")
 		//scopes = fmt.Sprintf(`| filter name:"%s:"*`, otelpb.LinkPrefix+otelpb.LinkAttrPrefix)
 	case "intrinsic":
-		return nil, errors.New("scope: intrinsic is not supported yet")
+		// Intrinsics are a fixed set independent of ingested data, so there is no
+		// need to scan field names — return the static list directly.
+		return &searchTagResult{
+			resourceTagList:             []string{},
+			spanTagList:                 []string{},
+			instrumentationScopeTagList: []string{},
+			eventTagList:                []string{},
+			linkTagList:                 []string{},
+			intrinsicTagList:            intrinsicTagsCopy(),
+		}, nil
 	case "", "all":
 		// todo: this does not align with the doc, but user usually don't expect a result fully match the limit
 		// because they're not really looking for a specific tag name when no scope argument is used. it's likely
@@ -314,6 +345,12 @@ func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr st
 		instrumentationScopeTagList: []string{},
 		eventTagList:                []string{},
 		linkTagList:                 []string{},
+		intrinsicTagList:            []string{},
+	}
+	// scope=all / empty scope: advertise intrinsics alongside the discovered
+	// attribute tags so the Drilldown breakdown lists name/kind/status/duration.
+	if scope == "" || scope == "all" {
+		result.intrinsicTagList = intrinsicTagsCopy()
 	}
 	for i := range fieldNames {
 		if strings.HasPrefix(fieldNames[i], otelpb.SpanAttrPrefixField) {
