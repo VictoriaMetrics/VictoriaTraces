@@ -2,6 +2,7 @@ package apptest
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -166,6 +167,13 @@ func (tc *TestCase) MustStartDefaultVtsingle() *Vtsingle {
 // vtsingle and fails the test if the app fails to start.
 func (tc *TestCase) MustStartVtsingle(instance string, flags []string) *Vtsingle {
 	tc.t.Helper()
+
+	if _, err := os.Stat(vtsingleBinaryPath); err != nil {
+		if os.IsNotExist(err) {
+			tc.t.Skipf("skipping integration test: %s not found; build it first with `make all` or run `make integration-test`", vtsingleBinaryPath)
+		}
+		tc.t.Fatalf("Could not stat %s: %v", vtsingleBinaryPath, err)
+	}
 
 	app, err := StartVtsingle(instance, flags, tc.cli)
 	if err != nil {
