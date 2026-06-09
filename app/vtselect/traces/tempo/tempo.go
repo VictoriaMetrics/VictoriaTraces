@@ -209,57 +209,18 @@ func processSearchRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 // v2 (/api/v2/traces/<id>) trace-by-ID APIs, which differ only in the response wrapper.
 //
 // On error it writes the HTTP error response and returns ok=false.
-func getTraceByID(ctx context.Context, w http.ResponseWriter, r *http.Request, pathPrefix string) ([]*otelpb.ResourceSpans, bool) {
-	cp, err := tracecommon.GetCommonParams(r)
+func getTraceByID(ctx context.Context, cp *tracecommon.CommonParams, traceID string, start, end time.Time) ([]*otelpb.ResourceSpans, error) {
+	rows, err := GetTrace(ctx, cp, traceID, start, end)
 	if err != nil {
-		httpserver.Errorf(w, r, "incorrect query params: %s", err)
-		return nil, false
-	}
-
-	params, err := parseTempoAPIParam(ctx, r, false)
-	if err != nil {
-		httpserver.Errorf(w, r, "incorrect query params: %s", err)
-		return nil, false
-	}
-
-	traceID := r.URL.Path[len(pathPrefix):]
-	if len(traceID) == 0 {
-		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
-		return nil, false
-	}
-
-	rows, err := GetTrace(ctx, cp, traceID, params.start, params.end)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot get traces list: %s", err)
-		return nil, false
+		return nil, fmt.Errorf("cannot get traces list: %s", err)
 	}
 
 	resourceSpans, err := rowsToResourceSpans(rows)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse rows into resource spans: %s", err)
-		return nil, false
+		return nil, fmt.Errorf("cannot parse rows into resource spans: %s", err)
 	}
-	return resourceSpans, true
-}
 
-// acceptsJSON reports whether the client asked for a JSON response via the Accept
-// header. Tempo's trace-by-id APIs default to protobuf (used by Grafana's datasource);
-// JSON is returned only when explicitly requested (e.g. by the supervtrace/svt CLI).
-func acceptsJSON(r *http.Request) bool {
-	return strings.Contains(r.Header.Get("Accept"), "application/json")
-}
-
-// writeProtobufResponse marshals msg and writes it as a protobuf HTTP response.
-func writeProtobufResponse(w http.ResponseWriter, msg interface{ MarshalProtobuf([]byte) []byte }) {
-	b := bytebufferpool.Get()
-	defer bytebufferpool.Put(b)
-
-	b.B = msg.MarshalProtobuf(b.B)
-
-	w.Header().Set("Content-Type", "application/protobuf")
-	w.Header().Set("Content-Length", strconv.Itoa(b.Len()))
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(b.Bytes())
+	return resourceSpans, nil
 }
 
 // processQueryRequest handle the Tempo /api/traces/<traceid> (v1) API request.
@@ -267,42 +228,108 @@ func writeProtobufResponse(w http.ResponseWriter, msg interface{ MarshalProtobuf
 // The v1 API returns the bare Trace message, unlike the v2 API which wraps it in a
 // TraceByIDResponse.
 func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	resourceSpans, ok := getTraceByID(ctx, w, r, "/select/tempo/api/traces/")
-	if !ok {
+	cp, err := tracecommon.GetCommonParams(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
 	}
 
-	if acceptsJSON(r) {
+	params, err := parseTempoAPIParam(ctx, r, false)
+	if err != nil {
+		httpserver.Errorf(w, r, "incorrect query params: %s", err)
+		return
+	}
+
+	traceID := r.URL.Path[len("/select/tempo/api/traces/"):]
+	if len(traceID) == 0 {
+		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
+		return
+	}
+
+	resourceSpans, err := getTraceByID(ctx, cp, traceID, params.start, params.end)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot get traces list: %s", err)
+		return
+	}
+
+	if r.Header.Get("Accept") == "application/json" {
 		w.Header().Set("Content-Type", "application/json")
 		WriteTraceByIDV1JSON(w, resourceSpans)
-		return
+	} else {
+		writeTraceByIDV1Proto(w, resourceSpans)
 	}
+	return
+}
 
-	trace := otelpb.TempoTrace{
+// writeTraceByIDV1Proto marshals TempoTrace and writes it as a protobuf HTTP response.
+func writeTraceByIDV1Proto(w http.ResponseWriter, resourceSpans []*otelpb.ResourceSpans) {
+	resp := otelpb.TempoTrace{
 		ResourceSpan: resourceSpans,
 	}
-	writeProtobufResponse(w, &trace)
+
+	b := bytebufferpool.Get()
+	defer bytebufferpool.Put(b)
+
+	b.B = resp.MarshalProtobuf(b.B)
+
+	w.Header().Set("Content-Type", "application/protobuf")
+	w.Header().Set("Content-Length", strconv.Itoa(b.Len()))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(b.Bytes())
 }
 
 // processQueryV2Request handle the Tempo /api/v2/traces/<traceid> API request.
 func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	resourceSpans, ok := getTraceByID(ctx, w, r, "/select/tempo/api/v2/traces/")
-	if !ok {
+	cp, err := tracecommon.GetCommonParams(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
 	}
 
-	if acceptsJSON(r) {
+	params, err := parseTempoAPIParam(ctx, r, false)
+	if err != nil {
+		httpserver.Errorf(w, r, "incorrect query params: %s", err)
+		return
+	}
+
+	traceID := r.URL.Path[len("/select/tempo/api/v2/traces/"):]
+	if len(traceID) == 0 {
+		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
+		return
+	}
+
+	resourceSpans, err := getTraceByID(ctx, cp, traceID, params.start, params.end)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot get traces by id: %s", err)
+		return
+	}
+
+	if r.Header.Get("Accept") == "application/json" {
 		w.Header().Set("Content-Type", "application/json")
 		WriteTraceByIDV2JSON(w, resourceSpans)
-		return
+	} else {
+		writeTraceByIDV2Proto(w, resourceSpans)
 	}
+	return
+}
 
+// writeTraceByIDV2Proto marshals TempoTraceByIDResponse and writes it as a protobuf HTTP response.
+func writeTraceByIDV2Proto(w http.ResponseWriter, resourceSpans []*otelpb.ResourceSpans) {
 	resp := otelpb.TempoTraceByIDResponse{
 		Trace: otelpb.TempoTrace{
 			ResourceSpan: resourceSpans,
 		},
 	}
-	writeProtobufResponse(w, &resp)
+
+	b := bytebufferpool.Get()
+	defer bytebufferpool.Put(b)
+
+	b.B = resp.MarshalProtobuf(b.B)
+
+	w.Header().Set("Content-Type", "application/protobuf")
+	w.Header().Set("Content-Length", strconv.Itoa(b.Len()))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(b.Bytes())
 }
 
 type searchTagResult struct {

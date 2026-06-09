@@ -16,6 +16,7 @@ func (tbir *TempoTraceByIDResponse) MarshalProtobuf(dst []byte) []byte {
 	mp.Put(m)
 	return dst
 }
+
 func (tbir *TempoTraceByIDResponse) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	//message TraceByIDResponse {
 	//	Trace trace = 1;
