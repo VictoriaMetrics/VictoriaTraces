@@ -258,7 +258,6 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	} else {
 		writeTraceByIDV1Proto(w, resourceSpans)
 	}
-	return
 }
 
 // writeTraceByIDV1Proto marshals TempoTrace and writes it as a protobuf HTTP response.
@@ -310,7 +309,6 @@ func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.R
 	} else {
 		writeTraceByIDV2Proto(w, resourceSpans)
 	}
-	return
 }
 
 // writeTraceByIDV2Proto marshals TempoTraceByIDResponse and writes it as a protobuf HTTP response.
