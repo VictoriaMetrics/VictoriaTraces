@@ -1,6 +1,8 @@
 {% import (
 	"sort"
 	"strconv"
+
+	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 ) %}
 
 {% stripspace %}
@@ -146,6 +148,205 @@
 	],
 	"matched":{% if summary.rootSpanID != "" %}1{% else %}0{% endif %}
 }
+{% endfunc %}
+
+{% comment %}
+TraceByIDV1JSON renders the Tempo /api/traces/<trace_id> (v1) JSON response:
+the bare Trace message, whose resource spans are nested under the "batches" key.
+{% endcomment %}
+{% func TraceByIDV1JSON(resourceSpans []*otelpb.ResourceSpans) %}
+{
+	"batches":{%= resourceSpansArrayJSON(resourceSpans) %}
+}
+{% endfunc %}
+
+{% comment %}
+TraceByIDV2JSON renders the Tempo /api/v2/traces/<trace_id> JSON response:
+the TraceByIDResponse wrapper, with resource spans under trace.resourceSpans.
+{% endcomment %}
+{% func TraceByIDV2JSON(resourceSpans []*otelpb.ResourceSpans) %}
+{
+	"trace":{
+		"resourceSpans":{%= resourceSpansArrayJSON(resourceSpans) %}
+	},
+	"metrics":{
+		"inspectedBytes":"0"
+	}
+}
+{% endfunc %}
+
+{% func resourceSpansArrayJSON(resourceSpans []*otelpb.ResourceSpans) %}
+[
+	{% if len(resourceSpans) > 0 %}
+		{%= resourceSpansJSON(resourceSpans[0]) %}
+		{% for _, rs := range resourceSpans[1:] %}
+			,{%= resourceSpansJSON(rs) %}
+		{% endfor %}
+	{% endif %}
+]
+{% endfunc %}
+
+{% func resourceSpansJSON(rs *otelpb.ResourceSpans) %}
+{
+	"resource":{
+		"attributes":{%= keyValueListJSON(rs.Resource.Attributes) %}
+	},
+	"scopeSpans":{%= scopeSpansArrayJSON(rs.ScopeSpans) %}
+}
+{% endfunc %}
+
+{% func scopeSpansArrayJSON(scopeSpans []*otelpb.ScopeSpans) %}
+[
+	{% if len(scopeSpans) > 0 %}
+		{%= scopeSpansJSON(scopeSpans[0]) %}
+		{% for _, ss := range scopeSpans[1:] %}
+			,{%= scopeSpansJSON(ss) %}
+		{% endfor %}
+	{% endif %}
+]
+{% endfunc %}
+
+{% func scopeSpansJSON(ss *otelpb.ScopeSpans) %}
+{
+	"scope":{
+		"name":{%q= ss.Scope.Name %},
+		"version":{%q= ss.Scope.Version %},
+		"attributes":{%= keyValueListJSON(ss.Scope.Attributes) %}
+	},
+	"spans":{%= spansArrayJSON(ss.Spans) %}
+}
+{% endfunc %}
+
+{% func spansArrayJSON(spans []*otelpb.Span) %}
+[
+	{% if len(spans) > 0 %}
+		{%= spanJSON(spans[0]) %}
+		{% for _, s := range spans[1:] %}
+			,{%= spanJSON(s) %}
+		{% endfor %}
+	{% endif %}
+]
+{% endfunc %}
+
+{% func spanJSON(s *otelpb.Span) %}
+{
+	"traceId":{%q= hexIDToBase64(s.TraceID) %},
+	"spanId":{%q= hexIDToBase64(s.SpanID) %},
+	{% if s.ParentSpanID != "" %}
+		"parentSpanId":{%q= hexIDToBase64(s.ParentSpanID) %},
+	{% endif %}
+	"name":{%q= s.Name %},
+	"kind":{%q= spanKindName(s.Kind) %},
+	"startTimeUnixNano":{%q= strconv.FormatUint(s.StartTimeUnixNano, 10) %},
+	"endTimeUnixNano":{%q= strconv.FormatUint(s.EndTimeUnixNano, 10) %},
+	"attributes":{%= keyValueListJSON(s.Attributes) %},
+	"status":{%= statusJSON(s.Status) %}
+	{% if len(s.Events) > 0 %}
+		,"events":{%= eventsArrayJSON(s.Events) %}
+	{% endif %}
+	{% if len(s.Links) > 0 %}
+		,"links":{%= linksArrayJSON(s.Links) %}
+	{% endif %}
+}
+{% endfunc %}
+
+{% func statusJSON(st otelpb.Status) %}
+{
+	{% if st.Message != "" %}
+		"message":{%q= st.Message %}{% if st.Code != 0 %},{% endif %}
+	{% endif %}
+	{% if st.Code != 0 %}
+		"code":{%q= statusCodeName(st.Code) %}
+	{% endif %}
+}
+{% endfunc %}
+
+{% func eventsArrayJSON(events []*otelpb.SpanEvent) %}
+[
+	{% if len(events) > 0 %}
+		{%= eventJSON(events[0]) %}
+		{% for _, e := range events[1:] %}
+			,{%= eventJSON(e) %}
+		{% endfor %}
+	{% endif %}
+]
+{% endfunc %}
+
+{% func eventJSON(e *otelpb.SpanEvent) %}
+{
+	"timeUnixNano":{%q= strconv.FormatUint(e.TimeUnixNano, 10) %},
+	"name":{%q= e.Name %},
+	"attributes":{%= keyValueListJSON(e.Attributes) %}
+}
+{% endfunc %}
+
+{% func linksArrayJSON(links []*otelpb.SpanLink) %}
+[
+	{% if len(links) > 0 %}
+		{%= linkJSON(links[0]) %}
+		{% for _, l := range links[1:] %}
+			,{%= linkJSON(l) %}
+		{% endfor %}
+	{% endif %}
+]
+{% endfunc %}
+
+{% func linkJSON(l *otelpb.SpanLink) %}
+{
+	"traceId":{%q= hexIDToBase64(l.TraceID) %},
+	"spanId":{%q= hexIDToBase64(l.SpanID) %},
+	"attributes":{%= keyValueListJSON(l.Attributes) %}
+}
+{% endfunc %}
+
+{% func keyValueListJSON(kvs []*otelpb.KeyValue) %}
+[
+	{% if len(kvs) > 0 %}
+		{%= keyValueJSON(kvs[0]) %}
+		{% for _, kv := range kvs[1:] %}
+			,{%= keyValueJSON(kv) %}
+		{% endfor %}
+	{% endif %}
+]
+{% endfunc %}
+
+{% func keyValueJSON(kv *otelpb.KeyValue) %}
+{
+	"key":{%q= kv.Key %},
+	"value":{%= anyValueJSON(kv.Value) %}
+}
+{% endfunc %}
+
+{% func anyValueJSON(v *otelpb.AnyValue) %}
+{
+	{% if v == nil %}
+	{% elseif v.StringValue != nil %}
+		"stringValue":{%q= *v.StringValue %}
+	{% elseif v.BoolValue != nil %}
+		"boolValue":{% if *v.BoolValue %}true{% else %}false{% endif %}
+	{% elseif v.IntValue != nil %}
+		"intValue":{%q= strconv.FormatInt(*v.IntValue, 10) %}
+	{% elseif v.DoubleValue != nil %}
+		"doubleValue":{%f= *v.DoubleValue %}
+	{% elseif v.BytesValue != nil %}
+		"bytesValue":{%q= bytesToBase64(*v.BytesValue) %}
+	{% elseif v.ArrayValue != nil %}
+		"arrayValue":{"values":{%= anyValueArrayJSON(v.ArrayValue.Values) %}}
+	{% elseif v.KeyValueList != nil %}
+		"kvlistValue":{"values":{%= keyValueListJSON(v.KeyValueList.Values) %}}
+	{% endif %}
+}
+{% endfunc %}
+
+{% func anyValueArrayJSON(values []*otelpb.AnyValue) %}
+[
+	{% if len(values) > 0 %}
+		{%= anyValueJSON(values[0]) %}
+		{% for _, v := range values[1:] %}
+			,{%= anyValueJSON(v) %}
+		{% endfor %}
+	{% endif %}
+]
 {% endfunc %}
 
 {% endstripspace %}
