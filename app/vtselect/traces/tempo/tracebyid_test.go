@@ -1,13 +1,151 @@
 package tempo
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
-func testResourceSpans() []*otelpb.ResourceSpans {
+// TestTraceByIDV1JSON verifies the bare Trace JSON shape of the Tempo
+// /api/traces/<trace_id> (v1) API: resource spans nested under "batches", base64
+// IDs, enum-name kind, string-encoded nanos, omitted root parentSpanId.
+func TestTraceByIDV1JSON(t *testing.T) {
+	response := TraceByIDV1JSON(generateResourceSpans())
+	expect := `{
+  "batches": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": {
+              "stringValue": "svc-a"
+            }
+          }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {
+            "name": "scope",
+            "version": "1.0",
+            "attributes": []
+          },
+          "spans": [
+            {
+              "traceId": "Cgs=",
+              "spanId": "DA0=",
+              "name": "op",
+              "kind": "SPAN_KIND_SERVER",
+              "startTimeUnixNano": "100",
+              "endTimeUnixNano": "200",
+              "attributes": [
+                {
+                  "key": "http.method",
+                  "value": {
+                    "stringValue": "GET"
+                  }
+                }
+              ],
+              "status": {
+                "message": "boom",
+                "code": "STATUS_CODE_ERROR"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}`
+
+	// compact the response and compare
+	compactResponse, compactExpect := new(bytes.Buffer), new(bytes.Buffer)
+	err1 := json.Compact(compactResponse, []byte(response))
+	err2 := json.Compact(compactExpect, []byte(expect))
+	if err1 != nil || err2 != nil {
+		t.Fatalf("got error when json.Compact: err of compacting response: %v, err of compacting expect: %v", err1, err2)
+	}
+
+	if compactExpect.String() != compactResponse.String() {
+		t.Fatalf("got %q; want %q", compactExpect.String(), compactResponse.String())
+	}
+}
+
+// TestTraceByIDV2JSON verifies the TraceByIDResponse wrapper of the Tempo
+// /api/v2/traces/<trace_id> API: resource spans under trace.resourceSpans plus metrics.
+func TestTraceByIDV2JSON(t *testing.T) {
+	response := TraceByIDV2JSON(generateResourceSpans())
+	expect := `{
+  "trace": {
+    "resourceSpans": [
+      {
+        "resource": {
+          "attributes": [
+            {
+              "key": "service.name",
+              "value": {
+                "stringValue": "svc-a"
+              }
+            }
+          ]
+        },
+        "scopeSpans": [
+          {
+            "scope": {
+              "name": "scope",
+              "version": "1.0",
+              "attributes": []
+            },
+            "spans": [
+              {
+                "traceId": "Cgs=",
+                "spanId": "DA0=",
+                "name": "op",
+                "kind": "SPAN_KIND_SERVER",
+                "startTimeUnixNano": "100",
+                "endTimeUnixNano": "200",
+                "attributes": [
+                  {
+                    "key": "http.method",
+                    "value": {
+                      "stringValue": "GET"
+                    }
+                  }
+                ],
+                "status": {
+                  "message": "boom",
+                  "code": "STATUS_CODE_ERROR"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "metrics": {
+    "inspectedBytes": "0"
+  }
+}`
+
+	// compact the response and compare
+	compactResponse, compactExpect := new(bytes.Buffer), new(bytes.Buffer)
+	err1 := json.Compact(compactResponse, []byte(response))
+	err2 := json.Compact(compactExpect, []byte(expect))
+	if err1 != nil || err2 != nil {
+		t.Fatalf("got error when json.Compact: err of compacting response: %v, err of compacting expect: %v", err1, err2)
+	}
+
+	if compactExpect.String() != compactResponse.String() {
+		t.Fatalf("got %q; want %q", compactExpect.String(), compactResponse.String())
+	}
+}
+
+// generateResourceSpans returns []*otelpb.ResourceSpans for testing.
+func generateResourceSpans() []*otelpb.ResourceSpans {
 	svc := "svc-a"
 	method := "GET"
 	return []*otelpb.ResourceSpans{
@@ -38,90 +176,5 @@ func testResourceSpans() []*otelpb.ResourceSpans {
 				},
 			},
 		},
-	}
-}
-
-// TestTraceByIDV1JSON verifies the bare Trace JSON shape of the Tempo
-// /api/traces/<trace_id> (v1) API: resource spans nested under "batches", base64
-// IDs, enum-name kind, string-encoded nanos, omitted root parentSpanId.
-func TestTraceByIDV1JSON(t *testing.T) {
-	out := TraceByIDV1JSON(testResourceSpans())
-	if !json.Valid([]byte(out)) {
-		t.Fatalf("v1 output is not valid JSON: %s", out)
-	}
-
-	var got struct {
-		Batches []struct {
-			Resource struct {
-				Attributes []struct {
-					Key   string `json:"key"`
-					Value struct {
-						StringValue string `json:"stringValue"`
-					} `json:"value"`
-				} `json:"attributes"`
-			} `json:"resource"`
-			ScopeSpans []struct {
-				Spans []map[string]json.RawMessage `json:"spans"`
-			} `json:"scopeSpans"`
-		} `json:"batches"`
-	}
-	if err := json.Unmarshal([]byte(out), &got); err != nil {
-		t.Fatalf("cannot unmarshal v1 output: %s\n%s", err, out)
-	}
-
-	if len(got.Batches) != 1 {
-		t.Fatalf("expected 1 batch, got %d", len(got.Batches))
-	}
-	if got.Batches[0].Resource.Attributes[0].Value.StringValue != "svc-a" {
-		t.Fatalf("unexpected resource attribute: %+v", got.Batches[0].Resource.Attributes)
-	}
-
-	span := got.Batches[0].ScopeSpans[0].Spans[0]
-	assertJSONField(t, span, "traceId", `"Cgs="`)
-	assertJSONField(t, span, "spanId", `"DA0="`)
-	assertJSONField(t, span, "kind", `"SPAN_KIND_SERVER"`)
-	assertJSONField(t, span, "startTimeUnixNano", `"100"`)
-	assertJSONField(t, span, "endTimeUnixNano", `"200"`)
-	assertJSONField(t, span, "status", `{"message":"boom","code":"STATUS_CODE_ERROR"}`)
-	if _, ok := span["parentSpanId"]; ok {
-		t.Fatalf("root span must omit parentSpanId, got %s", span["parentSpanId"])
-	}
-}
-
-// TestTraceByIDV2JSON verifies the TraceByIDResponse wrapper of the Tempo
-// /api/v2/traces/<trace_id> API: resource spans under trace.resourceSpans plus metrics.
-func TestTraceByIDV2JSON(t *testing.T) {
-	out := TraceByIDV2JSON(testResourceSpans())
-	if !json.Valid([]byte(out)) {
-		t.Fatalf("v2 output is not valid JSON: %s", out)
-	}
-
-	var got struct {
-		Trace struct {
-			ResourceSpans []json.RawMessage `json:"resourceSpans"`
-		} `json:"trace"`
-		Metrics struct {
-			InspectedBytes string `json:"inspectedBytes"`
-		} `json:"metrics"`
-	}
-	if err := json.Unmarshal([]byte(out), &got); err != nil {
-		t.Fatalf("cannot unmarshal v2 output: %s\n%s", err, out)
-	}
-	if len(got.Trace.ResourceSpans) != 1 {
-		t.Fatalf("expected 1 resourceSpans entry, got %d", len(got.Trace.ResourceSpans))
-	}
-	if got.Metrics.InspectedBytes != "0" {
-		t.Fatalf("expected metrics.inspectedBytes=\"0\", got %q", got.Metrics.InspectedBytes)
-	}
-}
-
-func assertJSONField(t *testing.T, m map[string]json.RawMessage, key, want string) {
-	t.Helper()
-	got, ok := m[key]
-	if !ok {
-		t.Fatalf("missing field %q", key)
-	}
-	if string(got) != want {
-		t.Fatalf("field %q: got %s, want %s", key, got, want)
 	}
 }

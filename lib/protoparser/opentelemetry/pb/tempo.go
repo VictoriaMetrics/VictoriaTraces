@@ -3,6 +3,7 @@ package pb
 import "github.com/VictoriaMetrics/easyproto"
 
 // Tempo Proto
+// todo: move this file to a dedicate package instead of opentelemetry/pb.
 
 type TempoTraceByIDResponse struct {
 	Trace TempoTrace
