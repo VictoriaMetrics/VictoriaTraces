@@ -1,7 +1,7 @@
 # App Integration Tests
 
 The `apptest` package contains the integration tests for the VictoriaTraces
-applications (such as victoria-traces).
+applications.
 
 An integration test aims at verifying the behavior of an application as a whole,
 as apposed to a unit test that verifies the behavior of a building block of an
