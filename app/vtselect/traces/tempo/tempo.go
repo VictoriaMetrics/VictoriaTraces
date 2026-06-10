@@ -252,11 +252,12 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if r.Header.Get("Accept") == "application/json" {
+	if r.Header.Get("Accept") == "application/protobuf" {
+		writeTraceByIDV1Proto(w, resourceSpans)
+	} else {
+		// default JSON
 		w.Header().Set("Content-Type", "application/json")
 		WriteTraceByIDV1JSON(w, resourceSpans)
-	} else {
-		writeTraceByIDV1Proto(w, resourceSpans)
 	}
 }
 
@@ -303,11 +304,12 @@ func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	if r.Header.Get("Accept") == "application/json" {
+	if r.Header.Get("Accept") == "application/protobuf" {
+		writeTraceByIDV2Proto(w, resourceSpans)
+	} else {
+		// default JSON
 		w.Header().Set("Content-Type", "application/json")
 		WriteTraceByIDV2JSON(w, resourceSpans)
-	} else {
-		writeTraceByIDV2Proto(w, resourceSpans)
 	}
 }
 
