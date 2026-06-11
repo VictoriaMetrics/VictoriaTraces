@@ -28,7 +28,8 @@ concurrency:
 jobs:
   lint:
     name: lint
-    runs-on: ubuntu-latest
+    # Runs on dedicated runner with extra resources since golangci-lint requires extra memory
+    runs-on: 'vm-runner'
     steps:
       - name: Code checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -58,7 +59,8 @@ jobs:
   test:
     name: test
     needs: lint
-    runs-on: ubuntu-latest
+    # Runs on dedicated runner with extra resources to increase tests speed.
+    runs-on: 'vm-runner'
 
     strategy:
       matrix:
@@ -94,7 +96,8 @@ jobs:
   integration-test:
     name: integration-test
     needs: [lint, test]
-    runs-on: ubuntu-latest
+    # Runs on dedicated runner to isolate app tests from other tests.
+    runs-on: apptest
 
     steps:
       - name: Code checkout
