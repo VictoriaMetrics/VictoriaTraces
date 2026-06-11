@@ -343,3 +343,6 @@ It is recommended protecting internal HTTP endpoints from unauthorized access:
 
 ## List of command-line flags
 
+Pass `-help` to VictoriaTraces in order to see the list of supported command-line flags with their description:
+
+{{% content "victoria_traces_common_flags.md" %}}
