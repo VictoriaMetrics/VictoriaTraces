@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/common"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 )
 
@@ -38,8 +39,9 @@ var (
 
 // CommonParams common query params that shared by all requests.
 type CommonParams struct {
-	TenantIDs []logstorage.TenantID
-	Query     *logstorage.Query
+	TenantIDs    []logstorage.TenantID
+	Query        *logstorage.Query
+	ExtraFilters *logstorage.Filter
 
 	// Whether to disable compression of the response sent to the vtselect.
 	DisableCompression bool
@@ -56,6 +58,14 @@ type CommonParams struct {
 
 func (cp *CommonParams) NewQueryContext(ctx context.Context) *logstorage.QueryContext {
 	return logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query, cp.AllowPartialResponse, cp.HiddenFieldsFilters)
+}
+
+func (cp *CommonParams) ApplyExtraFilters(q *logstorage.Query) *logstorage.Query {
+	if q == nil || cp.ExtraFilters == nil {
+		return q
+	}
+	q.AddExtraFilters(cp.ExtraFilters)
+	return q
 }
 
 func (cp *CommonParams) UpdatePerQueryStatsMetrics() {
@@ -75,12 +85,43 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		return nil, err
 	}
 
+	extraFilters, err := parseExtraFiltersFromRequest(r)
+	if err != nil {
+		return nil, err
+	}
+
 	cp := &CommonParams{
 		TenantIDs:           tenantIDs,
+		ExtraFilters:        extraFilters,
 		HiddenFieldsFilters: hiddenFieldsFilters,
 	}
 
 	return cp, nil
+}
+
+func parseExtraFiltersFromRequest(r *http.Request) (*logstorage.Filter, error) {
+	var extraFilters *logstorage.Filter
+	for _, extraFiltersStr := range r.Form["extra_filters"] {
+		f, err := common.ParseExtraFilters(extraFiltersStr)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse extra_filters=%q: %w", extraFiltersStr, err)
+		}
+		if extraFilters == nil {
+			extraFilters = f
+			continue
+		}
+		q, err := logstorage.ParseQuery("*")
+		if err != nil {
+			return nil, fmt.Errorf("cannot initialize extra_filters query: %w", err)
+		}
+		q.AddExtraFilters(extraFilters)
+		q.AddExtraFilters(f)
+		extraFilters, err = logstorage.ParseFilter(q.String())
+		if err != nil {
+			return nil, fmt.Errorf("cannot merge extra_filters=%q: %w", extraFiltersStr, err)
+		}
+	}
+	return extraFilters, nil
 }
 
 func getStringSliceFromRequest(r *http.Request, argName string) ([]string, error) {

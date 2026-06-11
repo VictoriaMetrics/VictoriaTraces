@@ -45,7 +45,7 @@ func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]st
 	}
 	q.AddTimeFilter(currentTime.Add(-*tracecommon.TraceServiceAndSpanNameLookbehind).UnixNano(), currentTime.UnixNano())
 
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
@@ -74,7 +74,7 @@ func GetSpanNameList(ctx context.Context, cp *tracecommon.CommonParams, serviceN
 	}
 	q.AddTimeFilter(currentTime.Add(-*tracecommon.TraceServiceAndSpanNameLookbehind).UnixNano(), currentTime.UnixNano())
 
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
@@ -161,7 +161,7 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, param *Trac
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctxWithCancel)
 	defer cp.UpdatePerQueryStatsMetrics()
 
@@ -280,7 +280,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 	traceIDList := make([]string, 0, limit)
 	maxStartTimeStr := endTime.Format(time.RFC3339)
 
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
@@ -461,7 +461,7 @@ func findSpansByTraceIDAndTime(ctx context.Context, cp *tracecommon.CommonParams
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctxWithCancel)
 	defer cp.UpdatePerQueryStatsMetrics()
 
@@ -560,7 +560,7 @@ func GetServiceGraphList(ctx context.Context, cp *tracecommon.CommonParams, para
 	}
 	q.AddTimeFilter(startTime, endTime)
 
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctx)
 
 	var rowsLock sync.Mutex
@@ -660,7 +660,7 @@ func GetServiceGraphTimeRange(ctx context.Context, tenantID logstorage.TenantID,
 	q.AddTimeFilter(startTime.UnixNano(), endTime.UnixNano())
 	q.AddPipeOffsetLimit(0, limit)
 
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
@@ -737,7 +737,7 @@ func GetServiceDBGraphTimeRange(ctx context.Context, tenantID logstorage.TenantI
 		q.AddPipeOffsetLimit(0, limit)
 	}
 
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
