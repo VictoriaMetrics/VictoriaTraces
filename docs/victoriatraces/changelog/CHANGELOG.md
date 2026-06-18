@@ -12,6 +12,10 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+## [v0.9.3](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.3)
+
+Released at 2026-06-18
+
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support the Tempo querying traces by id (v1) endpoint `/api/traces/<trace_id>`. Previously only the v2 `/api/v2/traces/<trace_id>` endpoint was served.
 
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): honor the `Accept` header on the Tempo traces by id endpoints (v1 and v2). These endpoints now return OTLP/JSON by default, and return protobuf when `Accept: application/protobuf` header is set.
