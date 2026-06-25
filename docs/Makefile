@@ -56,6 +56,17 @@ docs-images-to-webp: docs-image
 				-regex ".*\.\(png\|jpg\|jpeg\)" \
 				-exec sh -c 'cwebp -preset drawing -m 6 -o $$(echo {} | cut -f-1 -d.).webp {} && rm -rf {}' {} \;
 
+docs-check-links: docs-image
+	rm -rf $(PWD)/docs/public
+	docker run \
+		--rm \
+		--platform $(DOCKER_PLATFORM) \
+		-v $(PWD)/docs/victoriatraces:/opt/docs/content/victoriatraces \
+		-v $(PWD)/docs/public:/opt/docs/public \
+		--entrypoint /bin/sh \
+		vmdocs-docker-package \
+			-c "yarn install && hugo --minify && yarn run check-links"
+
 docs-update-victoria-traces-flags:
 	# ---- victoria-traces
 	#(cd /tmp/vt-enterprise && make victoria-traces)
