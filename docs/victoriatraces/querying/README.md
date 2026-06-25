@@ -221,6 +221,101 @@ Some valid filter examples:
 
 Note that the examples are for user input on the Jaeger frontend, which parses and sends the request in JSON format later.
 
+### Tempo HTTP API
+
+> Tempo HTTP API support is **experimental**. It is implemented as a complement to the [Jaeger HTTP API](#jaeger-http-api),
+> primarily to enable the [Grafana Tempo datasource](https://docs.victoriametrics.com/victoriatraces/querying/grafana/#grafana-tempo-datasource)
+> and the [Grafana Traces Drilldown](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/traces/) plugin.
+> Some parts of [TraceQL](https://grafana.com/docs/tempo/latest/traceql/) and some Drilldown panels may not be fully supported yet.
+
+VictoriaTraces implements a subset of the [Grafana Tempo HTTP API](https://grafana.com/docs/tempo/latest/api_docs/).
+All endpoints are served under the `/select/tempo` prefix, so the base URL to use as the Tempo datasource
+"Connection.URL" is `http://<victoria-traces>:10428/select/tempo` (or `http://<vtselect>:10428/select/tempo` for [cluster](https://docs.victoriametrics.com/victoriatraces/cluster/)).
+
+#### Supported endpoints
+
+| Endpoint                                       | Tempo API                                                                                          | Purpose                                                                   | Available since |
+|------------------------------------------------|----------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|-----------------|
+| `/select/tempo/api/echo`                       | [`/api/echo`](https://grafana.com/docs/tempo/latest/api_docs/#tempo-readiness-probe)               | Datasource health check (used by Grafana "Save & Test").                  | v0.8.0          |
+| `/select/tempo/api/search`                     | [`/api/search`](https://grafana.com/docs/tempo/latest/api_docs/#search)                            | Search traces with a [TraceQL](https://grafana.com/docs/tempo/latest/traceql/) query. | v0.8.0          |
+| `/select/tempo/api/v2/search/tags`             | [`/api/v2/search/tags`](https://grafana.com/docs/tempo/latest/api_docs/#search-tags)               | List attribute (tag) names for query auto-completion.                     | v0.8.0          |
+| `/select/tempo/api/v2/search/tag/{tag}/values` | [`/api/v2/search/tag/<tag>/values`](https://grafana.com/docs/tempo/latest/api_docs/#search-tag-values-v2) | List values of a given attribute for query auto-completion.         | v0.8.0          |
+| `/select/tempo/api/v2/traces/{trace_id}`       | [`/api/v2/traces/<traceid>`](https://grafana.com/docs/tempo/latest/api_docs/#query)                | Fetch a single trace by its ID (v2 response wrapper).                     | v0.8.0          |
+| `/select/tempo/api/metrics/query_range`        | [`/api/metrics/query_range`](https://grafana.com/docs/tempo/latest/api_docs/#traceql-metrics)      | Evaluate a [TraceQL metrics](https://grafana.com/docs/tempo/latest/traceql/metrics-queries/) query over a time range. | v0.9.0          |
+| `/select/tempo/api/traces/{trace_id}`          | [`/api/traces/<traceid>`](https://grafana.com/docs/tempo/latest/api_docs/#query)                   | Fetch a single trace by its ID (v1, bare trace response).                 | v0.9.3          |
+
+Experimental Tempo datasource support was first added in [v0.8.0](https://docs.victoriametrics.com/victoriatraces/changelog/#v080)
+(tag auto-completion, search, and trace-by-id). [Grafana Traces Drilldown](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/traces/)
+support (including the TraceQL metrics endpoint) was added in [v0.9.0](https://docs.victoriametrics.com/victoriatraces/changelog/#v090),
+and refined in later releases. See the [changelog](https://docs.victoriametrics.com/victoriatraces/changelog/) for the full history.
+
+#### Searching traces
+
+The `/select/tempo/api/search` endpoint accepts the following query args:
+
+- `q`: the [TraceQL](https://grafana.com/docs/tempo/latest/traceql/) query. Defaults to `{}` (match all) when empty.
+- `start`, `end`: the time range boundaries as Unix timestamps. When omitted, the last 10 minutes are used.
+- `limit`: the maximum number of traces to return, clamped to the `[0, 1000]` range. Default `100`.
+
+For example, to find traces of the `frontend` service with status `error` over the last hour:
+
+```sh
+curl -G http://<victoria-traces>:10428/select/tempo/api/search \
+  --data-urlencode 'q={ resource.service.name = "frontend" && status = error }'
+```
+
+VictoriaTraces translates TraceQL attribute selectors into [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) filters over the [VictoriaTraces data model](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model):
+
+- `resource.<name>` matches a [resource attribute](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model).
+- `span.<name>` matches a [span attribute](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model).
+- intrinsic fields such as `name` (span name), `status` (`unset`, `ok`, `error`), and `duration` are mapped to their corresponding fields.
+
+Since [v0.9.1](https://docs.victoriametrics.com/victoriatraces/changelog/#v091), TraceQL filters also support fuzzy match and regular expression syntax.
+
+The response follows the Tempo [`/api/search`](https://grafana.com/docs/tempo/latest/api_docs/#search) format.
+Since [v0.9.1](https://docs.victoriametrics.com/victoriatraces/changelog/#v091), each returned trace includes a synthesized
+root span in its `spanSets`, which is required by the [Grafana Traces Drilldown](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/traces/) plugin to display traces.
+
+#### Auto-completion of tags and values
+
+The `/select/tempo/api/v2/search/tags` and `/select/tempo/api/v2/search/tag/{tag}/values` endpoints power the
+attribute name and value auto-completion in the Grafana TraceQL query editor. Both accept the same `q`, `start`, `end` and `limit`
+args as the search endpoint, plus an optional `scope` (`resource`, `span`, `intrinsic`) on the tags endpoint to restrict the returned names.
+
+The `{tag}` segment accepts scoped names such as `resource.<name>`, `span.<name>`, and the intrinsics `name`, `status`, and `service.name`.
+Since [v0.9.1](https://docs.victoriametrics.com/victoriatraces/changelog/#v091), the `status` tag returns its values as strings
+(`unset`, `ok`, `error`) instead of the underlying numeric codes.
+
+#### Querying a trace by ID
+
+Both `/select/tempo/api/v2/traces/{trace_id}` (since v0.8.0) and `/select/tempo/api/traces/{trace_id}` (the v1 variant, since
+[v0.9.3](https://docs.victoriametrics.com/victoriatraces/changelog/#v093)) return a single trace. They differ only in the response
+wrapper: the v1 endpoint returns the bare trace, while v2 wraps it in a `TraceByIDResponse`. Both accept optional `start` and `end`
+args to narrow the search window.
+
+Since [v0.9.3](https://docs.victoriametrics.com/victoriatraces/changelog/#v093), these endpoints honor the `Accept` request header:
+they return `OTLP/JSON` by default, and return protobuf when `Accept: application/protobuf` is set.
+
+#### TraceQL metrics
+
+The `/select/tempo/api/metrics/query_range` endpoint (since [v0.9.0](https://docs.victoriametrics.com/victoriatraces/changelog/#v090))
+evaluates a [TraceQL metrics](https://grafana.com/docs/tempo/latest/traceql/metrics-queries/) query over a time range. It accepts:
+
+- `q` (or `query`): the TraceQL metrics query. Required.
+- `start`, `end`: the time range boundaries as Unix timestamps. Defaults to the last hour.
+- `since`: an alternative to `start`, expressed as a duration relative to `end` (for example `1h`).
+- `step`: the resolution of the returned series (for example `30s`). When omitted, a step that yields ~100 points across the range is chosen.
+
+The following metrics functions are supported: `rate`, `count_over_time`, `min_over_time`, `max_over_time`, `avg_over_time`,
+`sum_over_time`, `histogram_over_time`, and `quantile_over_time`.
+
+For example, to compute the request rate of the `frontend` service grouped by span name:
+
+```sh
+curl -G http://<victoria-traces>:10428/select/tempo/api/metrics/query_range \
+  --data-urlencode 'q={ resource.service.name = "frontend" } | rate() by (name)'
+```
+
 ## Hidden fields
 
 All the [querying APIs at VictoriaTraces](https://docs.victoriametrics.com/victorialogs/querying/#http-api) accept optional `hidden_fields_filters` query arg,
