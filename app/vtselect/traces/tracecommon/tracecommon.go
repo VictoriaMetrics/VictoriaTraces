@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 )
 
@@ -75,9 +76,15 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		return nil, err
 	}
 
+	allowPartialResponse, err := searchutil.GetAllowPartialResponse(r)
+	if err != nil {
+		return nil, err
+	}
+
 	cp := &CommonParams{
-		TenantIDs:           tenantIDs,
-		HiddenFieldsFilters: hiddenFieldsFilters,
+		TenantIDs:            tenantIDs,
+		AllowPartialResponse: allowPartialResponse,
+		HiddenFieldsFilters:  hiddenFieldsFilters,
 	}
 
 	return cp, nil
