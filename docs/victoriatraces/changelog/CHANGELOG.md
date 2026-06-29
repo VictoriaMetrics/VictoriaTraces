@@ -12,6 +12,9 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support configuring max traces limit for Jaeger and Tempo search traces APIs. Previously each API has default limit 20, and a hardcoded limit 1000 to prevent users from requesting an excessively large `limit` query argument.
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): unify the command-line flags for configuring the maximum tags limit used in tags (tag values), service name, and span name search APIs with `-search.maxTags`. The old flags `-search.traceMaxServiceNameList` and `-search.traceMaxSpanNameList` are now deprecated.
+
 ## [v0.9.3](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.3)
 
 Released at 2026-06-18
