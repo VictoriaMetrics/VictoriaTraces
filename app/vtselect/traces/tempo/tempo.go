@@ -270,8 +270,8 @@ var intrinsicTags = []string{
 	otelpb.DurationField,
 }
 
-func intrinsicTagsCopy() []string {
-	return append([]string{}, intrinsicTags...)
+func getIntrinsicTags() []string {
+	return intrinsicTags
 }
 
 func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, scope string, start, end, limit int64) (*searchTagResult, error) {
@@ -311,7 +311,7 @@ func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr st
 			instrumentationScopeTagList: []string{},
 			eventTagList:                []string{},
 			linkTagList:                 []string{},
-			intrinsicTagList:            intrinsicTagsCopy(),
+			intrinsicTagList:            getIntrinsicTags(),
 		}, nil
 	case "", "all":
 		// todo: this does not align with the doc, but user usually don't expect a result fully match the limit
@@ -350,7 +350,7 @@ func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr st
 	// scope=all / empty scope: advertise intrinsics alongside the discovered
 	// attribute tags so the Drilldown breakdown lists name/kind/status/duration.
 	if scope == "" || scope == "all" {
-		result.intrinsicTagList = intrinsicTagsCopy()
+		result.intrinsicTagList = getIntrinsicTags()
 	}
 	for i := range fieldNames {
 		if strings.HasPrefix(fieldNames[i], otelpb.SpanAttrPrefixField) {
