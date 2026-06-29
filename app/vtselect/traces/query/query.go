@@ -268,7 +268,7 @@ func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, param *Tr
 // findTraceIDsSplitTimeRange try to search from the nearest time range of the end time.
 // if the result already met requirement of `limit`, return.
 // otherwise, amplify the time range to 5x and search again, until the start time exceed the input.
-func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, startTime, endTime time.Time, limit int) ([]string, time.Time, error) {
+func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, startTime, endTime time.Time, limit int64) ([]string, time.Time, error) {
 	currentTime := time.Now()
 
 	step := time.Minute
@@ -321,7 +321,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 		}
 
 		// found enough trace_id, return directly
-		if len(traceIDList) == limit {
+		if int64(len(traceIDList)) == limit {
 			maxStartTime, err := time.Parse(time.RFC3339, maxStartTimeStr)
 			if err != nil {
 				return nil, maxStartTime, err
