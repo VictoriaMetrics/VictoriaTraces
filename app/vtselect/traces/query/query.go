@@ -29,7 +29,7 @@ type TraceQueryParam struct {
 	StartTimeMax time.Time
 	DurationMin  time.Duration
 	DurationMax  time.Duration
-	Limit        int
+	Limit        int64
 }
 
 // GetServiceNameList returns all unique service names within *traceServiceAndSpanNameLookbehind window.

@@ -501,7 +501,7 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 		q:     "{}",
 		start: time.Time{},
 		end:   time.Time{},
-		limit: 100,
+		limit: min(100, *tracecommon.TraceMaxTraces),
 	}
 
 	if allowDefaultTime {
@@ -535,10 +535,13 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 	if limit != "" {
 		l, err := strconv.ParseInt(limit, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse limit: %s", limit)
+			return nil, fmt.Errorf("cannot parse limit: %s, err: %v", limit, err)
 		}
-		// Let's limit this to [0, 1000] to prevent users from specifying an excessively large value.
-		p.limit = max(0, min(1000, l))
+		// Let's limit this to [0, *tracecommon.TraceMaxTraces] to prevent users from specifying an excessively large value.
+		if l < 0 || l > *tracecommon.TraceMaxTraces {
+			return nil, fmt.Errorf("limit %d out of range [0, %d]", l, *tracecommon.TraceMaxTraces)
+		}
+		p.limit = l
 	}
 
 	p.q = q.Get("q")

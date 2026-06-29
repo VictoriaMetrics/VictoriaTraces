@@ -300,7 +300,7 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 	p := &query.TraceQueryParam{
 		StartTimeMin: time.Unix(0, 0),
 		StartTimeMax: time.Now(),
-		Limit:        20,
+		Limit:        min(20, *tracecommon.TraceMaxTraces),
 	}
 	q := r.URL.Query()
 	if p.ServiceName = q.Get("service"); p.ServiceName == "" {
@@ -326,20 +326,13 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 
 	limit := q.Get("limit")
 	if limit != "" {
-		p.Limit, err = strconv.Atoi(limit)
+		p.Limit, err = strconv.ParseInt(limit, 10, 64)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse limit [%s]: %w", limit, err)
 		}
-		if p.Limit < 0 {
-			return nil, fmt.Errorf("limit must be non-negative, got %d", p.Limit)
+		if p.Limit < 0 || p.Limit > *tracecommon.TraceMaxTraces {
+			return nil, fmt.Errorf("limit %d out of range [0, %d]", p.Limit, *tracecommon.TraceMaxTraces)
 		}
-		if uint64(p.Limit) > *tracecommon.TraceMaxTraces {
-			return nil, fmt.Errorf("limit should be not higher than %d", *tracecommon.TraceMaxTraces)
-		}
-	}
-	// Enforce -search.maxTraces even when limit is omitted (default 20 may exceed configured max)
-	if uint64(p.Limit) > *tracecommon.TraceMaxTraces {
-		p.Limit = int(*tracecommon.TraceMaxTraces)
 	}
 
 	startTimeMin := q.Get("start")
