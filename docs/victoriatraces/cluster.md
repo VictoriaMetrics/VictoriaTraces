@@ -90,9 +90,10 @@ For advanced setups, refer to the [multi-level cluster setup](#multi-level-clust
 
 In the cluster setup, the following rules apply:
 
-- The `vtselect` component requires **all relevant vtstorage nodes to be available** in order to return complete and correct query results.
+- The `vtselect` component requires **all relevant vtstorage nodes to be available** in order to return complete and correct query results by default.
 
   - If even one of the vtstorage nodes is temporarily unavailable, `vtselect` cannot safely return a full response, since some of the required data may reside on the missing node. Rather than risk delivering partial or misleading query results, which can cause confusion, trigger false alerts, or produce incorrect metrics, VictoriaTraces chooses to return an error instead.
+  - If returning incomplete query results is preferable to returning an error during temporary `vtstorage` outages, you can enable [partial responses](https://docs.victoriametrics.com/victorialogs/querying/#partial-responses). The returned data may miss spans stored on unavailable nodes.
 
 - The `vtinsert` component continues to function normally when some vtstorage nodes are unavailable. It automatically routes new trace spans to the remaining available nodes to ensure that data ingestion remains uninterrupted and newly received spans are not lost.
 

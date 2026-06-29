@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): apply `-search.allowPartialResponse` for Tempo and Jaeger query APIs. Previously the flag affected only LogsQL query handlers, so Tempo and Jaeger requests still failed when a queried `vtstorage` node was unavailable. See [#157](https://github.com/VictoriaMetrics/VictoriaTraces/issues/157).
+
 ## [v0.9.3](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.3)
 
 Released at 2026-06-18
