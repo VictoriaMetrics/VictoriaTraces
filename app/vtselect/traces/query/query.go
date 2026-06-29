@@ -37,8 +37,8 @@ type TraceQueryParam struct {
 func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]string, error) {
 	currentTime := time.Now()
 
-	// query: _time:[start, end] *
-	qStr := "*"
+	// query: _time:[start, end] {resource_attr:service.name!=""}
+	qStr := `{resource_attr:service.name!=""}`
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
@@ -49,7 +49,7 @@ func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]st
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	serviceHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.ResourceAttrServiceName, *tracecommon.TraceMaxServiceNameList)
+	serviceHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.ResourceAttrServiceName, "", *tracecommon.TraceMaxServiceNameList)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
@@ -78,7 +78,7 @@ func GetSpanNameList(ctx context.Context, cp *tracecommon.CommonParams, serviceN
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	spanNameHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.NameField, *tracecommon.TraceMaxSpanNameList)
+	spanNameHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.NameField, "", *tracecommon.TraceMaxSpanNameList)
 	if err != nil {
 		return nil, fmt.Errorf("get span name hits error: %s", err)
 	}
@@ -98,7 +98,7 @@ func GetTrace(ctx context.Context, cp *tracecommon.CommonParams, traceID string)
 	currentTime := time.Now()
 
 	// possible partition
-	// query: {trace_id_idx="xx"} AND trace_id:traceID
+	// query: {trace_id_idx_stream="xx"} AND trace_id_idx:traceID
 	qStr := fmt.Sprintf(
 		`{%s="%d"} AND %s:=%q | stats min(_time) _time, min(%s) %s, max(%s) %s`,
 		otelpb.TraceIDIndexStreamName,
@@ -139,7 +139,7 @@ func GetTrace(ctx context.Context, cp *tracecommon.CommonParams, traceID string)
 func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, param *TraceQueryParam) ([]string, []*tracecommon.Row, error) {
 	currentTime := time.Now()
 
-	// query 1: * AND filter_conditions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
+	// query 1: {resource_attr:service.name!=""} AND filter_conditions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
 	traceIDs, startTime, err := getTraceIDList(ctx, cp, param)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get trace id error: %w", err)
@@ -219,8 +219,8 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, param *Trac
 // It also returns the earliest start time of these traces, to help reducing the time range for spans search.
 func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, param *TraceQueryParam) ([]string, time.Time, error) {
 	currentTime := time.Now()
-	// query: * AND <filter> | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
-	qStr := "* "
+	// query: {resource_attr:service.name!=""} AND <filter> | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
+	qStr := `{resource_attr:service.name!=""} `
 	if param.ServiceName != "" {
 		qStr += fmt.Sprintf("AND _stream:{"+otelpb.ResourceAttrServiceName+"=%q} ", param.ServiceName)
 	}
@@ -229,7 +229,12 @@ func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, param *Tr
 	}
 	if len(param.Attributes) > 0 {
 		for k, v := range param.Attributes {
-			qStr += fmt.Sprintf(`AND %q:=%q `, k, v)
+			if strings.HasPrefix(v, "~") {
+				// ~ prefix forces regex (e.g. tags={"key":"~value.*"})
+				qStr += fmt.Sprintf(`AND %q:re(%s) `, k, strconv.Quote(v[1:]))
+			} else {
+				qStr += fmt.Sprintf(`AND %q:=%q `, k, v)
+			}
 		}
 	}
 	if param.DurationMin > 0 {
@@ -698,5 +703,101 @@ func GetServiceGraphTimeRange(ctx context.Context, tenantID logstorage.TenantID,
 		return nil, fmt.Errorf("cannot execute query [%s]: %s", qStr, err)
 	}
 
+	return rows, nil
+}
+
+// GetServiceDBGraphTimeRange returns service-to-db relations (parent, child, callCount) for the given tenant and time range.
+func GetServiceDBGraphTimeRange(ctx context.Context, tenantID logstorage.TenantID, startTime, endTime time.Time, limit uint64) ([][]logstorage.Field, error) {
+	cp := &tracecommon.CommonParams{
+		TenantIDs: []logstorage.TenantID{tenantID},
+	}
+
+	// (NOT "span_attr:db.system.name": "") AND (kind:3) | fields resource_attr:service.name, span_attr:db.system.name | rename resource_attr:service.name as parent, span_attr:db.system.name as child | stats by (parent, child) count() callCount
+	qStr := fmt.Sprintf(
+		`(NOT "%s":"") AND (%s:%d) | fields %s, %s | rename %s as %s, %s as %s | stats by (%s, %s) count() %s`,
+		// filters
+		otelpb.SpanAttrDbSystemName, otelpb.KindField, otelpb.SpanKind(3),
+		// fields
+		otelpb.ResourceAttrServiceName, otelpb.SpanAttrDbSystemName,
+		// rename
+		otelpb.ResourceAttrServiceName, otelpb.ServiceGraphParentFieldName,
+		otelpb.SpanAttrDbSystemName, otelpb.ServiceGraphChildFieldName,
+		// stats by
+		otelpb.ServiceGraphParentFieldName, otelpb.ServiceGraphChildFieldName,
+		// count()
+		otelpb.ServiceGraphCallCountFieldName,
+	)
+
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, endTime.UnixNano())
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse service db query [%s]: %w", qStr, err)
+	}
+	q.AddTimeFilter(startTime.UnixNano(), endTime.UnixNano())
+	if limit > 0 {
+		q.AddPipeOffsetLimit(0, limit)
+	}
+
+	cp.Query = q
+	qctx := cp.NewQueryContext(ctx)
+	defer cp.UpdatePerQueryStatsMetrics()
+
+	var rowsLock sync.Mutex
+	var rows [][]logstorage.Field
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		columns := db.GetColumns(false)
+		if len(columns) == 0 {
+			return
+		}
+		clonedColumnNames := make([]string, len(columns))
+		valuesCount := 0
+		for i, c := range columns {
+			clonedColumnNames[i] = strings.Clone(c.Name)
+			if len(c.Values) > valuesCount {
+				valuesCount = len(c.Values)
+			}
+		}
+		if valuesCount == 0 {
+			return
+		}
+		for i := 0; i < valuesCount; i++ {
+			fields := make([]logstorage.Field, 0, len(columns))
+			for j := range clonedColumnNames {
+				fields = append(
+					fields,
+					logstorage.Field{
+						Name:  clonedColumnNames[j],
+						Value: strings.Clone(columns[j].Values[i]),
+					},
+				)
+			}
+			rowsLock.Lock()
+			rows = append(rows, fields)
+			rowsLock.Unlock()
+		}
+	}
+
+	if err = vtstorage.RunQuery(qctx, writeBlock); err != nil {
+		return nil, fmt.Errorf("cannot execute middleware query [%s]: %w", qStr, err)
+	}
+
+	// rename `child` node's name (e.g. `redis`) to service.name + child name (e.g. `serviceA:redis`)
+	for i := range rows {
+		parentName := ""
+		for j := range rows[i] {
+			if rows[i][j].Name == otelpb.ServiceGraphParentFieldName {
+				parentName = rows[i][j].Value
+				break
+			}
+		}
+		if parentName == "" {
+			continue
+		}
+		for j := range rows[i] {
+			if rows[i][j].Name == otelpb.ServiceGraphChildFieldName {
+				rows[i][j].Value = parentName + ":" + rows[i][j].Value
+				break
+			}
+		}
+	}
 	return rows, nil
 }

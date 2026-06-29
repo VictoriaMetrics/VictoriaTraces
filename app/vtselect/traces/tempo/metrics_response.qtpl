@@ -1,0 +1,87 @@
+{% import (
+	"strconv"
+) %}
+
+{% stripspace %}
+
+{% func MetricsQueryRangeResponse(series []tempoMetricsSeries) %}
+{
+	"series":[
+		{% if len(series) > 0 %}
+			{%= metricsSeriesJson(&series[0]) %}
+			{% for i := 1; i < len(series); i++ %}
+				,{%= metricsSeriesJson(&series[i]) %}
+			{% endfor %}
+		{% endif %}
+	],
+	"metrics":{
+		"inspectedBytes":"0",
+		"inspectedTraces":0,
+		"totalJobs":0,
+		"completedJobs":0
+	},
+	"status":"COMPLETE"
+}
+{% endfunc %}
+
+{% func metricsSeriesJson(s *tempoMetricsSeries) %}
+{
+	"labels":[
+		{% if len(s.Labels) > 0 %}
+			{%= metricsLabelJson(&s.Labels[0]) %}
+			{% for i := 1; i < len(s.Labels); i++ %}
+				,{%= metricsLabelJson(&s.Labels[i]) %}
+			{% endfor %}
+		{% endif %}
+	],
+	"samples":[
+		{% if len(s.Samples) > 0 %}
+			{%= metricsSampleJson(&s.Samples[0]) %}
+			{% for i := 1; i < len(s.Samples); i++ %}
+				,{%= metricsSampleJson(&s.Samples[i]) %}
+			{% endfor %}
+		{% endif %}
+	],
+	"exemplars":[
+		{% if len(s.Exemplars) > 0 %}
+			{%= metricsExemplarJson(&s.Exemplars[0]) %}
+			{% for i := 1; i < len(s.Exemplars); i++ %}
+				,{%= metricsExemplarJson(&s.Exemplars[i]) %}
+			{% endfor %}
+		{% endif %}
+	]
+}
+{% endfunc %}
+
+{% func metricsExemplarJson(e *tempoExemplar) %}
+{
+	"labels":[
+		{"key":"trace:id","value":{"stringValue":{%q= e.TraceID %}}},
+		{"key":"span:id","value":{"stringValue":{%q= e.SpanID %}}}
+	],
+	"value":{%f= e.Value %},
+	"timestampMs":"{%s= strconv.FormatInt(e.TimestampMs, 10) %}"
+}
+{% endfunc %}
+
+{% func metricsLabelJson(l *tempoLabel) %}
+{
+	"key":{%q= l.Key %},
+	"value":{
+		{% if l.Numeric %}
+		"doubleValue":{%s= l.Value %}
+		{% else %}
+		"stringValue":{%q= l.Value %}
+		{% endif %}
+	}
+}
+{% endfunc %}
+
+{% func metricsSampleJson(s *tempoSample) %}
+{
+	"timestampMs":"{%s= strconv.FormatInt(s.TimestampMs, 10) %}",
+	"value":{%f= s.Value %}
+}
+{% endfunc %}
+
+{% endstripspace %}

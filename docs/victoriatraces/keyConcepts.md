@@ -161,7 +161,7 @@ There are some special mappings when transforming a trace span into VictoriaTrac
 
 1. Empty attribute values in trace spans are replaced with `-`.
 2. Resource, scope and span attributes are stored with corresponding prefixes `resource_attr`, `scope_attr` and `span_attr:` accordingly.
-3. For some attributes within a list (event list, link list in span), a corresponding prefix and index (such as `event:0:` and `event:0:event_attr:`) is added.
+3. For some attributes within a list (event list, link list in span), a corresponding prefix and index suffix (such as `event:<event_field>:0` and `event:event_attr:<event_attribute_name>:0`) is added.
 4. The `duration` field does not exist in the OTLP request, but for query efficiency, it's calculated during ingestion and stored as a separated field.
 
 VictoriaTraces automatically indexes all the fields for ingested trace spans.

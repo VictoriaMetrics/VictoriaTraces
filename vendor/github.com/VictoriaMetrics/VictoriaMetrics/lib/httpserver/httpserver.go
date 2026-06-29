@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	_ "embed"
@@ -165,7 +166,7 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler, disableB
 		// Do not set ReadTimeout and WriteTimeout here,
 		// since these timeouts must be controlled by request handlers.
 
-		ErrorLog: logger.StdErrorLogger(),
+		ErrorLog: log.New(&tlsErrorSkipLogger{}, "", 0),
 	}
 	s.s.SetKeepAlivesEnabled(!*disableKeepAlive)
 	if *connTimeout > 0 {
@@ -357,6 +358,12 @@ func handlerWrapper(w http.ResponseWriter, r *http.Request, rh RequestHandler) {
 		r.URL.Path = path
 	}
 
+	if r.Method == http.MethodOptions {
+		EnableCORS(w, r)
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
 	w = &responseWriterWithAbort{
 		ResponseWriter: w,
 	}
@@ -511,6 +518,8 @@ func EnableCORS(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "*")
 }
 
 func pprofHandler(profileName string, w http.ResponseWriter, r *http.Request) {
@@ -797,4 +806,15 @@ func LogError(req *http.Request, errStr string) {
 	uri := GetRequestURI(req)
 	remoteAddr := GetQuotedRemoteAddr(req)
 	logger.Errorf("uri: %s, remote address: %q: %s", uri, remoteAddr, errStr)
+}
+
+type tlsErrorSkipLogger struct{}
+
+func (*tlsErrorSkipLogger) Write(p []byte) (int, error) {
+	// skip common health check errors produced by Kubernetes and other tools
+	if bytes.Contains(p, []byte("TLS handshake error")) &&
+		(bytes.Contains(p, []byte("EOF")) || bytes.Contains(p, []byte("connection reset by peer"))) {
+		return len(p), nil
+	}
+	return logger.StdErrorLogger().Writer().Write(p)
 }

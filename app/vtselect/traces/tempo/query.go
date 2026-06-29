@@ -21,7 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/traceql"
 )
 
-// Q: Why the query part is seperated from `app/vtselect/traces/query`
+// Q: Why the query part is separated from `app/vtselect/traces/query`
 //
 // A: The Tempo API in VictoriaTraces is experimental, and we observed some unstable structure in the query and response.
 //
@@ -44,7 +44,7 @@ import (
 func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery *traceql.Query, start, end time.Time, limit int64) ([]string, []*tracecommon.Row, error) {
 	currentTime := time.Now()
 
-	// query 1: * AND filter_conditions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
+	// query 1: {resource_attr:service.name!=""} AND filter_conditions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
 	traceIDs, startTime, err := getTraceIDList(ctx, cp, filterQuery, start, end, limit)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get trace id error: %w", err)
@@ -121,7 +121,7 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery
 }
 
 func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery *traceql.Query, start, end time.Time, limit int64) ([]string, time.Time, error) {
-	qStr := `{trace_id_idx_stream=""} AND ` + filterQuery.String() + ` | last 1 by (_time) partition by (` + otelpb.TraceIDField + ") | fields _time, " + otelpb.TraceIDField + " | sort by (_time) desc"
+	qStr := `{resource_attr:service.name!=""} AND ` + filterQuery.String() + ` | last 1 by (_time) partition by (` + otelpb.TraceIDField + ") | fields _time, " + otelpb.TraceIDField + " | sort by (_time) desc"
 
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, end.UnixNano())
 	if err != nil {

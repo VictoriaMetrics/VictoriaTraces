@@ -30,10 +30,11 @@ concurrency:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-latest
+    # Runs on dedicated runner with extra resources to increase build speed.
+    runs-on: 'vm-runner'
     steps:
       - name: Code checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
 
       - name: Setup Go
         id: go
@@ -43,7 +44,7 @@ jobs:
           cache: false
 
       - name: Cache Go artifacts
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae  # v5.0.5
         with:
           path: |
             ~/.cache/go-build

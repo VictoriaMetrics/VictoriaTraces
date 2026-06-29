@@ -34,8 +34,14 @@ var (
 	tempoSearchRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/search"}`)
 	tempoSearchDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/search"}`)
 
+	tempoQueryRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/traces/*"}`)
+	tempoQueryDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/traces/*"}`)
+
 	tempoQueryV2Requests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/v2/traces/*"}`)
 	tempoQueryV2Duration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/v2/traces/*"}`)
+
+	tempoMetricsQueryRangeRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/metrics/query_range"}`)
+	tempoMetricsQueryRangeDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/metrics/query_range"}`)
 )
 
 var (
@@ -64,6 +70,16 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		tempoSearchRequests.Inc()
 		processSearchRequest(ctx, w, r)
 		tempoSearchDuration.UpdateDuration(startTime)
+		return true
+	} else if path == "/select/tempo/api/metrics/query_range" {
+		tempoMetricsQueryRangeRequests.Inc()
+		processMetricsQueryRangeRequest(ctx, w, r)
+		tempoMetricsQueryRangeDuration.UpdateDuration(startTime)
+		return true
+	} else if strings.HasPrefix(path, "/select/tempo/api/traces/") && len(path) > len("/select/tempo/api/traces/") {
+		tempoQueryRequests.Inc()
+		processQueryRequest(ctx, w, r)
+		tempoQueryDuration.UpdateDuration(startTime)
 		return true
 	} else if strings.HasPrefix(path, "/select/tempo/api/v2/traces/") && len(path) > len("/select/tempo/api/v2/traces/") {
 		tempoQueryV2Requests.Inc()
@@ -188,6 +204,80 @@ func processSearchRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 	WriteSearchResponse(w, result)
 }
 
+// getTraceByID fetches the trace whose ID follows pathPrefix in the request path and
+// converts it into resource spans. It is shared by the v1 (/api/traces/<id>) and
+// v2 (/api/v2/traces/<id>) trace-by-ID APIs, which differ only in the response wrapper.
+//
+// On error it writes the HTTP error response and returns ok=false.
+func getTraceByID(ctx context.Context, cp *tracecommon.CommonParams, traceID string, start, end time.Time) ([]*otelpb.ResourceSpans, error) {
+	rows, err := GetTrace(ctx, cp, traceID, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get traces list: %s", err)
+	}
+
+	resourceSpans, err := rowsToResourceSpans(rows)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse rows into resource spans: %s", err)
+	}
+
+	return resourceSpans, nil
+}
+
+// processQueryRequest handle the Tempo /api/traces/<traceid> (v1) API request.
+//
+// The v1 API returns the bare Trace message, unlike the v2 API which wraps it in a
+// TraceByIDResponse.
+func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cp, err := tracecommon.GetCommonParams(r)
+	if err != nil {
+		httpserver.Errorf(w, r, "incorrect query params: %s", err)
+		return
+	}
+
+	params, err := parseTempoAPIParam(ctx, r, false)
+	if err != nil {
+		httpserver.Errorf(w, r, "incorrect query params: %s", err)
+		return
+	}
+
+	traceID := r.URL.Path[len("/select/tempo/api/traces/"):]
+	if len(traceID) == 0 {
+		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
+		return
+	}
+
+	resourceSpans, err := getTraceByID(ctx, cp, traceID, params.start, params.end)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot get traces list: %s", err)
+		return
+	}
+
+	if r.Header.Get("Accept") == "application/protobuf" {
+		writeTraceByIDV1Proto(w, resourceSpans)
+	} else {
+		// default JSON
+		w.Header().Set("Content-Type", "application/json")
+		WriteTraceByIDV1JSON(w, resourceSpans)
+	}
+}
+
+// writeTraceByIDV1Proto marshals TempoTrace and writes it as a protobuf HTTP response.
+func writeTraceByIDV1Proto(w http.ResponseWriter, resourceSpans []*otelpb.ResourceSpans) {
+	resp := otelpb.TempoTrace{
+		ResourceSpan: resourceSpans,
+	}
+
+	b := bytebufferpool.Get()
+	defer bytebufferpool.Put(b)
+
+	b.B = resp.MarshalProtobuf(b.B)
+
+	w.Header().Set("Content-Type", "application/protobuf")
+	w.Header().Set("Content-Length", strconv.Itoa(b.Len()))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(b.Bytes())
+}
+
 // processQueryV2Request handle the Tempo /api/v2/traces/<traceid> API request.
 func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	cp, err := tracecommon.GetCommonParams(r)
@@ -202,26 +292,29 @@ func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	// extract the `trace_id`.
-	// the path must be like `/select/tempo/api/v2/traces/<trace_id>`.
 	traceID := r.URL.Path[len("/select/tempo/api/v2/traces/"):]
 	if len(traceID) == 0 {
 		httpserver.Errorf(w, r, "incorrect query path [%s]", r.URL.Path)
 		return
 	}
 
-	rows, err := GetTrace(ctx, cp, traceID, params.start, params.end)
+	resourceSpans, err := getTraceByID(ctx, cp, traceID, params.start, params.end)
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot get traces list: %s", err)
+		httpserver.Errorf(w, r, "cannot get traces by id: %s", err)
 		return
 	}
 
-	resourceSpans, err := rowsToResourceSpans(rows)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot parse rows into resource spans: %s", err)
-		return
+	if r.Header.Get("Accept") == "application/protobuf" {
+		writeTraceByIDV2Proto(w, resourceSpans)
+	} else {
+		// default JSON
+		w.Header().Set("Content-Type", "application/json")
+		WriteTraceByIDV2JSON(w, resourceSpans)
 	}
+}
 
+// writeTraceByIDV2Proto marshals TempoTraceByIDResponse and writes it as a protobuf HTTP response.
+func writeTraceByIDV2Proto(w http.ResponseWriter, resourceSpans []*otelpb.ResourceSpans) {
 	resp := otelpb.TempoTraceByIDResponse{
 		Trace: otelpb.TempoTrace{
 			ResourceSpan: resourceSpans,
@@ -233,7 +326,6 @@ func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.R
 
 	b.B = resp.MarshalProtobuf(b.B)
 
-	// Write results
 	w.Header().Set("Content-Type", "application/protobuf")
 	w.Header().Set("Content-Length", strconv.Itoa(b.Len()))
 	w.WriteHeader(http.StatusOK)
@@ -251,10 +343,11 @@ func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr st
 		filterQuery = defaultNoopFilter
 	}
 
-	// exclude queries that contains pipe(s).
-	if filterQuery.HasPipe() {
+	// exclude queries that contain non-hint pipes (select/by/with are OK to ignore).
+	if filterQuery.HasNonHintPipe() {
 		return nil, fmt.Errorf("cannot use query pipes in search tag values API: %s", traceQLStr)
 	}
+	filterQuery.StripHintPipes()
 
 	scopes := ``
 	pipeLimit := limit
@@ -342,10 +435,11 @@ func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLS
 		filterQuery = defaultNoopFilter
 	}
 
-	// exclude queries that contains pipe(s).
-	if filterQuery.HasPipe() {
+	// exclude queries that contain non-hint pipes (select/by/with are OK to ignore).
+	if filterQuery.HasNonHintPipe() {
 		return nil, fmt.Errorf("cannot use query pipes in search tag values API: %s", traceQLStr)
 	}
+	filterQuery.StripHintPipes()
 
 	qStr := fmt.Sprintf(`%s | fields %q | field_values %q | fields %q`,
 		filterQuery.String(), tagName, tagName, tagName,
@@ -358,7 +452,20 @@ func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLS
 	q.AddTimeFilter(start, end)
 	q.AddPipeOffsetLimit(0, uint64(limit))
 
-	return singleFieldQueryHelper(ctx, q, cp, limit)
+	values, err := singleFieldQueryHelper(ctx, q, cp, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	// Map raw OTLP status_code integers (0=unset, 1=ok, 2=error) to the
+	// lowercase string names that Tempo returns from this endpoint, so the
+	// Grafana Tempo datasource displays "ok"/"error"/"unset" instead of 0/1/2.
+	if tagName == otelpb.StatusCodeField {
+		for i, v := range values {
+			values[i] = traceql.StatusCodeToName(v)
+		}
+	}
+	return values, nil
 }
 
 // singleFieldQueryHelper execute queries which contains only a single field in response, and return as []string.
@@ -393,13 +500,16 @@ func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr 
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
 	filterQuery, err := traceql.ParseQuery(traceQLStr)
 	if err != nil {
-		return nil, err
+		// Return empty results for malformed queries (e.g., "duration > " with no value)
+		// rather than erroring, since Grafana may send incomplete filters during user editing.
+		return nil, nil
 	}
 
-	// exclude queries that contains pipe(s).
-	if filterQuery.HasPipe() {
+	// exclude queries that contain non-hint pipes (select/by/with are OK to ignore).
+	if filterQuery.HasNonHintPipe() {
 		return nil, fmt.Errorf("cannot use query pipes in search tag values API: %s", traceQLStr)
 	}
+	filterQuery.StripHintPipes()
 
 	_, rows, err := GetTraceList(ctx, cp, filterQuery, start, end, limit)
 	if err != nil {
@@ -418,15 +528,22 @@ type traceSummary struct {
 	traceID           string
 	rootServiceName   string
 	rootTraceName     string
+	rootSpanID        string
 	startTimeUnixNano int64
 	endTimeUnixNano   int64
+	// rootStartTimeUnixNano / rootEndTimeUnixNano are the root span's own bounds,
+	// used to populate spanSets[0].spans[0].startTimeUnixNano and durationNanos.
+	// Grafana's Tempo datasource reads durationNanos from the span, not the
+	// trace-level durationMs, so we must emit it on the synthesized root span.
+	rootStartTimeUnixNano int64
+	rootEndTimeUnixNano   int64
 }
 
 func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, limit int64) ([]traceSummary, error) {
 	traceMap := make(map[string]traceSummary)
 
 	for _, row := range rows {
-		var traceID, serviceName, spanName, parentSpanID string
+		var traceID, serviceName, spanName, spanID, parentSpanID string
 		var startTimeUnixNano, endTimeUnixNano int64
 		var err error
 		for _, field := range row.Fields {
@@ -437,6 +554,8 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 				traceID = field.Value
 			case otelpb.NameField:
 				spanName = field.Value
+			case otelpb.SpanIDField:
+				spanID = field.Value
 			case otelpb.ParentSpanIDField:
 				parentSpanID = field.Value
 			case otelpb.StartTimeUnixNanoField:
@@ -455,7 +574,7 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 		}
 
 		if traceID == "" {
-			return nil, fmt.Errorf("trace ID found for a span %v", row)
+			return nil, fmt.Errorf("trace ID not found for a span %v", row)
 		}
 
 		// get the summary for this trace
@@ -475,6 +594,9 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 		if parentSpanID == "" {
 			summary.rootServiceName = serviceName
 			summary.rootTraceName = spanName
+			summary.rootSpanID = spanID
+			summary.rootStartTimeUnixNano = startTimeUnixNano
+			summary.rootEndTimeUnixNano = endTimeUnixNano
 		}
 		// summary is not a pointer so it must be put back to the map.
 		traceMap[traceID] = summary
@@ -523,7 +645,7 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 	if end != "" {
 		ts, ok := timeutil.TryParseUnixTimestamp(end)
 		if !ok {
-			return nil, fmt.Errorf("cannot parse end timestamp: %s", start)
+			return nil, fmt.Errorf("cannot parse end timestamp: %s", end)
 		}
 		p.end = time.Unix(ts/1e9, 0)
 	}

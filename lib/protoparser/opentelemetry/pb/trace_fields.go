@@ -37,6 +37,9 @@ const (
 	// DurationField field is calculated by end-start to allow duration filter on span.
 	// It's not part of OTLP.
 	DurationField = "duration"
+
+	// SpanAttrDbSystemName is a special fields used by service graph queries.
+	SpanAttrDbSystemName = "span_attr:db.system.name"
 )
 
 // Span_Event

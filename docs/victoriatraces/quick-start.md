@@ -13,21 +13,21 @@ aliases:
 - /victoriatraces/quick-start.html
 ---
 
-## Quick Start
+## How to install
 
-### How to install
+VictoriaTraces can be deployed as:
 
-VictoriaTraces is available in the following distributions:
+- VictoriaTraces Single-node - all-in-one binary that is easy to run and maintain.
+- [VictoriaTraces Cluster](https://docs.victoriametrics.com/victoriatraces/cluster/) - same binary, deployed as separate roles within a cluster: `vtinsert`, `vtselect`, and `vtstorage`.
 
-- Single-server-VictoriaTraces - all-in-one binary that is easy to run and maintain.
-
-VictoriaMetrics is available as:
+VictoriaTraces is available as:
 
 - docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-traces) and [Quay](https://quay.io/repository/victoriametrics/victoria-traces).
 - [Binary releases](https://github.com/VictoriaMetrics/VictoriaTraces/releases/)
+- [Helm charts](#helm-charts) and custom resources with [VictoriaMetrics Operator](#victoriaMetrics-operator)
 - [Source code](https://github.com/VictoriaMetrics/VictoriaTraces). See [How to build from sources](https://docs.victoriametrics.com/victoriatraces/#how-to-build-from-sources)
 
-#### Starting VictoriaTraces Single Node via Docker
+### Starting VictoriaTraces Single Node via Docker
 
 Run the newest available [VictoriaTraces release](https://docs.victoriametrics.com/victoriatraces/changelog/) from [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-traces) or [Quay](https://quay.io/repository/victoriametrics/victoria-traces):
 
@@ -50,18 +50,18 @@ After VictoriaTraces is running, verify VMUI is working by going to `http://<vic
 
 See how to [write](#write-data) or [read](#read-data) from VictoriaTraces.
 
-#### Starting VictoriaTraces Single Node from a Binary
+### Starting VictoriaTraces Single Node from a Binary
 
 - Download the correct binary for your OS and architecture from [GitHub](https://github.com/VictoriaMetrics/VictoriaTraces/releases/). Here's an example for `Linux/amd64`:
 
 ```sh
-curl -L -O https://github.com/VictoriaMetrics/VictoriaTraces/releases/download/v0.8.0/victoria-traces-linux-amd64-v0.8.0.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaTraces/releases/download/v0.9.3/victoria-traces-linux-amd64-v0.9.3.tar.gz
 ```
 
 - Extract the archive by running:
 
 ```sh
-tar -xvf victoria-traces-linux-amd64-v0.8.0.tar.gz
+tar -xvf victoria-traces-linux-amd64-v0.9.3.tar.gz
 ```
 
 - Go to the binary's folder and start VictoriaTraces:
@@ -76,7 +76,21 @@ After VictoriaTraces is running, verify VMUI is working by going to `http://<vic
 
 See how to [write](#write-data) or [read](#read-data) from VictoriaTraces.
 
-### Write data
+### Helm charts
+
+You can run VictoriaTraces in a Kubernetes environment
+with [VictoriaTraces single](https://docs.victoriametrics.com/helm/victoria-traces-single/)
+or [cluster](https://docs.victoriametrics.com/helm/victoria-traces-cluster/) Helm charts.
+
+### VictoriaMetrics Operator
+
+You can also run VictoriaTraces in Kubernetes using [VictoriaMetrics Operator](https://docs.victoriametrics.com/operator/resources/).
+
+- [`VTSingle` CRD](https://docs.victoriametrics.com/operator/resources/vtsingle/) declaratively defines a single-node VictoriaTraces deployment.
+- [`VTCluster` CRD](https://docs.victoriametrics.com/operator/resources/vtcluster/) declaratively defines a VictoriaTraces cluster and lets the Operator manage `vtinsert`, `vtselect` and `vtstorage` components for you.
+
+
+## Write data
 
 VictoriaTraces can accept trace spans via [the OpenTelemetry protocol (OTLP)](https://opentelemetry.io/docs/specs/otlp/).
 
@@ -119,7 +133,7 @@ After that, you can check the data in VMUI at `http://<victoria-traces>:10428/se
 
 See more details about how to send data to VictoriaTraces from **an instrumented application** or **an OpenTelemetry collector** [in this doc](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/).
 
-### Read data
+## Read data
 
 [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) has built-in VMUI for browsing data by span at `http://<victoria-traces>:10428/select/vmui`.
 
@@ -132,11 +146,11 @@ http://<victoria-traces>:10428/select/jaeger
 
 See more details about the HTTP APIs and params VictoriaTraces supports and how to query data from them [in this doc](https://docs.victoriametrics.com/victoriatraces/querying/).
 
-### Alerting
+## Alerting
 
 see [these docs](https://docs.victoriametrics.com/victoriatraces/vmalert/).
 
-### Monitoring
+## Monitoring
 
 VictoriaTraces exposes internal metrics in Prometheus exposition format at `http://<victoria-traces>:10428/metrics` page.
 It is recommended to set up monitoring of these metrics via VictoriaMetrics

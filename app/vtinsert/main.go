@@ -4,15 +4,14 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/internalinsert"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/opentelemetry"
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/grpc"
@@ -119,13 +118,13 @@ func initGRPCServer() {
 		if *otlpGRPCTlsCertFile == "" {
 			logger.Fatalf("-otlpGRPC.tlsCertFile is required when -otlpGRPC.tls is true.")
 		}
-		tlsConfig, err = netutil.GetServerTLSConfig(*otlpGRPCTlsCertFile, *otlpGRPCTlsKeyFile, *otlpGRPCTlsMinVersion, *otlpGRPCTlsCipherSuites)
+		tlsConfig, err = http2server.NewTLSConfig(*otlpGRPCTlsCertFile, *otlpGRPCTlsKeyFile, *otlpGRPCTlsMinVersion, *otlpGRPCTlsCipherSuites)
 		if err != nil {
 			logger.Fatalf("cannot load TLS cert from -tlsCertFile=%q, -tlsKeyFile=%q, -tlsMinVersion=%q, -tlsCipherSuites=%q: %s", *otlpGRPCTlsCertFile, *otlpGRPCTlsKeyFile, *otlpGRPCTlsMinVersion, *otlpGRPCTlsCipherSuites, err)
 		}
 	}
 
-	logger.Infof("starting OTLP gPRC server at %q...", *otlpGRPCListenAddr)
+	logger.Infof("starting OTLP gRPC server at %q...", *otlpGRPCListenAddr)
 	go http2server.Serve(
 		*otlpGRPCListenAddr,
 		otlpGRPCRequestHandler,
@@ -135,9 +134,9 @@ func initGRPCServer() {
 
 func stopGRPCServer() {
 	startTime := time.Now()
-	logger.Infof("gracefully shutting down the OTLP gPRC server at %q...", *otlpGRPCListenAddr)
+	logger.Infof("gracefully shutting down the OTLP gRPC server at %q...", *otlpGRPCListenAddr)
 	if err := http2server.Stop([]string{*otlpGRPCListenAddr}); err != nil {
 		logger.Fatalf("cannot stop the OTLP gRPC server: %s", err)
 	}
-	logger.Infof("successfully shut down the OTLP gPRC in %.3f seconds", time.Since(startTime).Seconds())
+	logger.Infof("successfully shut down the OTLP gRPC in %.3f seconds", time.Since(startTime).Seconds())
 }

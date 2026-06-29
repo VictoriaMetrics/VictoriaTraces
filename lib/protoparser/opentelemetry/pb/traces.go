@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/easyproto"
@@ -85,14 +86,65 @@ func (r *ExportTraceServiceRequest) UnmarshalJSONCustom(src []byte) (err error) 
 				s.TraceID = strings.ToLower(s.TraceID)
 				s.SpanID = strings.ToLower(s.SpanID)
 				s.ParentSpanID = strings.ToLower(s.ParentSpanID)
+
+				// decode Start/EndTimeUnixNanoRaw and treat it as uint64 to field StartTimeUnixNano and EndTimeUnixNano
+				if len(s.StartTimeUnixNanoRaw) > 0 {
+					s.StartTimeUnixNano, err = parseUnixTimestampByte(s.StartTimeUnixNanoRaw)
+					if err != nil {
+						return err
+					}
+					s.StartTimeUnixNanoRaw = nil
+				}
+
+				if len(s.EndTimeUnixNanoRaw) > 0 {
+					s.EndTimeUnixNano, err = parseUnixTimestampByte(s.EndTimeUnixNanoRaw)
+					if err != nil {
+						return err
+					}
+					s.EndTimeUnixNanoRaw = nil
+				}
+
 				for _, l := range s.Links {
 					l.TraceID = strings.ToLower(l.TraceID)
 					l.SpanID = strings.ToLower(l.SpanID)
+				}
+
+				for _, e := range s.Events {
+					if len(e.TimeUnixNanoRaw) > 0 {
+						e.TimeUnixNano, err = parseUnixTimestampByte(e.TimeUnixNanoRaw)
+						if err != nil {
+							return err
+						}
+						e.TimeUnixNanoRaw = nil
+					}
 				}
 			}
 		}
 	}
 	return nil
+}
+
+func parseUnixTimestampByte(b []byte) (uintVal uint64, err error) {
+	firstByte := b[0]
+	if firstByte >= '0' && firstByte <= '9' {
+		// positive number
+		err = json.Unmarshal(b, &uintVal)
+		if err != nil {
+			return 0, err
+		}
+		return uintVal, nil
+	}
+
+	// string
+	unquoted, err := strconv.Unquote(string(b))
+	if err != nil {
+		return 0, err
+	}
+	uintVal, err = strconv.ParseUint(unquoted, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return uintVal, nil
 }
 
 // ExportTraceServiceResponse represent the OTLP export trace grpc response message
@@ -335,8 +387,8 @@ type Span struct {
 	Flags                  uint32       `json:"flags"`
 	Name                   string       `json:"name"`
 	Kind                   SpanKind     `json:"kind"`
-	StartTimeUnixNano      uint64       `json:"startTimeUnixNano,string"`
-	EndTimeUnixNano        uint64       `json:"endTimeUnixNano,string"`
+	StartTimeUnixNano      uint64       `json:"-"`
+	EndTimeUnixNano        uint64       `json:"-"`
 	Attributes             []*KeyValue  `json:"attributes"`
 	DroppedAttributesCount uint32       `json:"droppedAttributesCount"`
 	Events                 []*SpanEvent `json:"events"`
@@ -344,6 +396,9 @@ type Span struct {
 	Links                  []*SpanLink  `json:"links"`
 	DroppedLinksCount      uint32       `json:"droppedLinksCount"`
 	Status                 Status       `json:"status"`
+
+	StartTimeUnixNanoRaw json.RawMessage `json:"startTimeUnixNano"`
+	EndTimeUnixNanoRaw   json.RawMessage `json:"endTimeUnixNano"`
 }
 
 func (s *Span) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -535,10 +590,12 @@ func (s *Span) unmarshalProtobuf(src []byte) (err error) {
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L222
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L613
 type SpanEvent struct {
-	TimeUnixNano           uint64      `json:"timeUnixNano,string"`
+	TimeUnixNano           uint64      `json:"-"`
 	Name                   string      `json:"name"`
 	Attributes             []*KeyValue `json:"attributes"`
 	DroppedAttributesCount uint32      `json:"droppedAttributesCount"`
+
+	TimeUnixNanoRaw json.RawMessage `json:"timeUnixNano"`
 }
 
 func (se *SpanEvent) marshalProtobuf(mm *easyproto.MessageMarshaler) {

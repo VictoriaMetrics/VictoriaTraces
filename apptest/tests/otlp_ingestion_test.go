@@ -250,6 +250,7 @@ func getDefaultIngestRequestAndAssertFunc(tc *at.TestCase, sut at.VictoriaTraces
 				cmpopts.IgnoreFields(at.JaegerAPITracesResponse{}, "Errors", "Limit", "Offset", "Total"),
 			},
 		})
+
 		// check single trace data via /select/jaeger/api/traces/<trace_id>
 		tc.Assert(&at.AssertOptions{
 			Msg: "unexpected /select/jaeger/api/traces/<trace_id> response",
@@ -261,6 +262,52 @@ func getDefaultIngestRequestAndAssertFunc(tc *at.TestCase, sut at.VictoriaTraces
 			},
 			CmpOpts: []cmp.Option{
 				cmpopts.IgnoreFields(at.JaegerAPITraceResponse{}, "Errors", "Limit", "Offset", "Total"),
+			},
+		})
+
+		// check traces data via /select/jaeger/api/traces with regex tag filter: NOT match, empty result
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /select/jaeger/api/traces response",
+			Got: func() any {
+				return sut.JaegerAPITraces(t, at.JaegerQueryParam{
+					TraceQueryParam: query.TraceQueryParam{
+						ServiceName:  serviceName,
+						StartTimeMin: spanTime.Add(-10 * time.Minute),
+						StartTimeMax: spanTime.Add(10 * time.Minute),
+						Attributes: map[string]string{
+							"testTag": "~INVALID.*",
+						},
+					},
+				}, at.QueryOpts{})
+			},
+			Want: &at.JaegerAPITracesResponse{
+				Data: []at.TracesResponseData{},
+			},
+			CmpOpts: []cmp.Option{
+				cmpopts.IgnoreFields(at.JaegerAPITracesResponse{}, "Errors", "Limit", "Offset", "Total"),
+			},
+		})
+
+		// check traces data via /select/jaeger/api/traces with regex tag filter: match
+		tc.Assert(&at.AssertOptions{
+			Msg: "unexpected /select/jaeger/api/traces response",
+			Got: func() any {
+				return sut.JaegerAPITraces(t, at.JaegerQueryParam{
+					TraceQueryParam: query.TraceQueryParam{
+						ServiceName:  serviceName,
+						StartTimeMin: spanTime.Add(-10 * time.Minute),
+						StartTimeMax: spanTime.Add(10 * time.Minute),
+						Attributes: map[string]string{
+							"testTag": "~test.*",
+						},
+					},
+				}, at.QueryOpts{})
+			},
+			Want: &at.JaegerAPITracesResponse{
+				Data: expectTraceData,
+			},
+			CmpOpts: []cmp.Option{
+				cmpopts.IgnoreFields(at.JaegerAPITracesResponse{}, "Errors", "Limit", "Offset", "Total"),
 			},
 		})
 	}

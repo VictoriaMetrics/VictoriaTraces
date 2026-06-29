@@ -194,10 +194,12 @@ func processFieldNamesRequest(ctx context.Context, w http.ResponseWriter, r *htt
 		return err
 	}
 
+	filter := r.FormValue("filter")
+
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	fieldNames, err := vtstorage.GetFieldNames(qctx)
+	fieldNames, err := vtstorage.GetFieldNames(qctx, filter)
 	if err != nil {
 		return fmt.Errorf("cannot obtain field names: %w", err)
 	}
@@ -212,6 +214,7 @@ func processFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 
 	fieldName := r.FormValue("field")
+	filter := r.FormValue("filter")
 
 	limit, err := getInt64FromRequest(r, "limit")
 	if err != nil {
@@ -221,7 +224,7 @@ func processFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	fieldValues, err := vtstorage.GetFieldValues(qctx, fieldName, uint64(limit))
+	fieldValues, err := vtstorage.GetFieldValues(qctx, fieldName, filter, uint64(limit))
 	if err != nil {
 		return fmt.Errorf("cannot obtain field values: %w", err)
 	}
@@ -235,10 +238,12 @@ func processStreamFieldNamesRequest(ctx context.Context, w http.ResponseWriter, 
 		return err
 	}
 
+	filter := r.FormValue("filter")
+
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	fieldNames, err := vtstorage.GetStreamFieldNames(qctx)
+	fieldNames, err := vtstorage.GetStreamFieldNames(qctx, filter)
 	if err != nil {
 		return fmt.Errorf("cannot obtain stream field names: %w", err)
 	}
@@ -253,6 +258,7 @@ func processStreamFieldValuesRequest(ctx context.Context, w http.ResponseWriter,
 	}
 
 	fieldName := r.FormValue("field")
+	filter := r.FormValue("filter")
 
 	limit, err := getInt64FromRequest(r, "limit")
 	if err != nil {
@@ -262,7 +268,7 @@ func processStreamFieldValuesRequest(ctx context.Context, w http.ResponseWriter,
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	fieldValues, err := vtstorage.GetStreamFieldValues(qctx, fieldName, uint64(limit))
+	fieldValues, err := vtstorage.GetStreamFieldValues(qctx, fieldName, filter, uint64(limit))
 	if err != nil {
 		return fmt.Errorf("cannot obtain stream field values: %w", err)
 	}

@@ -129,7 +129,7 @@ func handleJSONRequest(r *http.Request, w http.ResponseWriter) {
 		tsp := cp.NewTraceProcessor("opentelemetry_traces_otlphttp_json", false)
 		if callbackErr = req.UnmarshalJSONCustom(data); callbackErr != nil {
 			errorsJSONTotal.Inc()
-			return fmt.Errorf("cannot unmarshal request from %d protobuf bytes: %w", len(data), callbackErr)
+			return fmt.Errorf("cannot unmarshal request from %d json bytes: %w", len(data), callbackErr)
 		}
 		callbackErr = pushExportTraceServiceRequest(&req, tsp)
 		tsp.MustClose()
