@@ -321,7 +321,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 		}
 
 		// found enough trace_id, return directly
-		if len(traceIDList) == int(limit) {
+		if len(traceIDList) == limit {
 			maxStartTime, err := time.Parse(time.RFC3339, maxStartTimeStr)
 			if err != nil {
 				return nil, maxStartTime, err
