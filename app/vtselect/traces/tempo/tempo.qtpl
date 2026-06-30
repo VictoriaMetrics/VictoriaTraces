@@ -7,7 +7,7 @@
 
 {% stripspace %}
 
-{% func SearchTagsResponse(resourceTagList, spanTagList, eventTagList, linkTagList, instrumentationScopeTagList []string) %}
+{% func SearchTagsResponse(resourceTagList, spanTagList, eventTagList, linkTagList, instrumentationScopeTagList, intrinsicTagList []string) %}
 {
 	{% code
 	    sort.Slice(resourceTagList, func(i, j int) bool { return resourceTagList[i] < resourceTagList[j] })
@@ -17,6 +17,17 @@
 	    sort.Slice(instrumentationScopeTagList, func(i, j int) bool { return instrumentationScopeTagList[i] < instrumentationScopeTagList[j] })
 	%}
 	"scopes":[
+	    {
+            "name": "intrinsic",
+            "tags": [
+                {% if len(intrinsicTagList) > 0 %}
+                    {%q= intrinsicTagList[0] %}
+                    {% for _, tag := range intrinsicTagList[1:] %}
+                        ,{%q= tag %}
+                    {% endfor %}
+                {% endif %}
+            ]
+        },
 	    {
             "name": "resource",
             "tags": [

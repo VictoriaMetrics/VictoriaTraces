@@ -12,14 +12,14 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return intrinsic span fields (`name`, `kind`, `status`, `duration`) under the `intrinsic` scope of the Tempo `/api/v2/search/tags` endpoint, and support `scope=intrinsic`. Previously these fields were missing (they have no attribute prefix and were skipped during tag discovery, and `scope=intrinsic` returned an error), so they did not appear in the [Grafana Traces Drilldown](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/traces/) attribute breakdown. Thank @vshulakov-sh for [the pull request #175](https://github.com/VictoriaMetrics/VictoriaTraces/pull/175).
+
 ## [v0.9.3](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.3)
 
 Released at 2026-06-18
 
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support the Tempo querying traces by id (v1) endpoint `/api/traces/<trace_id>`. Previously only the v2 `/api/v2/traces/<trace_id>` endpoint was served.
-
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): honor the `Accept` header on the Tempo traces by id endpoints (v1 and v2). These endpoints now return OTLP/JSON by default, and return protobuf when `Accept: application/protobuf` header is set.
-
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtstorage in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): expose filesystem type for storage paths via the `vm_fs_info` metric. This helps identify filesystem-specific issues during troubleshooting. See [#164](https://github.com/VictoriaMetrics/VictoriaTraces/issues/164) for details.
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtinsert in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): response empty partial success correctly when error message for OTLP ingestion is empty. Thank @immanuwell for [the pull request #170](https://github.com/VictoriaMetrics/VictoriaTraces/pull/170).
