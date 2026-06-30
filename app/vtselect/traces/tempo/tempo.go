@@ -98,7 +98,7 @@ func processSearchTagsRequest(ctx context.Context, w http.ResponseWriter, r *htt
 		return
 	}
 
-	params, err := parseTempoAPIParam(ctx, r, true)
+	params, err := parseTempoAPIParam(ctx, r, true, *tracecommon.TraceMaxTags)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -141,7 +141,7 @@ func processSearchTagValuesRequest(ctx context.Context, w http.ResponseWriter, r
 		return
 	}
 
-	params, err := parseTempoAPIParam(ctx, r, true)
+	params, err := parseTempoAPIParam(ctx, r, true, *tracecommon.TraceMaxTags)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -187,7 +187,7 @@ func processSearchRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	params, err := parseTempoAPIParam(ctx, r, true)
+	params, err := parseTempoAPIParam(ctx, r, true, *tracecommon.TraceMaxTraces)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -234,7 +234,7 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	params, err := parseTempoAPIParam(ctx, r, false)
+	params, err := parseTempoAPIParam(ctx, r, false, *tracecommon.TraceMaxTraces)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -286,7 +286,7 @@ func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	params, err := parseTempoAPIParam(ctx, r, false)
+	params, err := parseTempoAPIParam(ctx, r, false, *tracecommon.TraceMaxTraces)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -360,7 +360,7 @@ func getIntrinsicTagsCopy() []string {
 	return c
 }
 
-func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, scope string, start, end, limit int64) (*searchTagResult, error) {
+func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, scope string, start, end int64, limit int) (*searchTagResult, error) {
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
 	filterQuery, err := traceql.ParseQuery(traceQLStr)
 	if err != nil {
@@ -440,11 +440,11 @@ func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr st
 	}
 	for i := range fieldNames {
 		if strings.HasPrefix(fieldNames[i], otelpb.SpanAttrPrefixField) {
-			result.spanTagList = appendNoExceedN(result.spanTagList, fieldNames[i][len(otelpb.SpanAttrPrefixField):], limit)
+			result.spanTagList = appendNoExceedN(result.spanTagList, fieldNames[i][len(otelpb.SpanAttrPrefixField):], int64(limit))
 		} else if strings.HasPrefix(fieldNames[i], otelpb.ResourceAttrPrefix) {
-			result.resourceTagList = appendNoExceedN(result.resourceTagList, fieldNames[i][len(otelpb.ResourceAttrPrefix):], limit)
+			result.resourceTagList = appendNoExceedN(result.resourceTagList, fieldNames[i][len(otelpb.ResourceAttrPrefix):], int64(limit))
 		} else if strings.HasPrefix(fieldNames[i], otelpb.InstrumentationScopeAttrPrefix) {
-			result.instrumentationScopeTagList = appendNoExceedN(result.instrumentationScopeTagList, fieldNames[i][len(otelpb.InstrumentationScopeAttrPrefix):], limit)
+			result.instrumentationScopeTagList = appendNoExceedN(result.instrumentationScopeTagList, fieldNames[i][len(otelpb.InstrumentationScopeAttrPrefix):], int64(limit))
 		} else {
 			// strings.HasPrefix(fieldNames[i], otelpb.LinkPrefix+otelpb.LinkAttrPrefix) || strings.HasPrefix(fieldNames[i], otelpb.EventPrefix+otelpb.EventAttrPrefix)
 			//lIdx := strings.LastIndex(fieldNames[i], ":")
@@ -467,7 +467,7 @@ func appendNoExceedN(s []string, item string, n int64) []string {
 	return append(s, item)
 }
 
-func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr, tagName string, start, end, limit int64) ([]string, error) {
+func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr, tagName string, start, end int64, limit int) ([]string, error) {
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
 	filterQuery, err := traceql.ParseQuery(traceQLStr)
 	if err != nil {
@@ -509,7 +509,7 @@ func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLS
 
 // singleFieldQueryHelper execute queries which contains only a single field in response, and return as []string.
 // it's useful for queries looking for `field_name`s or `field_value`s.
-func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, limit int64) ([]string, error) {
+func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, limit int) ([]string, error) {
 	resultList := make([]string, 0, limit)
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		columns := db.GetColumns(false)
@@ -535,7 +535,7 @@ func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracec
 	return resultList, nil
 }
 
-func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, start, end time.Time, limit int64) ([]traceSummary, error) {
+func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, start, end time.Time, limit int) ([]traceSummary, error) {
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
 	filterQuery, err := traceql.ParseQuery(traceQLStr)
 	if err != nil {
@@ -578,7 +578,7 @@ type traceSummary struct {
 	rootEndTimeUnixNano   int64
 }
 
-func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, limit int64) ([]traceSummary, error) {
+func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, limit int) ([]traceSummary, error) {
 	traceMap := make(map[string]traceSummary)
 
 	for _, row := range rows {
@@ -652,11 +652,11 @@ type commonAPIParam struct {
 	q     string
 	start time.Time
 	end   time.Time
-	limit int64
+	limit int
 }
 
 // parseTempoAPIParam parse Tempo request.
-func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime bool) (*commonAPIParam, error) {
+func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime bool, maxLimit int) (*commonAPIParam, error) {
 	// default params
 	p := &commonAPIParam{
 		q:     "{}",
@@ -694,12 +694,15 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 
 	limit := q.Get("limit")
 	if limit != "" {
-		l, err := strconv.ParseInt(limit, 10, 64)
+		l, err := strconv.Atoi(limit)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse limit: %s", limit)
+			return nil, fmt.Errorf("cannot parse limit: %s, err: %v", limit, err)
 		}
-		// Let's limit this to [0, 1000] to prevent users from specifying an excessively large value.
-		p.limit = max(0, min(1000, l))
+		// Let's limit this to [0, *tracecommon.TraceMaxTraces] to prevent users from specifying an excessively large value.
+		if l < 0 || l > maxLimit {
+			return nil, fmt.Errorf("limit %d out of range [0, %d]", l, maxLimit)
+		}
+		p.limit = l
 	}
 
 	p.q = q.Get("q")
