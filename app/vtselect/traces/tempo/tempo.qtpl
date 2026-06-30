@@ -15,7 +15,6 @@
 	    sort.Slice(eventTagList, func(i, j int) bool { return eventTagList[i] < eventTagList[j] })
 	    sort.Slice(linkTagList, func(i, j int) bool { return linkTagList[i] < linkTagList[j] })
 	    sort.Slice(instrumentationScopeTagList, func(i, j int) bool { return instrumentationScopeTagList[i] < instrumentationScopeTagList[j] })
-	    sort.Slice(intrinsicTagList, func(i, j int) bool { return intrinsicTagList[i] < intrinsicTagList[j] })
 	%}
 	"scopes":[
 	    {
