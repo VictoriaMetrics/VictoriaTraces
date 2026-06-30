@@ -326,11 +326,11 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 
 	limit := q.Get("limit")
 	if limit != "" {
-		p.Limit, err = strconv.ParseUint(limit, 10, 64)
+		p.Limit, err = strconv.Atoi(limit)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse limit [%s]: %w", limit, err)
 		}
-		if p.Limit > *tracecommon.TraceMaxTraces {
+		if p.Limit < 0 || p.Limit > *tracecommon.TraceMaxTraces {
 			return nil, fmt.Errorf("limit %d out of range [0, %d]", p.Limit, *tracecommon.TraceMaxTraces)
 		}
 	}

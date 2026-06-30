@@ -24,9 +24,9 @@ var (
 	TraceSearchStep = flag.Duration("search.traceSearchStep", 24*time.Hour, "Splits the [0, now] time range into many small time ranges by -search.traceSearchStep "+
 		"when searching for spans by trace_id. Once it finds spans in a time range, it performs an additional search according to -search.traceMaxDurationWindow and then stops. "+
 		"It affects Jaeger's /api/traces/<trace_id> API.")
-	TraceMaxTraces = flag.Uint64("search.maxTraces", 1000, "The maximum number of traces that can be returned in a single search request. "+
+	TraceMaxTraces = flag.Int("search.maxTraces", 1000, "The maximum number of traces that can be returned in a single search request. "+
 		"Users may request with different limit value via query argument which shouldn't exceed this limit. This limit applies to Jaeger’s /api/traces API and Tempo's /api/search API.")
-	TraceMaxTags = flag.Uint64("search.maxTags", 1000, "The maximum number of tags (including service name, span name) that can be returned in a single search request. "+
+	TraceMaxTags = flag.Int("search.maxTags", 1000, "The maximum number of tags (including service name, span name) that can be returned in a single search request. "+
 		"This limit applies to Jaeger’s /api/services, /api/services/*/operations APIs, and various Tempo tag-related APIs.")
 
 	LatencyOffset = flag.Duration("search.latencyOffset", 30*time.Second, "The time when a trace become visible in query results after the collection. see -insert.traceMaxDuration as well. (default 30s)")

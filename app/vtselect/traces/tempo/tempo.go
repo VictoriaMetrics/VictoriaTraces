@@ -336,7 +336,7 @@ type searchTagResult struct {
 	resourceTagList, spanTagList, eventTagList, linkTagList, instrumentationScopeTagList []string
 }
 
-func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, scope string, start, end int64, limit uint64) (*searchTagResult, error) {
+func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, scope string, start, end int64, limit int) (*searchTagResult, error) {
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
 	filterQuery, err := traceql.ParseQuery(traceQLStr)
 	if err != nil {
@@ -428,7 +428,7 @@ func appendNoExceedN(s []string, item string, n int64) []string {
 	return append(s, item)
 }
 
-func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr, tagName string, start, end int64, limit uint64) ([]string, error) {
+func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr, tagName string, start, end int64, limit int) ([]string, error) {
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
 	filterQuery, err := traceql.ParseQuery(traceQLStr)
 	if err != nil {
@@ -450,7 +450,7 @@ func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLS
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
 	q.AddTimeFilter(start, end)
-	q.AddPipeOffsetLimit(0, limit)
+	q.AddPipeOffsetLimit(0, uint64(limit))
 
 	values, err := singleFieldQueryHelper(ctx, q, cp, limit)
 	if err != nil {
@@ -470,7 +470,7 @@ func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLS
 
 // singleFieldQueryHelper execute queries which contains only a single field in response, and return as []string.
 // it's useful for queries looking for `field_name`s or `field_value`s.
-func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, limit uint64) ([]string, error) {
+func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, limit int) ([]string, error) {
 	resultList := make([]string, 0, limit)
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		columns := db.GetColumns(false)
@@ -496,7 +496,7 @@ func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracec
 	return resultList, nil
 }
 
-func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, start, end time.Time, limit uint64) ([]traceSummary, error) {
+func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, start, end time.Time, limit int) ([]traceSummary, error) {
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
 	filterQuery, err := traceql.ParseQuery(traceQLStr)
 	if err != nil {
@@ -539,7 +539,7 @@ type traceSummary struct {
 	rootEndTimeUnixNano   int64
 }
 
-func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, limit uint64) ([]traceSummary, error) {
+func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, limit int) ([]traceSummary, error) {
 	traceMap := make(map[string]traceSummary)
 
 	for _, row := range rows {
@@ -613,11 +613,11 @@ type commonAPIParam struct {
 	q     string
 	start time.Time
 	end   time.Time
-	limit uint64
+	limit int
 }
 
 // parseTempoAPIParam parse Tempo request.
-func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime bool, maxLimit uint64) (*commonAPIParam, error) {
+func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime bool, maxLimit int) (*commonAPIParam, error) {
 	// default params
 	p := &commonAPIParam{
 		q:     "{}",
@@ -655,12 +655,12 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 
 	limit := q.Get("limit")
 	if limit != "" {
-		l, err := strconv.ParseUint(limit, 10, 64)
+		l, err := strconv.Atoi(limit)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse limit: %s, err: %v", limit, err)
 		}
 		// Let's limit this to [0, *tracecommon.TraceMaxTraces] to prevent users from specifying an excessively large value.
-		if l > maxLimit {
+		if l < 0 || l > maxLimit {
 			return nil, fmt.Errorf("limit %d out of range [0, %d]", l, maxLimit)
 		}
 		p.limit = l

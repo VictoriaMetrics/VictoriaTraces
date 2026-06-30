@@ -132,7 +132,7 @@ func (jqp *JaegerQueryParam) asURLValues() url.Values {
 		uv.Add("maxDuration", strconv.FormatInt(jqp.DurationMax.Milliseconds(), 10)+"ms")
 	}
 	if jqp.Limit > 0 {
-		uv.Add("limit", strconv.FormatUint(jqp.Limit, 10))
+		uv.Add("limit", strconv.Itoa(jqp.Limit))
 	}
 	if !jqp.StartTimeMin.IsZero() {
 		uv.Add("start", strconv.FormatInt(jqp.StartTimeMin.UnixMicro(), 10))

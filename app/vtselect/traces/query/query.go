@@ -29,7 +29,7 @@ type TraceQueryParam struct {
 	StartTimeMax time.Time
 	DurationMin  time.Duration
 	DurationMax  time.Duration
-	Limit        uint64
+	Limit        int
 }
 
 // GetServiceNameList returns all unique service names within *traceServiceAndSpanNameLookbehind window.
@@ -49,7 +49,7 @@ func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]st
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	serviceHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.ResourceAttrServiceName, "", *tracecommon.TraceMaxTags)
+	serviceHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.ResourceAttrServiceName, "", uint64(*tracecommon.TraceMaxTags))
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
@@ -78,7 +78,7 @@ func GetSpanNameList(ctx context.Context, cp *tracecommon.CommonParams, serviceN
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	spanNameHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.NameField, "", *tracecommon.TraceMaxTags)
+	spanNameHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.NameField, "", uint64(*tracecommon.TraceMaxTags))
 	if err != nil {
 		return nil, fmt.Errorf("get span name hits error: %s", err)
 	}
@@ -268,7 +268,7 @@ func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, param *Tr
 // findTraceIDsSplitTimeRange try to search from the nearest time range of the end time.
 // if the result already met requirement of `limit`, return.
 // otherwise, amplify the time range to 5x and search again, until the start time exceed the input.
-func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, startTime, endTime time.Time, limit uint64) ([]string, time.Time, error) {
+func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, startTime, endTime time.Time, limit int) ([]string, time.Time, error) {
 	currentTime := time.Now()
 
 	step := time.Minute
