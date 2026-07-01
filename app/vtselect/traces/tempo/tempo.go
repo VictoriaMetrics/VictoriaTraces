@@ -674,7 +674,8 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 		// if it's the root span
 		if parentSpanID == "" {
 			trace.rootSpan = span
-		} else if len(trace.spanSet) < limit {
+		}
+		if len(trace.spanSet) < limit {
 			trace.spanSet = append(trace.spanSet, span)
 		}
 

@@ -162,11 +162,11 @@
 	"durationNanos":{% if span.endTimeUnixNano > 0 && span.startTimeUnixNano > 0 %}{%dl= span.endTimeUnixNano - span.startTimeUnixNano %}{% else %}0{% endif %},
     "attributes":[
         {"key":"service.name","value":{"stringValue":{%q= span.serviceName %}}},
-        {"key":"name","value":{"stringValue":{%q= span.name %}}}
+        {"key":"name","value":{"stringValue":{%q= span.name %}}},
+		{"key":"nestedSetParent","value":{"intValue": {% if span.parentSpanID == "" %}"-1"{% else %}"0"{% endif %}}}
     ]
 }
 {% endfunc %}
-
 
 {% comment %}
 TraceByIDV1JSON renders the Tempo /api/traces/<trace_id> (v1) JSON response:

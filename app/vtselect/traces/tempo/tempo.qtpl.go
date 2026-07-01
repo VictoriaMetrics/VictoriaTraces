@@ -425,34 +425,46 @@ func streamspanSummaryJson(qw422016 *qt422016.Writer, span spanSummary) {
 //line app/vtselect/traces/tempo/tempo.qtpl:165
 	qw422016.N().Q(span.name)
 //line app/vtselect/traces/tempo/tempo.qtpl:165
+	qw422016.N().S(`}},{"key":"nestedSetParent","value":{"intValue":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:166
+	if span.parentSpanID == "" {
+//line app/vtselect/traces/tempo/tempo.qtpl:166
+		qw422016.N().S(`"-1"`)
+//line app/vtselect/traces/tempo/tempo.qtpl:166
+	} else {
+//line app/vtselect/traces/tempo/tempo.qtpl:166
+		qw422016.N().S(`"0"`)
+//line app/vtselect/traces/tempo/tempo.qtpl:166
+	}
+//line app/vtselect/traces/tempo/tempo.qtpl:166
 	qw422016.N().S(`}}]}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 func writespanSummaryJson(qq422016 qtio422016.Writer, span spanSummary) {
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 	streamspanSummaryJson(qw422016, span)
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 func spanSummaryJson(span spanSummary) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 	writespanSummaryJson(qb422016, span)
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:168
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:175
