@@ -309,7 +309,7 @@ func streamsummaryJson(qw422016 *qt422016.Writer, summary traceSummary) {
 //line app/vtselect/traces/tempo/tempo.qtpl:139
 	qw422016.N().S(`,"spanSets":[`)
 //line app/vtselect/traces/tempo/tempo.qtpl:140
-	streamspanSetJSON(qw422016, summary.spanSet)
+	streamspanSetJSON(qw422016, summary.spanSet, summary.rootSpan)
 //line app/vtselect/traces/tempo/tempo.qtpl:140
 	qw422016.N().S(`]}`)
 //line app/vtselect/traces/tempo/tempo.qtpl:142
@@ -342,677 +342,612 @@ func summaryJson(summary traceSummary) string {
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:144
-func streamspanSetJSON(qw422016 *qt422016.Writer, spanSet []spanSummary) {
+func streamspanSetJSON(qw422016 *qt422016.Writer, spanSet []spanSummary, rootSpan spanSummary) {
 //line app/vtselect/traces/tempo/tempo.qtpl:144
-	qw422016.N().S(`{"spans":[`)
+	qw422016.N().S(`{`)
 //line app/vtselect/traces/tempo/tempo.qtpl:147
+	includeRoot := rootSpan.spanID != ""
+	if includeRoot {
+		for _, span := range spanSet {
+			if span.spanID == rootSpan.spanID {
+				includeRoot = false
+				break
+			}
+		}
+	}
+	matchedCount := len(spanSet)
+	if includeRoot {
+		matchedCount++
+	}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:160
+	qw422016.N().S(`"spans":[`)
+//line app/vtselect/traces/tempo/tempo.qtpl:162
+	if includeRoot {
+//line app/vtselect/traces/tempo/tempo.qtpl:163
+		streamspanSummaryJson(qw422016, rootSpan)
+//line app/vtselect/traces/tempo/tempo.qtpl:164
+		if len(spanSet) > 0 {
+//line app/vtselect/traces/tempo/tempo.qtpl:164
+			qw422016.N().S(`,`)
+//line app/vtselect/traces/tempo/tempo.qtpl:164
+		}
+//line app/vtselect/traces/tempo/tempo.qtpl:165
+	}
+//line app/vtselect/traces/tempo/tempo.qtpl:166
 	if len(spanSet) > 0 {
-//line app/vtselect/traces/tempo/tempo.qtpl:148
+//line app/vtselect/traces/tempo/tempo.qtpl:167
 		streamspanSummaryJson(qw422016, spanSet[0])
-//line app/vtselect/traces/tempo/tempo.qtpl:149
+//line app/vtselect/traces/tempo/tempo.qtpl:168
 		for _, span := range spanSet[1:] {
-//line app/vtselect/traces/tempo/tempo.qtpl:149
+//line app/vtselect/traces/tempo/tempo.qtpl:168
 			qw422016.N().S(`,`)
-//line app/vtselect/traces/tempo/tempo.qtpl:150
+//line app/vtselect/traces/tempo/tempo.qtpl:169
 			streamspanSummaryJson(qw422016, span)
-//line app/vtselect/traces/tempo/tempo.qtpl:151
+//line app/vtselect/traces/tempo/tempo.qtpl:170
 		}
-//line app/vtselect/traces/tempo/tempo.qtpl:152
+//line app/vtselect/traces/tempo/tempo.qtpl:171
 	}
-//line app/vtselect/traces/tempo/tempo.qtpl:152
+//line app/vtselect/traces/tempo/tempo.qtpl:171
 	qw422016.N().S(`],"matched":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:154
-	qw422016.N().D(len(spanSet))
-//line app/vtselect/traces/tempo/tempo.qtpl:154
+//line app/vtselect/traces/tempo/tempo.qtpl:173
+	qw422016.N().D(matchedCount)
+//line app/vtselect/traces/tempo/tempo.qtpl:173
 	qw422016.N().S(`}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:156
+//line app/vtselect/traces/tempo/tempo.qtpl:175
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:156
-func writespanSetJSON(qq422016 qtio422016.Writer, spanSet []spanSummary) {
-//line app/vtselect/traces/tempo/tempo.qtpl:156
+//line app/vtselect/traces/tempo/tempo.qtpl:175
+func writespanSetJSON(qq422016 qtio422016.Writer, spanSet []spanSummary, rootSpan spanSummary) {
+//line app/vtselect/traces/tempo/tempo.qtpl:175
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:156
-	streamspanSetJSON(qw422016, spanSet)
-//line app/vtselect/traces/tempo/tempo.qtpl:156
+//line app/vtselect/traces/tempo/tempo.qtpl:175
+	streamspanSetJSON(qw422016, spanSet, rootSpan)
+//line app/vtselect/traces/tempo/tempo.qtpl:175
 	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:156
+//line app/vtselect/traces/tempo/tempo.qtpl:175
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:156
-func spanSetJSON(spanSet []spanSummary) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:156
+//line app/vtselect/traces/tempo/tempo.qtpl:175
+func spanSetJSON(spanSet []spanSummary, rootSpan spanSummary) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:175
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:156
-	writespanSetJSON(qb422016, spanSet)
-//line app/vtselect/traces/tempo/tempo.qtpl:156
+//line app/vtselect/traces/tempo/tempo.qtpl:175
+	writespanSetJSON(qb422016, spanSet, rootSpan)
+//line app/vtselect/traces/tempo/tempo.qtpl:175
 	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:156
+//line app/vtselect/traces/tempo/tempo.qtpl:175
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:156
+//line app/vtselect/traces/tempo/tempo.qtpl:175
 	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:156
+//line app/vtselect/traces/tempo/tempo.qtpl:175
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:158
+//line app/vtselect/traces/tempo/tempo.qtpl:177
 func streamspanSummaryJson(qw422016 *qt422016.Writer, span spanSummary) {
-//line app/vtselect/traces/tempo/tempo.qtpl:158
+//line app/vtselect/traces/tempo/tempo.qtpl:177
 	qw422016.N().S(`{"spanID":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:160
+//line app/vtselect/traces/tempo/tempo.qtpl:179
 	qw422016.N().Q(span.spanID)
-//line app/vtselect/traces/tempo/tempo.qtpl:160
+//line app/vtselect/traces/tempo/tempo.qtpl:179
 	qw422016.N().S(`,"startTimeUnixNano":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:161
+//line app/vtselect/traces/tempo/tempo.qtpl:180
 	qw422016.N().DL(span.startTimeUnixNano)
-//line app/vtselect/traces/tempo/tempo.qtpl:161
+//line app/vtselect/traces/tempo/tempo.qtpl:180
 	qw422016.N().S(`,"durationNanos":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:162
+//line app/vtselect/traces/tempo/tempo.qtpl:181
 	if span.endTimeUnixNano > 0 && span.startTimeUnixNano > 0 {
-//line app/vtselect/traces/tempo/tempo.qtpl:162
+//line app/vtselect/traces/tempo/tempo.qtpl:181
 		qw422016.N().DL(span.endTimeUnixNano - span.startTimeUnixNano)
-//line app/vtselect/traces/tempo/tempo.qtpl:162
+//line app/vtselect/traces/tempo/tempo.qtpl:181
 	} else {
-//line app/vtselect/traces/tempo/tempo.qtpl:162
+//line app/vtselect/traces/tempo/tempo.qtpl:181
 		qw422016.N().S(`0`)
-//line app/vtselect/traces/tempo/tempo.qtpl:162
+//line app/vtselect/traces/tempo/tempo.qtpl:181
 	}
-//line app/vtselect/traces/tempo/tempo.qtpl:162
+//line app/vtselect/traces/tempo/tempo.qtpl:181
 	qw422016.N().S(`,"attributes":[{"key":"service.name","value":{"stringValue":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:164
+//line app/vtselect/traces/tempo/tempo.qtpl:183
 	qw422016.N().Q(span.serviceName)
-//line app/vtselect/traces/tempo/tempo.qtpl:164
+//line app/vtselect/traces/tempo/tempo.qtpl:183
 	qw422016.N().S(`}},{"key":"name","value":{"stringValue":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:165
+//line app/vtselect/traces/tempo/tempo.qtpl:184
 	qw422016.N().Q(span.name)
-//line app/vtselect/traces/tempo/tempo.qtpl:165
+//line app/vtselect/traces/tempo/tempo.qtpl:184
 	qw422016.N().S(`}},{"key":"nestedSetParent","value":{"intValue":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:166
+//line app/vtselect/traces/tempo/tempo.qtpl:185
 	if span.parentSpanID == "" {
-//line app/vtselect/traces/tempo/tempo.qtpl:166
+//line app/vtselect/traces/tempo/tempo.qtpl:185
 		qw422016.N().S(`"-1"`)
-//line app/vtselect/traces/tempo/tempo.qtpl:166
+//line app/vtselect/traces/tempo/tempo.qtpl:185
 	} else {
-//line app/vtselect/traces/tempo/tempo.qtpl:166
+//line app/vtselect/traces/tempo/tempo.qtpl:185
 		qw422016.N().S(`"0"`)
-//line app/vtselect/traces/tempo/tempo.qtpl:166
+//line app/vtselect/traces/tempo/tempo.qtpl:185
 	}
-//line app/vtselect/traces/tempo/tempo.qtpl:166
+//line app/vtselect/traces/tempo/tempo.qtpl:185
 	qw422016.N().S(`}}]}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 func writespanSummaryJson(qq422016 qtio422016.Writer, span spanSummary) {
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 	streamspanSummaryJson(qw422016, span)
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 func spanSummaryJson(span spanSummary) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 	writespanSummaryJson(qb422016, span)
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:169
+//line app/vtselect/traces/tempo/tempo.qtpl:188
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:175
+//line app/vtselect/traces/tempo/tempo.qtpl:194
 func StreamTraceByIDV1JSON(qw422016 *qt422016.Writer, resourceSpans []*otelpb.ResourceSpans) {
-//line app/vtselect/traces/tempo/tempo.qtpl:175
+//line app/vtselect/traces/tempo/tempo.qtpl:194
 	qw422016.N().S(`{"batches":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:177
+//line app/vtselect/traces/tempo/tempo.qtpl:196
 	streamresourceSpansArrayJSON(qw422016, resourceSpans)
-//line app/vtselect/traces/tempo/tempo.qtpl:177
+//line app/vtselect/traces/tempo/tempo.qtpl:196
 	qw422016.N().S(`}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-func WriteTraceByIDV1JSON(qq422016 qtio422016.Writer, resourceSpans []*otelpb.ResourceSpans) {
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-	StreamTraceByIDV1JSON(qw422016, resourceSpans)
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-func TraceByIDV1JSON(resourceSpans []*otelpb.ResourceSpans) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-	WriteTraceByIDV1JSON(qb422016, resourceSpans)
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:179
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:185
-func StreamTraceByIDV2JSON(qw422016 *qt422016.Writer, resourceSpans []*otelpb.ResourceSpans) {
-//line app/vtselect/traces/tempo/tempo.qtpl:185
-	qw422016.N().S(`{"trace":{"resourceSpans":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:188
-	streamresourceSpansArrayJSON(qw422016, resourceSpans)
-//line app/vtselect/traces/tempo/tempo.qtpl:188
-	qw422016.N().S(`},"metrics":{"inspectedBytes":"0"}}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-func WriteTraceByIDV2JSON(qq422016 qtio422016.Writer, resourceSpans []*otelpb.ResourceSpans) {
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-	StreamTraceByIDV2JSON(qw422016, resourceSpans)
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-func TraceByIDV2JSON(resourceSpans []*otelpb.ResourceSpans) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-	WriteTraceByIDV2JSON(qb422016, resourceSpans)
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:194
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:196
-func streamresourceSpansArrayJSON(qw422016 *qt422016.Writer, resourceSpans []*otelpb.ResourceSpans) {
-//line app/vtselect/traces/tempo/tempo.qtpl:196
-	qw422016.N().S(`[`)
 //line app/vtselect/traces/tempo/tempo.qtpl:198
-	if len(resourceSpans) > 0 {
-//line app/vtselect/traces/tempo/tempo.qtpl:199
-		streamresourceSpansJSON(qw422016, resourceSpans[0])
-//line app/vtselect/traces/tempo/tempo.qtpl:200
-		for _, rs := range resourceSpans[1:] {
-//line app/vtselect/traces/tempo/tempo.qtpl:200
-			qw422016.N().S(`,`)
-//line app/vtselect/traces/tempo/tempo.qtpl:201
-			streamresourceSpansJSON(qw422016, rs)
-//line app/vtselect/traces/tempo/tempo.qtpl:202
-		}
-//line app/vtselect/traces/tempo/tempo.qtpl:203
-	}
-//line app/vtselect/traces/tempo/tempo.qtpl:203
-	qw422016.N().S(`]`)
-//line app/vtselect/traces/tempo/tempo.qtpl:205
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:205
-func writeresourceSpansArrayJSON(qq422016 qtio422016.Writer, resourceSpans []*otelpb.ResourceSpans) {
-//line app/vtselect/traces/tempo/tempo.qtpl:205
+//line app/vtselect/traces/tempo/tempo.qtpl:198
+func WriteTraceByIDV1JSON(qq422016 qtio422016.Writer, resourceSpans []*otelpb.ResourceSpans) {
+//line app/vtselect/traces/tempo/tempo.qtpl:198
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:205
+//line app/vtselect/traces/tempo/tempo.qtpl:198
+	StreamTraceByIDV1JSON(qw422016, resourceSpans)
+//line app/vtselect/traces/tempo/tempo.qtpl:198
+	qt422016.ReleaseWriter(qw422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:198
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:198
+func TraceByIDV1JSON(resourceSpans []*otelpb.ResourceSpans) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:198
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vtselect/traces/tempo/tempo.qtpl:198
+	WriteTraceByIDV1JSON(qb422016, resourceSpans)
+//line app/vtselect/traces/tempo/tempo.qtpl:198
+	qs422016 := string(qb422016.B)
+//line app/vtselect/traces/tempo/tempo.qtpl:198
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:198
+	return qs422016
+//line app/vtselect/traces/tempo/tempo.qtpl:198
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:204
+func StreamTraceByIDV2JSON(qw422016 *qt422016.Writer, resourceSpans []*otelpb.ResourceSpans) {
+//line app/vtselect/traces/tempo/tempo.qtpl:204
+	qw422016.N().S(`{"trace":{"resourceSpans":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:207
 	streamresourceSpansArrayJSON(qw422016, resourceSpans)
-//line app/vtselect/traces/tempo/tempo.qtpl:205
-	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:205
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:205
-func resourceSpansArrayJSON(resourceSpans []*otelpb.ResourceSpans) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:205
-	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:205
-	writeresourceSpansArrayJSON(qb422016, resourceSpans)
-//line app/vtselect/traces/tempo/tempo.qtpl:205
-	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:205
-	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:205
-	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:205
-}
-
 //line app/vtselect/traces/tempo/tempo.qtpl:207
-func streamresourceSpansJSON(qw422016 *qt422016.Writer, rs *otelpb.ResourceSpans) {
-//line app/vtselect/traces/tempo/tempo.qtpl:207
-	qw422016.N().S(`{"resource":{"attributes":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:210
-	streamkeyValueListJSON(qw422016, rs.Resource.Attributes)
-//line app/vtselect/traces/tempo/tempo.qtpl:210
-	qw422016.N().S(`},"scopeSpans":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:212
-	streamscopeSpansArrayJSON(qw422016, rs.ScopeSpans)
-//line app/vtselect/traces/tempo/tempo.qtpl:212
-	qw422016.N().S(`}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:214
+	qw422016.N().S(`},"metrics":{"inspectedBytes":"0"}}`)
+//line app/vtselect/traces/tempo/tempo.qtpl:213
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:214
-func writeresourceSpansJSON(qq422016 qtio422016.Writer, rs *otelpb.ResourceSpans) {
-//line app/vtselect/traces/tempo/tempo.qtpl:214
+//line app/vtselect/traces/tempo/tempo.qtpl:213
+func WriteTraceByIDV2JSON(qq422016 qtio422016.Writer, resourceSpans []*otelpb.ResourceSpans) {
+//line app/vtselect/traces/tempo/tempo.qtpl:213
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:214
-	streamresourceSpansJSON(qw422016, rs)
-//line app/vtselect/traces/tempo/tempo.qtpl:214
+//line app/vtselect/traces/tempo/tempo.qtpl:213
+	StreamTraceByIDV2JSON(qw422016, resourceSpans)
+//line app/vtselect/traces/tempo/tempo.qtpl:213
 	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:214
+//line app/vtselect/traces/tempo/tempo.qtpl:213
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:214
-func resourceSpansJSON(rs *otelpb.ResourceSpans) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:214
+//line app/vtselect/traces/tempo/tempo.qtpl:213
+func TraceByIDV2JSON(resourceSpans []*otelpb.ResourceSpans) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:213
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:214
-	writeresourceSpansJSON(qb422016, rs)
-//line app/vtselect/traces/tempo/tempo.qtpl:214
+//line app/vtselect/traces/tempo/tempo.qtpl:213
+	WriteTraceByIDV2JSON(qb422016, resourceSpans)
+//line app/vtselect/traces/tempo/tempo.qtpl:213
 	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:214
+//line app/vtselect/traces/tempo/tempo.qtpl:213
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:214
+//line app/vtselect/traces/tempo/tempo.qtpl:213
 	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:214
+//line app/vtselect/traces/tempo/tempo.qtpl:213
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:216
-func streamscopeSpansArrayJSON(qw422016 *qt422016.Writer, scopeSpans []*otelpb.ScopeSpans) {
-//line app/vtselect/traces/tempo/tempo.qtpl:216
+//line app/vtselect/traces/tempo/tempo.qtpl:215
+func streamresourceSpansArrayJSON(qw422016 *qt422016.Writer, resourceSpans []*otelpb.ResourceSpans) {
+//line app/vtselect/traces/tempo/tempo.qtpl:215
 	qw422016.N().S(`[`)
+//line app/vtselect/traces/tempo/tempo.qtpl:217
+	if len(resourceSpans) > 0 {
 //line app/vtselect/traces/tempo/tempo.qtpl:218
-	if len(scopeSpans) > 0 {
+		streamresourceSpansJSON(qw422016, resourceSpans[0])
 //line app/vtselect/traces/tempo/tempo.qtpl:219
-		streamscopeSpansJSON(qw422016, scopeSpans[0])
-//line app/vtselect/traces/tempo/tempo.qtpl:220
-		for _, ss := range scopeSpans[1:] {
-//line app/vtselect/traces/tempo/tempo.qtpl:220
+		for _, rs := range resourceSpans[1:] {
+//line app/vtselect/traces/tempo/tempo.qtpl:219
 			qw422016.N().S(`,`)
+//line app/vtselect/traces/tempo/tempo.qtpl:220
+			streamresourceSpansJSON(qw422016, rs)
 //line app/vtselect/traces/tempo/tempo.qtpl:221
-			streamscopeSpansJSON(qw422016, ss)
+		}
 //line app/vtselect/traces/tempo/tempo.qtpl:222
-		}
-//line app/vtselect/traces/tempo/tempo.qtpl:223
 	}
-//line app/vtselect/traces/tempo/tempo.qtpl:223
+//line app/vtselect/traces/tempo/tempo.qtpl:222
 	qw422016.N().S(`]`)
-//line app/vtselect/traces/tempo/tempo.qtpl:225
+//line app/vtselect/traces/tempo/tempo.qtpl:224
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:225
-func writescopeSpansArrayJSON(qq422016 qtio422016.Writer, scopeSpans []*otelpb.ScopeSpans) {
-//line app/vtselect/traces/tempo/tempo.qtpl:225
+//line app/vtselect/traces/tempo/tempo.qtpl:224
+func writeresourceSpansArrayJSON(qq422016 qtio422016.Writer, resourceSpans []*otelpb.ResourceSpans) {
+//line app/vtselect/traces/tempo/tempo.qtpl:224
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:225
-	streamscopeSpansArrayJSON(qw422016, scopeSpans)
-//line app/vtselect/traces/tempo/tempo.qtpl:225
+//line app/vtselect/traces/tempo/tempo.qtpl:224
+	streamresourceSpansArrayJSON(qw422016, resourceSpans)
+//line app/vtselect/traces/tempo/tempo.qtpl:224
 	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:225
+//line app/vtselect/traces/tempo/tempo.qtpl:224
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:225
-func scopeSpansArrayJSON(scopeSpans []*otelpb.ScopeSpans) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:225
+//line app/vtselect/traces/tempo/tempo.qtpl:224
+func resourceSpansArrayJSON(resourceSpans []*otelpb.ResourceSpans) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:224
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:225
-	writescopeSpansArrayJSON(qb422016, scopeSpans)
-//line app/vtselect/traces/tempo/tempo.qtpl:225
+//line app/vtselect/traces/tempo/tempo.qtpl:224
+	writeresourceSpansArrayJSON(qb422016, resourceSpans)
+//line app/vtselect/traces/tempo/tempo.qtpl:224
 	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:225
+//line app/vtselect/traces/tempo/tempo.qtpl:224
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:225
+//line app/vtselect/traces/tempo/tempo.qtpl:224
 	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:225
+//line app/vtselect/traces/tempo/tempo.qtpl:224
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:227
-func streamscopeSpansJSON(qw422016 *qt422016.Writer, ss *otelpb.ScopeSpans) {
-//line app/vtselect/traces/tempo/tempo.qtpl:227
-	qw422016.N().S(`{"scope":{"name":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:230
-	qw422016.N().Q(ss.Scope.Name)
-//line app/vtselect/traces/tempo/tempo.qtpl:230
-	qw422016.N().S(`,"version":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:226
+func streamresourceSpansJSON(qw422016 *qt422016.Writer, rs *otelpb.ResourceSpans) {
+//line app/vtselect/traces/tempo/tempo.qtpl:226
+	qw422016.N().S(`{"resource":{"attributes":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:229
+	streamkeyValueListJSON(qw422016, rs.Resource.Attributes)
+//line app/vtselect/traces/tempo/tempo.qtpl:229
+	qw422016.N().S(`},"scopeSpans":`)
 //line app/vtselect/traces/tempo/tempo.qtpl:231
-	qw422016.N().Q(ss.Scope.Version)
+	streamscopeSpansArrayJSON(qw422016, rs.ScopeSpans)
 //line app/vtselect/traces/tempo/tempo.qtpl:231
-	qw422016.N().S(`,"attributes":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:232
-	streamkeyValueListJSON(qw422016, ss.Scope.Attributes)
-//line app/vtselect/traces/tempo/tempo.qtpl:232
-	qw422016.N().S(`},"spans":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:234
-	streamspansArrayJSON(qw422016, ss.Spans)
-//line app/vtselect/traces/tempo/tempo.qtpl:234
 	qw422016.N().S(`}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:236
+//line app/vtselect/traces/tempo/tempo.qtpl:233
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:236
-func writescopeSpansJSON(qq422016 qtio422016.Writer, ss *otelpb.ScopeSpans) {
-//line app/vtselect/traces/tempo/tempo.qtpl:236
+//line app/vtselect/traces/tempo/tempo.qtpl:233
+func writeresourceSpansJSON(qq422016 qtio422016.Writer, rs *otelpb.ResourceSpans) {
+//line app/vtselect/traces/tempo/tempo.qtpl:233
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:236
-	streamscopeSpansJSON(qw422016, ss)
-//line app/vtselect/traces/tempo/tempo.qtpl:236
+//line app/vtselect/traces/tempo/tempo.qtpl:233
+	streamresourceSpansJSON(qw422016, rs)
+//line app/vtselect/traces/tempo/tempo.qtpl:233
 	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:236
+//line app/vtselect/traces/tempo/tempo.qtpl:233
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:236
-func scopeSpansJSON(ss *otelpb.ScopeSpans) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:236
+//line app/vtselect/traces/tempo/tempo.qtpl:233
+func resourceSpansJSON(rs *otelpb.ResourceSpans) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:233
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:236
-	writescopeSpansJSON(qb422016, ss)
-//line app/vtselect/traces/tempo/tempo.qtpl:236
+//line app/vtselect/traces/tempo/tempo.qtpl:233
+	writeresourceSpansJSON(qb422016, rs)
+//line app/vtselect/traces/tempo/tempo.qtpl:233
 	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:236
+//line app/vtselect/traces/tempo/tempo.qtpl:233
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:236
+//line app/vtselect/traces/tempo/tempo.qtpl:233
 	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:236
+//line app/vtselect/traces/tempo/tempo.qtpl:233
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:238
-func streamspansArrayJSON(qw422016 *qt422016.Writer, spans []*otelpb.Span) {
-//line app/vtselect/traces/tempo/tempo.qtpl:238
+//line app/vtselect/traces/tempo/tempo.qtpl:235
+func streamscopeSpansArrayJSON(qw422016 *qt422016.Writer, scopeSpans []*otelpb.ScopeSpans) {
+//line app/vtselect/traces/tempo/tempo.qtpl:235
 	qw422016.N().S(`[`)
-//line app/vtselect/traces/tempo/tempo.qtpl:240
-	if len(spans) > 0 {
-//line app/vtselect/traces/tempo/tempo.qtpl:241
-		streamspanJSON(qw422016, spans[0])
-//line app/vtselect/traces/tempo/tempo.qtpl:242
-		for _, s := range spans[1:] {
-//line app/vtselect/traces/tempo/tempo.qtpl:242
+//line app/vtselect/traces/tempo/tempo.qtpl:237
+	if len(scopeSpans) > 0 {
+//line app/vtselect/traces/tempo/tempo.qtpl:238
+		streamscopeSpansJSON(qw422016, scopeSpans[0])
+//line app/vtselect/traces/tempo/tempo.qtpl:239
+		for _, ss := range scopeSpans[1:] {
+//line app/vtselect/traces/tempo/tempo.qtpl:239
 			qw422016.N().S(`,`)
-//line app/vtselect/traces/tempo/tempo.qtpl:243
-			streamspanJSON(qw422016, s)
-//line app/vtselect/traces/tempo/tempo.qtpl:244
+//line app/vtselect/traces/tempo/tempo.qtpl:240
+			streamscopeSpansJSON(qw422016, ss)
+//line app/vtselect/traces/tempo/tempo.qtpl:241
 		}
-//line app/vtselect/traces/tempo/tempo.qtpl:245
+//line app/vtselect/traces/tempo/tempo.qtpl:242
 	}
-//line app/vtselect/traces/tempo/tempo.qtpl:245
+//line app/vtselect/traces/tempo/tempo.qtpl:242
 	qw422016.N().S(`]`)
-//line app/vtselect/traces/tempo/tempo.qtpl:247
+//line app/vtselect/traces/tempo/tempo.qtpl:244
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:247
-func writespansArrayJSON(qq422016 qtio422016.Writer, spans []*otelpb.Span) {
-//line app/vtselect/traces/tempo/tempo.qtpl:247
+//line app/vtselect/traces/tempo/tempo.qtpl:244
+func writescopeSpansArrayJSON(qq422016 qtio422016.Writer, scopeSpans []*otelpb.ScopeSpans) {
+//line app/vtselect/traces/tempo/tempo.qtpl:244
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:247
-	streamspansArrayJSON(qw422016, spans)
-//line app/vtselect/traces/tempo/tempo.qtpl:247
+//line app/vtselect/traces/tempo/tempo.qtpl:244
+	streamscopeSpansArrayJSON(qw422016, scopeSpans)
+//line app/vtselect/traces/tempo/tempo.qtpl:244
 	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:247
+//line app/vtselect/traces/tempo/tempo.qtpl:244
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:247
-func spansArrayJSON(spans []*otelpb.Span) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:247
+//line app/vtselect/traces/tempo/tempo.qtpl:244
+func scopeSpansArrayJSON(scopeSpans []*otelpb.ScopeSpans) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:244
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:247
-	writespansArrayJSON(qb422016, spans)
-//line app/vtselect/traces/tempo/tempo.qtpl:247
+//line app/vtselect/traces/tempo/tempo.qtpl:244
+	writescopeSpansArrayJSON(qb422016, scopeSpans)
+//line app/vtselect/traces/tempo/tempo.qtpl:244
 	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:247
+//line app/vtselect/traces/tempo/tempo.qtpl:244
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:247
+//line app/vtselect/traces/tempo/tempo.qtpl:244
 	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:247
+//line app/vtselect/traces/tempo/tempo.qtpl:244
 }
 
+//line app/vtselect/traces/tempo/tempo.qtpl:246
+func streamscopeSpansJSON(qw422016 *qt422016.Writer, ss *otelpb.ScopeSpans) {
+//line app/vtselect/traces/tempo/tempo.qtpl:246
+	qw422016.N().S(`{"scope":{"name":`)
 //line app/vtselect/traces/tempo/tempo.qtpl:249
-func streamspanJSON(qw422016 *qt422016.Writer, s *otelpb.Span) {
+	qw422016.N().Q(ss.Scope.Name)
 //line app/vtselect/traces/tempo/tempo.qtpl:249
-	qw422016.N().S(`{"traceId":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:251
-	qw422016.N().Q(hexIDToBase64(s.TraceID))
-//line app/vtselect/traces/tempo/tempo.qtpl:251
-	qw422016.N().S(`,"spanId":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:252
-	qw422016.N().Q(hexIDToBase64(s.SpanID))
-//line app/vtselect/traces/tempo/tempo.qtpl:252
-	qw422016.N().S(`,`)
-//line app/vtselect/traces/tempo/tempo.qtpl:253
-	if s.ParentSpanID != "" {
-//line app/vtselect/traces/tempo/tempo.qtpl:253
-		qw422016.N().S(`"parentSpanId":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:254
-		qw422016.N().Q(hexIDToBase64(s.ParentSpanID))
-//line app/vtselect/traces/tempo/tempo.qtpl:254
-		qw422016.N().S(`,`)
-//line app/vtselect/traces/tempo/tempo.qtpl:255
-	}
-//line app/vtselect/traces/tempo/tempo.qtpl:255
-	qw422016.N().S(`"name":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:256
-	qw422016.N().Q(s.Name)
-//line app/vtselect/traces/tempo/tempo.qtpl:256
-	qw422016.N().S(`,"kind":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:257
-	qw422016.N().Q(spanKindName(s.Kind))
-//line app/vtselect/traces/tempo/tempo.qtpl:257
-	qw422016.N().S(`,"startTimeUnixNano":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:258
-	qw422016.N().Q(strconv.FormatUint(s.StartTimeUnixNano, 10))
-//line app/vtselect/traces/tempo/tempo.qtpl:258
-	qw422016.N().S(`,"endTimeUnixNano":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:259
-	qw422016.N().Q(strconv.FormatUint(s.EndTimeUnixNano, 10))
-//line app/vtselect/traces/tempo/tempo.qtpl:259
+	qw422016.N().S(`,"version":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:250
+	qw422016.N().Q(ss.Scope.Version)
+//line app/vtselect/traces/tempo/tempo.qtpl:250
 	qw422016.N().S(`,"attributes":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:251
+	streamkeyValueListJSON(qw422016, ss.Scope.Attributes)
+//line app/vtselect/traces/tempo/tempo.qtpl:251
+	qw422016.N().S(`},"spans":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:253
+	streamspansArrayJSON(qw422016, ss.Spans)
+//line app/vtselect/traces/tempo/tempo.qtpl:253
+	qw422016.N().S(`}`)
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+func writescopeSpansJSON(qq422016 qtio422016.Writer, ss *otelpb.ScopeSpans) {
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+	streamscopeSpansJSON(qw422016, ss)
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+	qt422016.ReleaseWriter(qw422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+func scopeSpansJSON(ss *otelpb.ScopeSpans) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+	writescopeSpansJSON(qb422016, ss)
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+	qs422016 := string(qb422016.B)
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+	return qs422016
+//line app/vtselect/traces/tempo/tempo.qtpl:255
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:257
+func streamspansArrayJSON(qw422016 *qt422016.Writer, spans []*otelpb.Span) {
+//line app/vtselect/traces/tempo/tempo.qtpl:257
+	qw422016.N().S(`[`)
+//line app/vtselect/traces/tempo/tempo.qtpl:259
+	if len(spans) > 0 {
 //line app/vtselect/traces/tempo/tempo.qtpl:260
-	streamkeyValueListJSON(qw422016, s.Attributes)
-//line app/vtselect/traces/tempo/tempo.qtpl:260
-	qw422016.N().S(`,"status":`)
+		streamspanJSON(qw422016, spans[0])
 //line app/vtselect/traces/tempo/tempo.qtpl:261
-	streamstatusJSON(qw422016, s.Status)
+		for _, s := range spans[1:] {
+//line app/vtselect/traces/tempo/tempo.qtpl:261
+			qw422016.N().S(`,`)
 //line app/vtselect/traces/tempo/tempo.qtpl:262
-	if len(s.Events) > 0 {
-//line app/vtselect/traces/tempo/tempo.qtpl:262
-		qw422016.N().S(`,"events":`)
+			streamspanJSON(qw422016, s)
 //line app/vtselect/traces/tempo/tempo.qtpl:263
-		streameventsArrayJSON(qw422016, s.Events)
+		}
 //line app/vtselect/traces/tempo/tempo.qtpl:264
 	}
-//line app/vtselect/traces/tempo/tempo.qtpl:265
-	if len(s.Links) > 0 {
-//line app/vtselect/traces/tempo/tempo.qtpl:265
-		qw422016.N().S(`,"links":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:266
-		streamlinksArrayJSON(qw422016, s.Links)
-//line app/vtselect/traces/tempo/tempo.qtpl:267
-	}
-//line app/vtselect/traces/tempo/tempo.qtpl:267
-	qw422016.N().S(`}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-func writespanJSON(qq422016 qtio422016.Writer, s *otelpb.Span) {
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-	streamspanJSON(qw422016, s)
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-func spanJSON(s *otelpb.Span) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-	writespanJSON(qb422016, s)
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:269
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:271
-func streamstatusJSON(qw422016 *qt422016.Writer, st otelpb.Status) {
-//line app/vtselect/traces/tempo/tempo.qtpl:271
-	qw422016.N().S(`{`)
-//line app/vtselect/traces/tempo/tempo.qtpl:273
-	if st.Message != "" {
-//line app/vtselect/traces/tempo/tempo.qtpl:273
-		qw422016.N().S(`"message":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:274
-		qw422016.N().Q(st.Message)
-//line app/vtselect/traces/tempo/tempo.qtpl:274
-		if st.Code != 0 {
-//line app/vtselect/traces/tempo/tempo.qtpl:274
-			qw422016.N().S(`,`)
-//line app/vtselect/traces/tempo/tempo.qtpl:274
-		}
-//line app/vtselect/traces/tempo/tempo.qtpl:275
-	}
-//line app/vtselect/traces/tempo/tempo.qtpl:276
-	if st.Code != 0 {
-//line app/vtselect/traces/tempo/tempo.qtpl:276
-		qw422016.N().S(`"code":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:277
-		qw422016.N().Q(statusCodeName(st.Code))
-//line app/vtselect/traces/tempo/tempo.qtpl:278
-	}
-//line app/vtselect/traces/tempo/tempo.qtpl:278
-	qw422016.N().S(`}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-func writestatusJSON(qq422016 qtio422016.Writer, st otelpb.Status) {
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-	streamstatusJSON(qw422016, st)
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-func statusJSON(st otelpb.Status) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-	writestatusJSON(qb422016, st)
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:280
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:282
-func streameventsArrayJSON(qw422016 *qt422016.Writer, events []*otelpb.SpanEvent) {
-//line app/vtselect/traces/tempo/tempo.qtpl:282
-	qw422016.N().S(`[`)
-//line app/vtselect/traces/tempo/tempo.qtpl:284
-	if len(events) > 0 {
-//line app/vtselect/traces/tempo/tempo.qtpl:285
-		streameventJSON(qw422016, events[0])
-//line app/vtselect/traces/tempo/tempo.qtpl:286
-		for _, e := range events[1:] {
-//line app/vtselect/traces/tempo/tempo.qtpl:286
-			qw422016.N().S(`,`)
-//line app/vtselect/traces/tempo/tempo.qtpl:287
-			streameventJSON(qw422016, e)
-//line app/vtselect/traces/tempo/tempo.qtpl:288
-		}
-//line app/vtselect/traces/tempo/tempo.qtpl:289
-	}
-//line app/vtselect/traces/tempo/tempo.qtpl:289
+//line app/vtselect/traces/tempo/tempo.qtpl:264
 	qw422016.N().S(`]`)
-//line app/vtselect/traces/tempo/tempo.qtpl:291
+//line app/vtselect/traces/tempo/tempo.qtpl:266
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:291
-func writeeventsArrayJSON(qq422016 qtio422016.Writer, events []*otelpb.SpanEvent) {
-//line app/vtselect/traces/tempo/tempo.qtpl:291
+//line app/vtselect/traces/tempo/tempo.qtpl:266
+func writespansArrayJSON(qq422016 qtio422016.Writer, spans []*otelpb.Span) {
+//line app/vtselect/traces/tempo/tempo.qtpl:266
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:291
-	streameventsArrayJSON(qw422016, events)
-//line app/vtselect/traces/tempo/tempo.qtpl:291
+//line app/vtselect/traces/tempo/tempo.qtpl:266
+	streamspansArrayJSON(qw422016, spans)
+//line app/vtselect/traces/tempo/tempo.qtpl:266
 	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:291
+//line app/vtselect/traces/tempo/tempo.qtpl:266
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:291
-func eventsArrayJSON(events []*otelpb.SpanEvent) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:291
+//line app/vtselect/traces/tempo/tempo.qtpl:266
+func spansArrayJSON(spans []*otelpb.Span) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:266
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:291
-	writeeventsArrayJSON(qb422016, events)
-//line app/vtselect/traces/tempo/tempo.qtpl:291
+//line app/vtselect/traces/tempo/tempo.qtpl:266
+	writespansArrayJSON(qb422016, spans)
+//line app/vtselect/traces/tempo/tempo.qtpl:266
 	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:291
+//line app/vtselect/traces/tempo/tempo.qtpl:266
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:291
+//line app/vtselect/traces/tempo/tempo.qtpl:266
 	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:291
+//line app/vtselect/traces/tempo/tempo.qtpl:266
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:293
-func streameventJSON(qw422016 *qt422016.Writer, e *otelpb.SpanEvent) {
-//line app/vtselect/traces/tempo/tempo.qtpl:293
-	qw422016.N().S(`{"timeUnixNano":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:295
-	qw422016.N().Q(strconv.FormatUint(e.TimeUnixNano, 10))
-//line app/vtselect/traces/tempo/tempo.qtpl:295
-	qw422016.N().S(`,"name":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:296
-	qw422016.N().Q(e.Name)
-//line app/vtselect/traces/tempo/tempo.qtpl:296
+//line app/vtselect/traces/tempo/tempo.qtpl:268
+func streamspanJSON(qw422016 *qt422016.Writer, s *otelpb.Span) {
+//line app/vtselect/traces/tempo/tempo.qtpl:268
+	qw422016.N().S(`{"traceId":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:270
+	qw422016.N().Q(hexIDToBase64(s.TraceID))
+//line app/vtselect/traces/tempo/tempo.qtpl:270
+	qw422016.N().S(`,"spanId":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:271
+	qw422016.N().Q(hexIDToBase64(s.SpanID))
+//line app/vtselect/traces/tempo/tempo.qtpl:271
+	qw422016.N().S(`,`)
+//line app/vtselect/traces/tempo/tempo.qtpl:272
+	if s.ParentSpanID != "" {
+//line app/vtselect/traces/tempo/tempo.qtpl:272
+		qw422016.N().S(`"parentSpanId":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:273
+		qw422016.N().Q(hexIDToBase64(s.ParentSpanID))
+//line app/vtselect/traces/tempo/tempo.qtpl:273
+		qw422016.N().S(`,`)
+//line app/vtselect/traces/tempo/tempo.qtpl:274
+	}
+//line app/vtselect/traces/tempo/tempo.qtpl:274
+	qw422016.N().S(`"name":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:275
+	qw422016.N().Q(s.Name)
+//line app/vtselect/traces/tempo/tempo.qtpl:275
+	qw422016.N().S(`,"kind":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:276
+	qw422016.N().Q(spanKindName(s.Kind))
+//line app/vtselect/traces/tempo/tempo.qtpl:276
+	qw422016.N().S(`,"startTimeUnixNano":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:277
+	qw422016.N().Q(strconv.FormatUint(s.StartTimeUnixNano, 10))
+//line app/vtselect/traces/tempo/tempo.qtpl:277
+	qw422016.N().S(`,"endTimeUnixNano":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:278
+	qw422016.N().Q(strconv.FormatUint(s.EndTimeUnixNano, 10))
+//line app/vtselect/traces/tempo/tempo.qtpl:278
 	qw422016.N().S(`,"attributes":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:279
+	streamkeyValueListJSON(qw422016, s.Attributes)
+//line app/vtselect/traces/tempo/tempo.qtpl:279
+	qw422016.N().S(`,"status":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:280
+	streamstatusJSON(qw422016, s.Status)
+//line app/vtselect/traces/tempo/tempo.qtpl:281
+	if len(s.Events) > 0 {
+//line app/vtselect/traces/tempo/tempo.qtpl:281
+		qw422016.N().S(`,"events":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:282
+		streameventsArrayJSON(qw422016, s.Events)
+//line app/vtselect/traces/tempo/tempo.qtpl:283
+	}
+//line app/vtselect/traces/tempo/tempo.qtpl:284
+	if len(s.Links) > 0 {
+//line app/vtselect/traces/tempo/tempo.qtpl:284
+		qw422016.N().S(`,"links":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:285
+		streamlinksArrayJSON(qw422016, s.Links)
+//line app/vtselect/traces/tempo/tempo.qtpl:286
+	}
+//line app/vtselect/traces/tempo/tempo.qtpl:286
+	qw422016.N().S(`}`)
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+func writespanJSON(qq422016 qtio422016.Writer, s *otelpb.Span) {
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+	streamspanJSON(qw422016, s)
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+	qt422016.ReleaseWriter(qw422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+func spanJSON(s *otelpb.Span) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+	writespanJSON(qb422016, s)
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+	qs422016 := string(qb422016.B)
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+	return qs422016
+//line app/vtselect/traces/tempo/tempo.qtpl:288
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:290
+func streamstatusJSON(qw422016 *qt422016.Writer, st otelpb.Status) {
+//line app/vtselect/traces/tempo/tempo.qtpl:290
+	qw422016.N().S(`{`)
+//line app/vtselect/traces/tempo/tempo.qtpl:292
+	if st.Message != "" {
+//line app/vtselect/traces/tempo/tempo.qtpl:292
+		qw422016.N().S(`"message":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:293
+		qw422016.N().Q(st.Message)
+//line app/vtselect/traces/tempo/tempo.qtpl:293
+		if st.Code != 0 {
+//line app/vtselect/traces/tempo/tempo.qtpl:293
+			qw422016.N().S(`,`)
+//line app/vtselect/traces/tempo/tempo.qtpl:293
+		}
+//line app/vtselect/traces/tempo/tempo.qtpl:294
+	}
+//line app/vtselect/traces/tempo/tempo.qtpl:295
+	if st.Code != 0 {
+//line app/vtselect/traces/tempo/tempo.qtpl:295
+		qw422016.N().S(`"code":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:296
+		qw422016.N().Q(statusCodeName(st.Code))
 //line app/vtselect/traces/tempo/tempo.qtpl:297
-	streamkeyValueListJSON(qw422016, e.Attributes)
+	}
 //line app/vtselect/traces/tempo/tempo.qtpl:297
 	qw422016.N().S(`}`)
 //line app/vtselect/traces/tempo/tempo.qtpl:299
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:299
-func writeeventJSON(qq422016 qtio422016.Writer, e *otelpb.SpanEvent) {
+func writestatusJSON(qq422016 qtio422016.Writer, st otelpb.Status) {
 //line app/vtselect/traces/tempo/tempo.qtpl:299
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vtselect/traces/tempo/tempo.qtpl:299
-	streameventJSON(qw422016, e)
+	streamstatusJSON(qw422016, st)
 //line app/vtselect/traces/tempo/tempo.qtpl:299
 	qt422016.ReleaseWriter(qw422016)
 //line app/vtselect/traces/tempo/tempo.qtpl:299
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:299
-func eventJSON(e *otelpb.SpanEvent) string {
+func statusJSON(st otelpb.Status) string {
 //line app/vtselect/traces/tempo/tempo.qtpl:299
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vtselect/traces/tempo/tempo.qtpl:299
-	writeeventJSON(qb422016, e)
+	writestatusJSON(qb422016, st)
 //line app/vtselect/traces/tempo/tempo.qtpl:299
 	qs422016 := string(qb422016.B)
 //line app/vtselect/traces/tempo/tempo.qtpl:299
@@ -1023,19 +958,19 @@ func eventJSON(e *otelpb.SpanEvent) string {
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:301
-func streamlinksArrayJSON(qw422016 *qt422016.Writer, links []*otelpb.SpanLink) {
+func streameventsArrayJSON(qw422016 *qt422016.Writer, events []*otelpb.SpanEvent) {
 //line app/vtselect/traces/tempo/tempo.qtpl:301
 	qw422016.N().S(`[`)
 //line app/vtselect/traces/tempo/tempo.qtpl:303
-	if len(links) > 0 {
+	if len(events) > 0 {
 //line app/vtselect/traces/tempo/tempo.qtpl:304
-		streamlinkJSON(qw422016, links[0])
+		streameventJSON(qw422016, events[0])
 //line app/vtselect/traces/tempo/tempo.qtpl:305
-		for _, l := range links[1:] {
+		for _, e := range events[1:] {
 //line app/vtselect/traces/tempo/tempo.qtpl:305
 			qw422016.N().S(`,`)
 //line app/vtselect/traces/tempo/tempo.qtpl:306
-			streamlinkJSON(qw422016, l)
+			streameventJSON(qw422016, e)
 //line app/vtselect/traces/tempo/tempo.qtpl:307
 		}
 //line app/vtselect/traces/tempo/tempo.qtpl:308
@@ -1046,22 +981,22 @@ func streamlinksArrayJSON(qw422016 *qt422016.Writer, links []*otelpb.SpanLink) {
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:310
-func writelinksArrayJSON(qq422016 qtio422016.Writer, links []*otelpb.SpanLink) {
+func writeeventsArrayJSON(qq422016 qtio422016.Writer, events []*otelpb.SpanEvent) {
 //line app/vtselect/traces/tempo/tempo.qtpl:310
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vtselect/traces/tempo/tempo.qtpl:310
-	streamlinksArrayJSON(qw422016, links)
+	streameventsArrayJSON(qw422016, events)
 //line app/vtselect/traces/tempo/tempo.qtpl:310
 	qt422016.ReleaseWriter(qw422016)
 //line app/vtselect/traces/tempo/tempo.qtpl:310
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:310
-func linksArrayJSON(links []*otelpb.SpanLink) string {
+func eventsArrayJSON(events []*otelpb.SpanEvent) string {
 //line app/vtselect/traces/tempo/tempo.qtpl:310
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vtselect/traces/tempo/tempo.qtpl:310
-	writelinksArrayJSON(qb422016, links)
+	writeeventsArrayJSON(qb422016, events)
 //line app/vtselect/traces/tempo/tempo.qtpl:310
 	qs422016 := string(qb422016.B)
 //line app/vtselect/traces/tempo/tempo.qtpl:310
@@ -1072,41 +1007,41 @@ func linksArrayJSON(links []*otelpb.SpanLink) string {
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:312
-func streamlinkJSON(qw422016 *qt422016.Writer, l *otelpb.SpanLink) {
+func streameventJSON(qw422016 *qt422016.Writer, e *otelpb.SpanEvent) {
 //line app/vtselect/traces/tempo/tempo.qtpl:312
-	qw422016.N().S(`{"traceId":`)
+	qw422016.N().S(`{"timeUnixNano":`)
 //line app/vtselect/traces/tempo/tempo.qtpl:314
-	qw422016.N().Q(hexIDToBase64(l.TraceID))
+	qw422016.N().Q(strconv.FormatUint(e.TimeUnixNano, 10))
 //line app/vtselect/traces/tempo/tempo.qtpl:314
-	qw422016.N().S(`,"spanId":`)
+	qw422016.N().S(`,"name":`)
 //line app/vtselect/traces/tempo/tempo.qtpl:315
-	qw422016.N().Q(hexIDToBase64(l.SpanID))
+	qw422016.N().Q(e.Name)
 //line app/vtselect/traces/tempo/tempo.qtpl:315
 	qw422016.N().S(`,"attributes":`)
 //line app/vtselect/traces/tempo/tempo.qtpl:316
-	streamkeyValueListJSON(qw422016, l.Attributes)
+	streamkeyValueListJSON(qw422016, e.Attributes)
 //line app/vtselect/traces/tempo/tempo.qtpl:316
 	qw422016.N().S(`}`)
 //line app/vtselect/traces/tempo/tempo.qtpl:318
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:318
-func writelinkJSON(qq422016 qtio422016.Writer, l *otelpb.SpanLink) {
+func writeeventJSON(qq422016 qtio422016.Writer, e *otelpb.SpanEvent) {
 //line app/vtselect/traces/tempo/tempo.qtpl:318
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vtselect/traces/tempo/tempo.qtpl:318
-	streamlinkJSON(qw422016, l)
+	streameventJSON(qw422016, e)
 //line app/vtselect/traces/tempo/tempo.qtpl:318
 	qt422016.ReleaseWriter(qw422016)
 //line app/vtselect/traces/tempo/tempo.qtpl:318
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:318
-func linkJSON(l *otelpb.SpanLink) string {
+func eventJSON(e *otelpb.SpanEvent) string {
 //line app/vtselect/traces/tempo/tempo.qtpl:318
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vtselect/traces/tempo/tempo.qtpl:318
-	writelinkJSON(qb422016, l)
+	writeeventJSON(qb422016, e)
 //line app/vtselect/traces/tempo/tempo.qtpl:318
 	qs422016 := string(qb422016.B)
 //line app/vtselect/traces/tempo/tempo.qtpl:318
@@ -1117,19 +1052,19 @@ func linkJSON(l *otelpb.SpanLink) string {
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:320
-func streamkeyValueListJSON(qw422016 *qt422016.Writer, kvs []*otelpb.KeyValue) {
+func streamlinksArrayJSON(qw422016 *qt422016.Writer, links []*otelpb.SpanLink) {
 //line app/vtselect/traces/tempo/tempo.qtpl:320
 	qw422016.N().S(`[`)
 //line app/vtselect/traces/tempo/tempo.qtpl:322
-	if len(kvs) > 0 {
+	if len(links) > 0 {
 //line app/vtselect/traces/tempo/tempo.qtpl:323
-		streamkeyValueJSON(qw422016, kvs[0])
+		streamlinkJSON(qw422016, links[0])
 //line app/vtselect/traces/tempo/tempo.qtpl:324
-		for _, kv := range kvs[1:] {
+		for _, l := range links[1:] {
 //line app/vtselect/traces/tempo/tempo.qtpl:324
 			qw422016.N().S(`,`)
 //line app/vtselect/traces/tempo/tempo.qtpl:325
-			streamkeyValueJSON(qw422016, kv)
+			streamlinkJSON(qw422016, l)
 //line app/vtselect/traces/tempo/tempo.qtpl:326
 		}
 //line app/vtselect/traces/tempo/tempo.qtpl:327
@@ -1140,22 +1075,22 @@ func streamkeyValueListJSON(qw422016 *qt422016.Writer, kvs []*otelpb.KeyValue) {
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:329
-func writekeyValueListJSON(qq422016 qtio422016.Writer, kvs []*otelpb.KeyValue) {
+func writelinksArrayJSON(qq422016 qtio422016.Writer, links []*otelpb.SpanLink) {
 //line app/vtselect/traces/tempo/tempo.qtpl:329
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vtselect/traces/tempo/tempo.qtpl:329
-	streamkeyValueListJSON(qw422016, kvs)
+	streamlinksArrayJSON(qw422016, links)
 //line app/vtselect/traces/tempo/tempo.qtpl:329
 	qt422016.ReleaseWriter(qw422016)
 //line app/vtselect/traces/tempo/tempo.qtpl:329
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:329
-func keyValueListJSON(kvs []*otelpb.KeyValue) string {
+func linksArrayJSON(links []*otelpb.SpanLink) string {
 //line app/vtselect/traces/tempo/tempo.qtpl:329
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vtselect/traces/tempo/tempo.qtpl:329
-	writekeyValueListJSON(qb422016, kvs)
+	writelinksArrayJSON(qb422016, links)
 //line app/vtselect/traces/tempo/tempo.qtpl:329
 	qs422016 := string(qb422016.B)
 //line app/vtselect/traces/tempo/tempo.qtpl:329
@@ -1166,184 +1101,278 @@ func keyValueListJSON(kvs []*otelpb.KeyValue) string {
 }
 
 //line app/vtselect/traces/tempo/tempo.qtpl:331
-func streamkeyValueJSON(qw422016 *qt422016.Writer, kv *otelpb.KeyValue) {
+func streamlinkJSON(qw422016 *qt422016.Writer, l *otelpb.SpanLink) {
 //line app/vtselect/traces/tempo/tempo.qtpl:331
-	qw422016.N().S(`{"key":`)
+	qw422016.N().S(`{"traceId":`)
 //line app/vtselect/traces/tempo/tempo.qtpl:333
-	qw422016.N().Q(kv.Key)
+	qw422016.N().Q(hexIDToBase64(l.TraceID))
 //line app/vtselect/traces/tempo/tempo.qtpl:333
-	qw422016.N().S(`,"value":`)
+	qw422016.N().S(`,"spanId":`)
 //line app/vtselect/traces/tempo/tempo.qtpl:334
-	streamanyValueJSON(qw422016, kv.Value)
+	qw422016.N().Q(hexIDToBase64(l.SpanID))
 //line app/vtselect/traces/tempo/tempo.qtpl:334
+	qw422016.N().S(`,"attributes":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:335
+	streamkeyValueListJSON(qw422016, l.Attributes)
+//line app/vtselect/traces/tempo/tempo.qtpl:335
 	qw422016.N().S(`}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:336
+//line app/vtselect/traces/tempo/tempo.qtpl:337
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:336
-func writekeyValueJSON(qq422016 qtio422016.Writer, kv *otelpb.KeyValue) {
-//line app/vtselect/traces/tempo/tempo.qtpl:336
+//line app/vtselect/traces/tempo/tempo.qtpl:337
+func writelinkJSON(qq422016 qtio422016.Writer, l *otelpb.SpanLink) {
+//line app/vtselect/traces/tempo/tempo.qtpl:337
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:336
-	streamkeyValueJSON(qw422016, kv)
-//line app/vtselect/traces/tempo/tempo.qtpl:336
+//line app/vtselect/traces/tempo/tempo.qtpl:337
+	streamlinkJSON(qw422016, l)
+//line app/vtselect/traces/tempo/tempo.qtpl:337
 	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:336
+//line app/vtselect/traces/tempo/tempo.qtpl:337
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:336
-func keyValueJSON(kv *otelpb.KeyValue) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:336
+//line app/vtselect/traces/tempo/tempo.qtpl:337
+func linkJSON(l *otelpb.SpanLink) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:337
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:336
-	writekeyValueJSON(qb422016, kv)
-//line app/vtselect/traces/tempo/tempo.qtpl:336
+//line app/vtselect/traces/tempo/tempo.qtpl:337
+	writelinkJSON(qb422016, l)
+//line app/vtselect/traces/tempo/tempo.qtpl:337
 	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:336
+//line app/vtselect/traces/tempo/tempo.qtpl:337
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:336
+//line app/vtselect/traces/tempo/tempo.qtpl:337
 	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:336
+//line app/vtselect/traces/tempo/tempo.qtpl:337
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:338
-func streamanyValueJSON(qw422016 *qt422016.Writer, v *otelpb.AnyValue) {
-//line app/vtselect/traces/tempo/tempo.qtpl:338
-	qw422016.N().S(`{`)
-//line app/vtselect/traces/tempo/tempo.qtpl:340
-	if v == nil {
-//line app/vtselect/traces/tempo/tempo.qtpl:341
-	} else if v.StringValue != nil {
-//line app/vtselect/traces/tempo/tempo.qtpl:341
-		qw422016.N().S(`"stringValue":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:342
-		qw422016.N().Q(*v.StringValue)
-//line app/vtselect/traces/tempo/tempo.qtpl:343
-	} else if v.BoolValue != nil {
-//line app/vtselect/traces/tempo/tempo.qtpl:343
-		qw422016.N().S(`"boolValue":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:344
-		if *v.BoolValue {
-//line app/vtselect/traces/tempo/tempo.qtpl:344
-			qw422016.N().S(`true`)
-//line app/vtselect/traces/tempo/tempo.qtpl:344
-		} else {
-//line app/vtselect/traces/tempo/tempo.qtpl:344
-			qw422016.N().S(`false`)
-//line app/vtselect/traces/tempo/tempo.qtpl:344
-		}
-//line app/vtselect/traces/tempo/tempo.qtpl:345
-	} else if v.IntValue != nil {
-//line app/vtselect/traces/tempo/tempo.qtpl:345
-		qw422016.N().S(`"intValue":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:346
-		qw422016.N().Q(strconv.FormatInt(*v.IntValue, 10))
-//line app/vtselect/traces/tempo/tempo.qtpl:347
-	} else if v.DoubleValue != nil {
-//line app/vtselect/traces/tempo/tempo.qtpl:347
-		qw422016.N().S(`"doubleValue":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:348
-		qw422016.N().F(*v.DoubleValue)
-//line app/vtselect/traces/tempo/tempo.qtpl:349
-	} else if v.BytesValue != nil {
-//line app/vtselect/traces/tempo/tempo.qtpl:349
-		qw422016.N().S(`"bytesValue":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:350
-		qw422016.N().Q(bytesToBase64(*v.BytesValue))
-//line app/vtselect/traces/tempo/tempo.qtpl:351
-	} else if v.ArrayValue != nil {
-//line app/vtselect/traces/tempo/tempo.qtpl:351
-		qw422016.N().S(`"arrayValue":{"values":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:352
-		streamanyValueArrayJSON(qw422016, v.ArrayValue.Values)
-//line app/vtselect/traces/tempo/tempo.qtpl:352
-		qw422016.N().S(`}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:353
-	} else if v.KeyValueList != nil {
-//line app/vtselect/traces/tempo/tempo.qtpl:353
-		qw422016.N().S(`"kvlistValue":{"values":`)
-//line app/vtselect/traces/tempo/tempo.qtpl:354
-		streamkeyValueListJSON(qw422016, v.KeyValueList.Values)
-//line app/vtselect/traces/tempo/tempo.qtpl:354
-		qw422016.N().S(`}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:355
-	}
-//line app/vtselect/traces/tempo/tempo.qtpl:355
-	qw422016.N().S(`}`)
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-func writeanyValueJSON(qq422016 qtio422016.Writer, v *otelpb.AnyValue) {
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-	streamanyValueJSON(qw422016, v)
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-func anyValueJSON(v *otelpb.AnyValue) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-	writeanyValueJSON(qb422016, v)
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-	return qs422016
-//line app/vtselect/traces/tempo/tempo.qtpl:357
-}
-
-//line app/vtselect/traces/tempo/tempo.qtpl:359
-func streamanyValueArrayJSON(qw422016 *qt422016.Writer, values []*otelpb.AnyValue) {
-//line app/vtselect/traces/tempo/tempo.qtpl:359
+//line app/vtselect/traces/tempo/tempo.qtpl:339
+func streamkeyValueListJSON(qw422016 *qt422016.Writer, kvs []*otelpb.KeyValue) {
+//line app/vtselect/traces/tempo/tempo.qtpl:339
 	qw422016.N().S(`[`)
-//line app/vtselect/traces/tempo/tempo.qtpl:361
-	if len(values) > 0 {
-//line app/vtselect/traces/tempo/tempo.qtpl:362
-		streamanyValueJSON(qw422016, values[0])
-//line app/vtselect/traces/tempo/tempo.qtpl:363
-		for _, v := range values[1:] {
-//line app/vtselect/traces/tempo/tempo.qtpl:363
+//line app/vtselect/traces/tempo/tempo.qtpl:341
+	if len(kvs) > 0 {
+//line app/vtselect/traces/tempo/tempo.qtpl:342
+		streamkeyValueJSON(qw422016, kvs[0])
+//line app/vtselect/traces/tempo/tempo.qtpl:343
+		for _, kv := range kvs[1:] {
+//line app/vtselect/traces/tempo/tempo.qtpl:343
 			qw422016.N().S(`,`)
-//line app/vtselect/traces/tempo/tempo.qtpl:364
-			streamanyValueJSON(qw422016, v)
-//line app/vtselect/traces/tempo/tempo.qtpl:365
+//line app/vtselect/traces/tempo/tempo.qtpl:344
+			streamkeyValueJSON(qw422016, kv)
+//line app/vtselect/traces/tempo/tempo.qtpl:345
 		}
-//line app/vtselect/traces/tempo/tempo.qtpl:366
+//line app/vtselect/traces/tempo/tempo.qtpl:346
 	}
-//line app/vtselect/traces/tempo/tempo.qtpl:366
+//line app/vtselect/traces/tempo/tempo.qtpl:346
 	qw422016.N().S(`]`)
-//line app/vtselect/traces/tempo/tempo.qtpl:368
+//line app/vtselect/traces/tempo/tempo.qtpl:348
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:368
-func writeanyValueArrayJSON(qq422016 qtio422016.Writer, values []*otelpb.AnyValue) {
-//line app/vtselect/traces/tempo/tempo.qtpl:368
+//line app/vtselect/traces/tempo/tempo.qtpl:348
+func writekeyValueListJSON(qq422016 qtio422016.Writer, kvs []*otelpb.KeyValue) {
+//line app/vtselect/traces/tempo/tempo.qtpl:348
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:368
-	streamanyValueArrayJSON(qw422016, values)
-//line app/vtselect/traces/tempo/tempo.qtpl:368
+//line app/vtselect/traces/tempo/tempo.qtpl:348
+	streamkeyValueListJSON(qw422016, kvs)
+//line app/vtselect/traces/tempo/tempo.qtpl:348
 	qt422016.ReleaseWriter(qw422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:368
+//line app/vtselect/traces/tempo/tempo.qtpl:348
 }
 
-//line app/vtselect/traces/tempo/tempo.qtpl:368
-func anyValueArrayJSON(values []*otelpb.AnyValue) string {
-//line app/vtselect/traces/tempo/tempo.qtpl:368
+//line app/vtselect/traces/tempo/tempo.qtpl:348
+func keyValueListJSON(kvs []*otelpb.KeyValue) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:348
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vtselect/traces/tempo/tempo.qtpl:368
-	writeanyValueArrayJSON(qb422016, values)
-//line app/vtselect/traces/tempo/tempo.qtpl:368
+//line app/vtselect/traces/tempo/tempo.qtpl:348
+	writekeyValueListJSON(qb422016, kvs)
+//line app/vtselect/traces/tempo/tempo.qtpl:348
 	qs422016 := string(qb422016.B)
-//line app/vtselect/traces/tempo/tempo.qtpl:368
+//line app/vtselect/traces/tempo/tempo.qtpl:348
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vtselect/traces/tempo/tempo.qtpl:368
+//line app/vtselect/traces/tempo/tempo.qtpl:348
 	return qs422016
+//line app/vtselect/traces/tempo/tempo.qtpl:348
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:350
+func streamkeyValueJSON(qw422016 *qt422016.Writer, kv *otelpb.KeyValue) {
+//line app/vtselect/traces/tempo/tempo.qtpl:350
+	qw422016.N().S(`{"key":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:352
+	qw422016.N().Q(kv.Key)
+//line app/vtselect/traces/tempo/tempo.qtpl:352
+	qw422016.N().S(`,"value":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:353
+	streamanyValueJSON(qw422016, kv.Value)
+//line app/vtselect/traces/tempo/tempo.qtpl:353
+	qw422016.N().S(`}`)
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+func writekeyValueJSON(qq422016 qtio422016.Writer, kv *otelpb.KeyValue) {
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+	streamkeyValueJSON(qw422016, kv)
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+	qt422016.ReleaseWriter(qw422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+func keyValueJSON(kv *otelpb.KeyValue) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+	writekeyValueJSON(qb422016, kv)
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+	qs422016 := string(qb422016.B)
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+	return qs422016
+//line app/vtselect/traces/tempo/tempo.qtpl:355
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:357
+func streamanyValueJSON(qw422016 *qt422016.Writer, v *otelpb.AnyValue) {
+//line app/vtselect/traces/tempo/tempo.qtpl:357
+	qw422016.N().S(`{`)
+//line app/vtselect/traces/tempo/tempo.qtpl:359
+	if v == nil {
+//line app/vtselect/traces/tempo/tempo.qtpl:360
+	} else if v.StringValue != nil {
+//line app/vtselect/traces/tempo/tempo.qtpl:360
+		qw422016.N().S(`"stringValue":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:361
+		qw422016.N().Q(*v.StringValue)
+//line app/vtselect/traces/tempo/tempo.qtpl:362
+	} else if v.BoolValue != nil {
+//line app/vtselect/traces/tempo/tempo.qtpl:362
+		qw422016.N().S(`"boolValue":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:363
+		if *v.BoolValue {
+//line app/vtselect/traces/tempo/tempo.qtpl:363
+			qw422016.N().S(`true`)
+//line app/vtselect/traces/tempo/tempo.qtpl:363
+		} else {
+//line app/vtselect/traces/tempo/tempo.qtpl:363
+			qw422016.N().S(`false`)
+//line app/vtselect/traces/tempo/tempo.qtpl:363
+		}
+//line app/vtselect/traces/tempo/tempo.qtpl:364
+	} else if v.IntValue != nil {
+//line app/vtselect/traces/tempo/tempo.qtpl:364
+		qw422016.N().S(`"intValue":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:365
+		qw422016.N().Q(strconv.FormatInt(*v.IntValue, 10))
+//line app/vtselect/traces/tempo/tempo.qtpl:366
+	} else if v.DoubleValue != nil {
+//line app/vtselect/traces/tempo/tempo.qtpl:366
+		qw422016.N().S(`"doubleValue":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:367
+		qw422016.N().F(*v.DoubleValue)
 //line app/vtselect/traces/tempo/tempo.qtpl:368
+	} else if v.BytesValue != nil {
+//line app/vtselect/traces/tempo/tempo.qtpl:368
+		qw422016.N().S(`"bytesValue":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:369
+		qw422016.N().Q(bytesToBase64(*v.BytesValue))
+//line app/vtselect/traces/tempo/tempo.qtpl:370
+	} else if v.ArrayValue != nil {
+//line app/vtselect/traces/tempo/tempo.qtpl:370
+		qw422016.N().S(`"arrayValue":{"values":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:371
+		streamanyValueArrayJSON(qw422016, v.ArrayValue.Values)
+//line app/vtselect/traces/tempo/tempo.qtpl:371
+		qw422016.N().S(`}`)
+//line app/vtselect/traces/tempo/tempo.qtpl:372
+	} else if v.KeyValueList != nil {
+//line app/vtselect/traces/tempo/tempo.qtpl:372
+		qw422016.N().S(`"kvlistValue":{"values":`)
+//line app/vtselect/traces/tempo/tempo.qtpl:373
+		streamkeyValueListJSON(qw422016, v.KeyValueList.Values)
+//line app/vtselect/traces/tempo/tempo.qtpl:373
+		qw422016.N().S(`}`)
+//line app/vtselect/traces/tempo/tempo.qtpl:374
+	}
+//line app/vtselect/traces/tempo/tempo.qtpl:374
+	qw422016.N().S(`}`)
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+func writeanyValueJSON(qq422016 qtio422016.Writer, v *otelpb.AnyValue) {
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+	streamanyValueJSON(qw422016, v)
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+	qt422016.ReleaseWriter(qw422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+func anyValueJSON(v *otelpb.AnyValue) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+	writeanyValueJSON(qb422016, v)
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+	qs422016 := string(qb422016.B)
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+	return qs422016
+//line app/vtselect/traces/tempo/tempo.qtpl:376
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:378
+func streamanyValueArrayJSON(qw422016 *qt422016.Writer, values []*otelpb.AnyValue) {
+//line app/vtselect/traces/tempo/tempo.qtpl:378
+	qw422016.N().S(`[`)
+//line app/vtselect/traces/tempo/tempo.qtpl:380
+	if len(values) > 0 {
+//line app/vtselect/traces/tempo/tempo.qtpl:381
+		streamanyValueJSON(qw422016, values[0])
+//line app/vtselect/traces/tempo/tempo.qtpl:382
+		for _, v := range values[1:] {
+//line app/vtselect/traces/tempo/tempo.qtpl:382
+			qw422016.N().S(`,`)
+//line app/vtselect/traces/tempo/tempo.qtpl:383
+			streamanyValueJSON(qw422016, v)
+//line app/vtselect/traces/tempo/tempo.qtpl:384
+		}
+//line app/vtselect/traces/tempo/tempo.qtpl:385
+	}
+//line app/vtselect/traces/tempo/tempo.qtpl:385
+	qw422016.N().S(`]`)
+//line app/vtselect/traces/tempo/tempo.qtpl:387
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:387
+func writeanyValueArrayJSON(qq422016 qtio422016.Writer, values []*otelpb.AnyValue) {
+//line app/vtselect/traces/tempo/tempo.qtpl:387
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:387
+	streamanyValueArrayJSON(qw422016, values)
+//line app/vtselect/traces/tempo/tempo.qtpl:387
+	qt422016.ReleaseWriter(qw422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:387
+}
+
+//line app/vtselect/traces/tempo/tempo.qtpl:387
+func anyValueArrayJSON(values []*otelpb.AnyValue) string {
+//line app/vtselect/traces/tempo/tempo.qtpl:387
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vtselect/traces/tempo/tempo.qtpl:387
+	writeanyValueArrayJSON(qb422016, values)
+//line app/vtselect/traces/tempo/tempo.qtpl:387
+	qs422016 := string(qb422016.B)
+//line app/vtselect/traces/tempo/tempo.qtpl:387
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vtselect/traces/tempo/tempo.qtpl:387
+	return qs422016
+//line app/vtselect/traces/tempo/tempo.qtpl:387
 }

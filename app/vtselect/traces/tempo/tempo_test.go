@@ -200,6 +200,136 @@ func TestTraceByIDV2JSON(t *testing.T) {
 	}
 }
 
+func TestSearchResponseIncludesRootSpan(t *testing.T) {
+	rootSpan := spanSummary{
+		traceID:           "trace123",
+		spanID:            "span-root",
+		parentSpanID:      "",
+		name:              "root-operation",
+		serviceName:       "root-service",
+		startTimeUnixNano: 1000,
+		endTimeUnixNano:   2000,
+	}
+
+	t.Run("root span not in spanSet", func(t *testing.T) {
+		summary := traceSummary{
+			rootSpan: rootSpan,
+			spanSet:  []spanSummary{},
+		}
+
+		response := SearchResponse([]traceSummary{summary})
+
+		var parsed struct {
+			Traces []struct {
+				SpanSets []struct {
+					Spans   []map[string]interface{} `json:"spans"`
+					Matched int                      `json:"matched"`
+				} `json:"spanSets"`
+			} `json:"traces"`
+		}
+
+		if err := json.Unmarshal([]byte(response), &parsed); err != nil {
+			t.Fatalf("failed to parse response: %s\n%s", err, response)
+		}
+
+		if len(parsed.Traces) != 1 {
+			t.Fatalf("expected 1 trace, got %d", len(parsed.Traces))
+		}
+
+		spanSets := parsed.Traces[0].SpanSets
+		if len(spanSets) != 1 {
+			t.Fatalf("expected 1 spanSet, got %d", len(spanSets))
+		}
+
+		if spanSets[0].Matched != 1 {
+			t.Errorf("expected matched count 1 when root span should be included, got %d", spanSets[0].Matched)
+		}
+
+		if len(spanSets[0].Spans) != 1 {
+			t.Errorf("expected 1 span in output when root span should be included, got %d", len(spanSets[0].Spans))
+		}
+
+		if len(spanSets[0].Spans) > 0 {
+			span := spanSets[0].Spans[0]
+			if spanID, ok := span["spanID"].(string); !ok || spanID != "span-root" {
+				t.Errorf("expected root span to be included, got spanID: %v", span["spanID"])
+			}
+		}
+	})
+
+	t.Run("root span already in spanSet", func(t *testing.T) {
+		summary := traceSummary{
+			rootSpan: rootSpan,
+			spanSet:  []spanSummary{rootSpan},
+		}
+
+		response := SearchResponse([]traceSummary{summary})
+
+		var parsed struct {
+			Traces []struct {
+				SpanSets []struct {
+					Spans   []map[string]interface{} `json:"spans"`
+					Matched int                      `json:"matched"`
+				} `json:"spanSets"`
+			} `json:"traces"`
+		}
+
+		if err := json.Unmarshal([]byte(response), &parsed); err != nil {
+			t.Fatalf("failed to parse response: %s\n%s", err, response)
+		}
+
+		spanSets := parsed.Traces[0].SpanSets
+		if spanSets[0].Matched != 1 {
+			t.Errorf("expected matched count 1 when root already in spanSet, got %d", spanSets[0].Matched)
+		}
+
+		if len(spanSets[0].Spans) != 1 {
+			t.Errorf("expected 1 span in output when root already in spanSet, got %d", len(spanSets[0].Spans))
+		}
+	})
+
+	t.Run("spanSet with non-root spans", func(t *testing.T) {
+		childSpan := spanSummary{
+			traceID:           "trace123",
+			spanID:            "span-child",
+			parentSpanID:      "span-root",
+			name:              "child-operation",
+			serviceName:       "child-service",
+			startTimeUnixNano: 1500,
+			endTimeUnixNano:   1800,
+		}
+
+		summary := traceSummary{
+			rootSpan: rootSpan,
+			spanSet:  []spanSummary{childSpan},
+		}
+
+		response := SearchResponse([]traceSummary{summary})
+
+		var parsed struct {
+			Traces []struct {
+				SpanSets []struct {
+					Spans   []map[string]interface{} `json:"spans"`
+					Matched int                      `json:"matched"`
+				} `json:"spanSets"`
+			} `json:"traces"`
+		}
+
+		if err := json.Unmarshal([]byte(response), &parsed); err != nil {
+			t.Fatalf("failed to parse response: %s\n%s", err, response)
+		}
+
+		spanSets := parsed.Traces[0].SpanSets
+		if spanSets[0].Matched != 2 {
+			t.Errorf("expected matched count 2 (root + child), got %d", spanSets[0].Matched)
+		}
+
+		if len(spanSets[0].Spans) != 2 {
+			t.Errorf("expected 2 spans in output (root + child), got %d", len(spanSets[0].Spans))
+		}
+	})
+}
+
 // generateResourceSpans returns []*otelpb.ResourceSpans for testing.
 func generateResourceSpans() []*otelpb.ResourceSpans {
 	svc := "svc-a"

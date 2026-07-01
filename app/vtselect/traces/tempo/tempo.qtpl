@@ -137,13 +137,32 @@
 	"rootTraceName":{%q= summary.rootSpan.name %},
 	"startTimeUnixNano":{%dl= summary.rootSpan.startTimeUnixNano %},
 	"durationMs":{% if summary.rootSpan.endTimeUnixNano > 0 && summary.rootSpan.startTimeUnixNano > 0 %}{%dl= (summary.rootSpan.endTimeUnixNano - summary.rootSpan.startTimeUnixNano) / 1e6 %}{% else %}0{% endif %},
-	"spanSets":[{%= spanSetJSON(summary.spanSet) %}]
+	"spanSets":[{%= spanSetJSON(summary.spanSet, summary.rootSpan) %}]
 }
 {% endfunc %}
 
-{% func spanSetJSON(spanSet []spanSummary) %}
+{% func spanSetJSON(spanSet []spanSummary, rootSpan spanSummary) %}
 {
+	{% code
+		includeRoot := rootSpan.spanID != ""
+		if includeRoot {
+			for _, span := range spanSet {
+				if span.spanID == rootSpan.spanID {
+					includeRoot = false
+					break
+				}
+			}
+		}
+		matchedCount := len(spanSet)
+		if includeRoot {
+			matchedCount++
+		}
+	%}
 	"spans":[
+	    {% if includeRoot %}
+            {%= spanSummaryJson(rootSpan) %}
+            {% if len(spanSet) > 0 %},{% endif %}
+        {% endif %}
 	    {% if len(spanSet) > 0 %}
             {%= spanSummaryJson(spanSet[0]) %}
             {% for _, span := range spanSet[1:] %}
@@ -151,7 +170,7 @@
             {% endfor %}
         {% endif %}
     ],
-    "matched": {%d= len(spanSet) %}
+    "matched": {%d= matchedCount %}
 }
 {% endfunc %}
 
