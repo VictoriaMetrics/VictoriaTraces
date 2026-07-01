@@ -576,19 +576,6 @@ func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr 
 type traceSummary struct {
 	rootSpan spanSummary
 	spanSet  []spanSummary
-
-	//traceID           string
-	//rootServiceName   string
-	//rootTraceName     string
-	//rootSpanID        string
-	//startTimeUnixNano int64
-	//endTimeUnixNano   int64
-	//// rootStartTimeUnixNano / rootEndTimeUnixNano are the root span's own bounds,
-	//// used to populate spanSets[0].spans[0].startTimeUnixNano and durationNanos.
-	//// Grafana's Tempo datasource reads durationNanos from the span, not the
-	//// trace-level durationMs, so we must emit it on the synthesized root span.
-	//rootStartTimeUnixNano int64
-	//rootEndTimeUnixNano   int64
 }
 
 type spanSummary struct {
@@ -599,7 +586,12 @@ type spanSummary struct {
 	serviceName       string
 	startTimeUnixNano int64
 	endTimeUnixNano   int64
-	attributes        [][2]string
+	attributes        []attribute
+}
+
+type attribute struct {
+	key  string
+	vStr string
 }
 
 func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, limit int) ([]traceSummary, error) {
@@ -609,7 +601,7 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 		var traceID, serviceName, spanName, spanID, parentSpanID string
 		var startTimeUnixNano, endTimeUnixNano int64
 		var err error
-		var attributes [][2]string
+		var attributes []attribute
 		for _, field := range row.Fields {
 			switch field.Name {
 			case otelpb.ResourceAttrServiceName:
@@ -636,9 +628,15 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 				// span attributes
 				v := strings.Clone(field.Value)
 				if strings.HasPrefix(field.Name, otelpb.ResourceAttrPrefix) { // resource attributes
-					attributes = append(attributes, [2]string{strings.TrimPrefix(field.Name, otelpb.ResourceAttrPrefix), v})
+					attributes = append(attributes, attribute{
+						key:  strings.TrimPrefix(field.Name, otelpb.ResourceAttrPrefix),
+						vStr: v,
+					})
 				} else if strings.HasPrefix(field.Name, otelpb.SpanAttrPrefixField) {
-					attributes = append(attributes, [2]string{strings.TrimPrefix(field.Name, otelpb.SpanAttrPrefixField), v})
+					attributes = append(attributes, attribute{
+						key:  strings.TrimPrefix(field.Name, otelpb.SpanAttrPrefixField),
+						vStr: v,
+					})
 				}
 			}
 		}
