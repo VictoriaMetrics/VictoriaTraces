@@ -193,7 +193,17 @@ func processSearchRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	result, err := searchTraces(ctx, cp, params.q, params.start, params.end, params.limit)
+	spss := 3
+	spssStr := r.URL.Query().Get("spss")
+	if spssStr != "" {
+		spss, err = strconv.Atoi(spssStr)
+		if err != nil {
+			httpserver.Errorf(w, r, "incorrect spss param:%s , %s", spssStr, err)
+			return
+		}
+	}
+
+	result, err := searchTraces(ctx, cp, params.q, params.start, params.end, params.limit, spss)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot get traces list: %s", err)
 		return
@@ -535,7 +545,7 @@ func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracec
 	return resultList, nil
 }
 
-func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, start, end time.Time, limit int) ([]traceSummary, error) {
+func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, start, end time.Time, limit, spss int) ([]traceSummary, error) {
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
 	filterQuery, err := traceql.ParseQuery(traceQLStr)
 	if err != nil {
@@ -555,7 +565,7 @@ func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr 
 		return nil, err
 	}
 
-	result, err := summarySearchTracesResult(ctx, rows, limit)
+	result, err := summarySearchTracesResult(ctx, rows, spss)
 	if err != nil {
 		return nil, err
 	}
@@ -564,18 +574,32 @@ func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr 
 }
 
 type traceSummary struct {
+	rootSpan spanSummary
+	spanSet  []spanSummary
+
+	//traceID           string
+	//rootServiceName   string
+	//rootTraceName     string
+	//rootSpanID        string
+	//startTimeUnixNano int64
+	//endTimeUnixNano   int64
+	//// rootStartTimeUnixNano / rootEndTimeUnixNano are the root span's own bounds,
+	//// used to populate spanSets[0].spans[0].startTimeUnixNano and durationNanos.
+	//// Grafana's Tempo datasource reads durationNanos from the span, not the
+	//// trace-level durationMs, so we must emit it on the synthesized root span.
+	//rootStartTimeUnixNano int64
+	//rootEndTimeUnixNano   int64
+}
+
+type spanSummary struct {
 	traceID           string
-	rootServiceName   string
-	rootTraceName     string
-	rootSpanID        string
+	spanID            string
+	parentSpanID      string
+	name              string
+	serviceName       string
 	startTimeUnixNano int64
 	endTimeUnixNano   int64
-	// rootStartTimeUnixNano / rootEndTimeUnixNano are the root span's own bounds,
-	// used to populate spanSets[0].spans[0].startTimeUnixNano and durationNanos.
-	// Grafana's Tempo datasource reads durationNanos from the span, not the
-	// trace-level durationMs, so we must emit it on the synthesized root span.
-	rootStartTimeUnixNano int64
-	rootEndTimeUnixNano   int64
+	attributes        [][2]string
 }
 
 func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, limit int) ([]traceSummary, error) {
@@ -585,6 +609,7 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 		var traceID, serviceName, spanName, spanID, parentSpanID string
 		var startTimeUnixNano, endTimeUnixNano int64
 		var err error
+		var attributes [][2]string
 		for _, field := range row.Fields {
 			switch field.Name {
 			case otelpb.ResourceAttrServiceName:
@@ -608,7 +633,13 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 					return nil, err
 				}
 			default:
-				continue
+				// span attributes
+				v := strings.Clone(field.Value)
+				if strings.HasPrefix(field.Name, otelpb.ResourceAttrPrefix) { // resource attributes
+					attributes = append(attributes, [2]string{strings.TrimPrefix(field.Name, otelpb.ResourceAttrPrefix), v})
+				} else if strings.HasPrefix(field.Name, otelpb.SpanAttrPrefixField) {
+					attributes = append(attributes, [2]string{strings.TrimPrefix(field.Name, otelpb.SpanAttrPrefixField), v})
+				}
 			}
 		}
 
@@ -616,29 +647,41 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 			return nil, fmt.Errorf("trace ID not found for a span %v", row)
 		}
 
-		// get the summary for this trace
-		summary, ok := traceMap[traceID]
+		// get the trace summary for this trace
+		trace, ok := traceMap[traceID]
 		if !ok {
-			summary = traceSummary{
-				startTimeUnixNano: math.MaxInt64,
-				rootServiceName:   "<root span not yet received>",
+			trace = traceSummary{
+				rootSpan: spanSummary{
+					startTimeUnixNano: math.MaxInt64,
+					serviceName:       "<root span not yet received>",
+				},
 			}
-			traceMap[traceID] = summary
 		}
 
-		summary.traceID = traceID
-		summary.startTimeUnixNano = min(summary.startTimeUnixNano, startTimeUnixNano)
-		summary.endTimeUnixNano = max(summary.endTimeUnixNano, endTimeUnixNano)
+		span := spanSummary{
+			traceID:           traceID,
+			spanID:            spanID,
+			parentSpanID:      parentSpanID,
+			name:              spanName,
+			serviceName:       serviceName,
+			startTimeUnixNano: startTimeUnixNano,
+			endTimeUnixNano:   endTimeUnixNano,
+			attributes:        attributes,
+		}
+
+		trace.rootSpan.traceID = traceID
+		trace.rootSpan.startTimeUnixNano = min(trace.rootSpan.startTimeUnixNano, span.startTimeUnixNano)
+		trace.rootSpan.endTimeUnixNano = max(trace.rootSpan.endTimeUnixNano, span.endTimeUnixNano)
+
 		// if it's the root span
 		if parentSpanID == "" {
-			summary.rootServiceName = serviceName
-			summary.rootTraceName = spanName
-			summary.rootSpanID = spanID
-			summary.rootStartTimeUnixNano = startTimeUnixNano
-			summary.rootEndTimeUnixNano = endTimeUnixNano
+			trace.rootSpan = span
+		} else if len(trace.spanSet) < limit {
+			trace.spanSet = append(trace.spanSet, span)
 		}
-		// summary is not a pointer so it must be put back to the map.
-		traceMap[traceID] = summary
+
+		// trace is not a pointer so it must be put back to the map.
+		traceMap[traceID] = trace
 	}
 
 	resultList := make([]traceSummary, 0, len(traceMap))
@@ -700,7 +743,7 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 		}
 		// Let's limit this to [0, *tracecommon.TraceMaxTraces] to prevent users from specifying an excessively large value.
 		if l < 0 || l > maxLimit {
-			return nil, fmt.Errorf("limit %d out of range [0, %d]", l, maxLimit)
+			l = maxLimit
 		}
 		p.limit = l
 	}
