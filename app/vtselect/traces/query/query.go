@@ -642,7 +642,7 @@ func GetServiceGraphTimeRange(ctx context.Context, tenantID logstorage.TenantID,
 	)
 	// join by span_id
 	qStr := fmt.Sprintf(
-		`%s | join by (%s) (%s) inner | NOT %s:eq_field(%s) | stats by (%s, %s) count() %s`,
+		`%s | join by (%s) (%s) inner | filter NOT %s:eq_field(%s) | stats by (%s, %s) count() %s`,
 		qStrChildSpans,
 		otelpb.SpanIDField,
 		qStrParentSpans,
