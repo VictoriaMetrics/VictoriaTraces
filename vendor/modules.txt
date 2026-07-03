@@ -44,6 +44,7 @@ github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg
 github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool
 github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil
+github.com/VictoriaMetrics/VictoriaMetrics/lib/vmalertproxy
 github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter
 # github.com/VictoriaMetrics/easyproto v1.2.0
 ## explicit; go 1.18

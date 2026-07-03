@@ -19,8 +19,8 @@ import (
 )
 
 var (
-	disableInsert   = flag.Bool("insert.disable", false, "Whether to disable /insert/* HTTP endpoints")
-	disableInternal = flag.Bool("internalinsert.disable", false, "Whether to disable /internal/insert HTTP endpoint. See https://docs.victoriametrics.com/victoriatraces/cluster/#security")
+	disableInsert         = flag.Bool("insert.disable", false, "Whether to disable both /insert/* and /internal/insert HTTP endpoints. Useful for dedicated vtselect nodes. See also -internalinsert.disable. See https://docs.victoriametrics.com/victoriatraces/cluster/#security")
+	disableInternalInsert = flag.Bool("internalinsert.disable", false, "Whether to disable /internal/insert HTTP endpoint. See also -insert.disable. See https://docs.victoriametrics.com/victoriatraces/cluster/#security")
 )
 
 var (
@@ -68,7 +68,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if path == "/internal/insert" {
-		if *disableInternal || *disableInsert {
+		if *disableInternalInsert || *disableInsert {
 			http2server.Errorf(w, r, "requests to /internal/insert are disabled with -internalinsert.disable or -insert.disable command-line flag")
 			return true
 		}
