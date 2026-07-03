@@ -12,6 +12,10 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+## [v0.9.4](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.4)
+
+Released at 2026-07-03
+
 **Update Note 1:** [cluster version](https://docs.victoriametrics.com/victoriatraces/cluster/): this release bumps the internal `vtselect` and `vtstorage` protocol version (see the queries-longer-than-10MB fix in VictoriaLogs [#1462](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1462)). Any version mismatch between `vtselect` and `vtstorage` will cause requests to fail, meaning queries will error out during a rolling upgrade when the cluster runs mixed component versions. All components must be upgraded if you want to upgrade to this release or later.
 
 * FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.50.0 to v1.51.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.50.0...v1.51.0).
