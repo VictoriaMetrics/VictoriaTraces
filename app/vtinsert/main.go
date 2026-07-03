@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	disableInsert         = flag.Bool("insert.disable", false, "Whether to disable both /insert/* and /internal/insert HTTP endpoints. Useful for dedicated vtselect nodes. See also -internalinsert.disable. See https://docs.victoriametrics.com/victoriatraces/cluster/#security")
+	disableInsert         = flag.Bool("insert.disable", false, "Whether to disable both /insert/* and /internal/insert HTTP endpoints and OpenTelemetry gRPC ingestion endpoint. Useful for dedicated vtselect nodes. See also -internalinsert.disable. See https://docs.victoriametrics.com/victoriatraces/cluster/#security")
 	disableInternalInsert = flag.Bool("internalinsert.disable", false, "Whether to disable /internal/insert HTTP endpoint. See also -insert.disable. See https://docs.victoriametrics.com/victoriatraces/cluster/#security")
 )
 
