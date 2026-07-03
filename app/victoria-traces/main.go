@@ -35,7 +35,7 @@ func main() {
 	flag.Usage = usage
 	envflag.Parse()
 	buildinfo.Init()
-	initSecretFlag()
+	initSecretFlags()
 	logger.Init()
 
 	listenAddrs := *httpListenAddrs
@@ -118,6 +118,6 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
 	flagutil.Usage(s)
 }
 
-func initSecretFlag() {
+func initSecretFlags() {
 	flagutil.RegisterSecretFlag("vmalert.proxyURL")
 }
