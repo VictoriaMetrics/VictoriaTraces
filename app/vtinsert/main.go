@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
@@ -60,7 +61,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	if strings.HasPrefix(path, "/insert/") {
 		if *disableInsert {
-			http2server.Errorf(w, r, "requests to /insert/* are disabled with -insert.disable command-line flag")
+			httpserver.Errorf(w, r, "requests to /insert/* are disabled with -insert.disable command-line flag")
 			return true
 		}
 
@@ -69,7 +70,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	if path == "/internal/insert" {
 		if *disableInternalInsert || *disableInsert {
-			http2server.Errorf(w, r, "requests to /internal/insert are disabled with -internalinsert.disable or -insert.disable command-line flag")
+			httpserver.Errorf(w, r, "requests to /internal/insert are disabled with -internalinsert.disable or -insert.disable command-line flag")
 			return true
 		}
 		internalinsert.RequestHandler(w, r)
