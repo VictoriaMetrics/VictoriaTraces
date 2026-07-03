@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+**Update Note 1:** [cluster version](https://docs.victoriametrics.com/victoriatraces/cluster/): this release bumps the internal `vtselect` and `vtstorage` protocol version (see the queries-longer-than-10MB fix in VictoriaLogs [#1462](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1462)). Any version mismatch between `vtselect` and `vtstorage` will cause requests to fail, meaning queries will error out during a rolling upgrade when the cluster runs mixed component versions. All components must be upgraded if you want to upgrade to this release or later.
+
 * FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.50.0 to v1.51.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.50.0...v1.51.0).
 
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support configuring max traces limit for Jaeger and Tempo search traces APIs. Previously each API has default limit 20, and a hardcoded limit 1000 to prevent users from requesting an excessively large `limit` query argument.
