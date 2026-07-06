@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): unify the command-line flags for configuring the lookbehind window of tags-related search APIs, including service name, and span name search APIs with `-search.tagsLookbehind`. The old flags `-search.traceServiceAndSpanNameLookbehind` are now deprecated.
+
 ## [v0.9.4](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.4)
 
 Released at 2026-07-03
