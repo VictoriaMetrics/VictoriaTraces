@@ -8,6 +8,12 @@ import (
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
+type filterCommon struct {
+	fieldName string
+	op        string
+	value     string
+}
+
 // statusNameRegex matches the three TraceQL status name keywords at word
 // boundaries so they can be rewritten into their numeric OTel StatusCode
 // equivalents inside regex patterns on the `status` field.
@@ -19,13 +25,7 @@ func rewriteStatusNamesInRegex(s string) string {
 	})
 }
 
-type filterCommon struct {
-	fieldName string
-	op        string
-	value     string
-}
-
-// statusValueMap maps TraceQL status names to OTEL StatusCode numeric values.
+// statusValueMap maps TraceQL status names to OpenTelemetry StatusCode numeric values.
 var statusValueMap = map[string]string{
 	"unset": "0",
 	"ok":    "1",
@@ -41,16 +41,55 @@ var statusCodeMap = func() map[string]string {
 	return m
 }()
 
+// StatusCodeToName converts a numeric OpenTelemetry StatusCode ("2") to its TraceQL name ("error").
+// Returns the input unchanged if not a known status code.
+func StatusCodeToName(code string) string {
+	if name, ok := statusCodeMap[code]; ok {
+		return name
+	}
+	return code
+}
+
 // streamFieldMap contains the field names of stream fields defined by VictoriaTraces.
 var streamFieldMap = map[string]bool{
 	otelpb.ResourceAttrServiceName: true,
 	otelpb.NameField:               true,
 }
 
-// StatusCodeToName converts a numeric OTEL StatusCode ("2") to its TraceQL name ("error").
-// Returns the input unchanged if not a known status code.
-func StatusCodeToName(code string) string {
-	if name, ok := statusCodeMap[code]; ok {
+// spanKindRegex matches the three TraceQL SpanKind keywords at word
+// boundaries so they can be rewritten into their numeric OpenTelemetry SpanKind
+// equivalents inside regex patterns on the `kind` field.
+var spanKindRegex = regexp.MustCompile(`(?i)\b(unspecified|internal|server|client|producer|consumer)\b`)
+
+func rewriteSpanKindInRegex(s string) string {
+	return spanKindRegex.ReplaceAllStringFunc(s, func(m string) string {
+		return spanKindValueMap[strings.ToLower(m)]
+	})
+}
+
+// spanKindValueMap maps TraceQL SpanKind to OpenTelemetry SpanKind numeric values.
+var spanKindValueMap = map[string]string{
+	"unspecified": "0",
+	"internal":    "1",
+	"server":      "2",
+	"client":      "3",
+	"producer":    "4",
+	"consumer":    "5",
+}
+
+// spanKindMap is the reverse of spanKindValueMap.
+var spanKindMap = func() map[string]string {
+	m := make(map[string]string, len(spanKindValueMap))
+	for name, code := range spanKindValueMap {
+		m[code] = name
+	}
+	return m
+}()
+
+// SpanKindToName converts a numeric OpenTelemetry SpanKind ("2") to its TraceQL name ("server").
+// Returns the input unchanged if not a known SpanKind.
+func SpanKindToName(code string) string {
+	if name, ok := spanKindMap[code]; ok {
 		return name
 	}
 	return code
@@ -88,9 +127,12 @@ func (fc *filterCommon) String() string {
 	fieldName := fc.tagToVTField()
 	fieldValue := fc.value
 
-	// map status names (error, ok, unset) to numeric OTEL StatusCode values.
 	if fieldName == "status_code" {
+		// map status names (error, ok, unset) to numeric OpenTelemetry StatusCode values.
 		fieldValue = rewriteStatusNamesInRegex(fieldValue)
+	} else if fieldName == "kind" {
+		// map span kind (server, client, producer, consumer...) to numeric OpenTelemetry SpanKind values.
+		fieldValue = rewriteSpanKindInRegex(fieldValue)
 	}
 
 	// translate duration to nanosecond.

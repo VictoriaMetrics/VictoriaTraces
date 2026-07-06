@@ -448,9 +448,13 @@ func buildCompareSeries(results []compareAttrResult, topN int, endTimestampMs in
 		traceQLName := traceql.VTFieldToTraceQL(ar.attrName)
 
 		// Reverse-map known numeric values to human-readable names.
-		if ar.attrName == otelpb.StatusCodeField {
+		switch ar.attrName {
+		case otelpb.StatusCodeField:
 			ar.baseline = remapStatusValues(ar.baseline)
 			ar.selection = remapStatusValues(ar.selection)
+		case otelpb.KindField:
+			ar.baseline = remapSpanKindValues(ar.baseline)
+			ar.selection = remapSpanKindValues(ar.selection)
 		}
 
 		// Rank values by total count (baseline + selection combined).
@@ -501,6 +505,14 @@ func remapStatusValues(counts map[string]uint64) map[string]uint64 {
 	result := make(map[string]uint64, len(counts))
 	for v, c := range counts {
 		result[traceql.StatusCodeToName(v)] = c
+	}
+	return result
+}
+
+func remapSpanKindValues(counts map[string]uint64) map[string]uint64 {
+	result := make(map[string]uint64, len(counts))
+	for v, c := range counts {
+		result[traceql.SpanKindToName(v)] = c
 	}
 	return result
 }
