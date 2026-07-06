@@ -708,7 +708,7 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 	}
 
 	if allowDefaultTime {
-		p.start = time.Now().Add(-*tracecommon.TraceTagsLookbehind)
+		p.start = time.Now().Add(-*tracecommon.TraceFieldsLookbehind)
 		p.end = time.Now()
 	}
 

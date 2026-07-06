@@ -43,7 +43,7 @@ func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]st
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
-	q.AddTimeFilter(currentTime.Add(-*tracecommon.TraceTagsLookbehind).UnixNano(), currentTime.UnixNano())
+	q.AddTimeFilter(currentTime.Add(-*tracecommon.TraceStreamFieldsLookbehind).UnixNano(), currentTime.UnixNano())
 
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctx)
@@ -72,7 +72,7 @@ func GetSpanNameList(ctx context.Context, cp *tracecommon.CommonParams, serviceN
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
-	q.AddTimeFilter(currentTime.Add(-*tracecommon.TraceTagsLookbehind).UnixNano(), currentTime.UnixNano())
+	q.AddTimeFilter(currentTime.Add(-*tracecommon.TraceStreamFieldsLookbehind).UnixNano(), currentTime.UnixNano())
 
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctx)
