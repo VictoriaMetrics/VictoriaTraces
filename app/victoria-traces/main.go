@@ -35,6 +35,7 @@ func main() {
 	flag.Usage = usage
 	envflag.Parse()
 	buildinfo.Init()
+	initSecretFlags()
 	logger.Init()
 
 	listenAddrs := *httpListenAddrs
@@ -115,4 +116,8 @@ victoria-traces is a traces storage and analytics service.
 See the docs at https://docs.victoriametrics.com/victoriatraces/
 `
 	flagutil.Usage(s)
+}
+
+func initSecretFlags() {
+	flagutil.RegisterSecretFlag("vmalert.proxyURL")
 }

@@ -7,7 +7,7 @@
 
 {% stripspace %}
 
-{% func SearchTagsResponse(resourceTagList, spanTagList, eventTagList, linkTagList, instrumentationScopeTagList []string) %}
+{% func SearchTagsResponse(resourceTagList, spanTagList, eventTagList, linkTagList, instrumentationScopeTagList, intrinsicTagList []string) %}
 {
 	{% code
 	    sort.Slice(resourceTagList, func(i, j int) bool { return resourceTagList[i] < resourceTagList[j] })
@@ -17,6 +17,17 @@
 	    sort.Slice(instrumentationScopeTagList, func(i, j int) bool { return instrumentationScopeTagList[i] < instrumentationScopeTagList[j] })
 	%}
 	"scopes":[
+	    {
+            "name": "intrinsic",
+            "tags": [
+                {% if len(intrinsicTagList) > 0 %}
+                    {%q= intrinsicTagList[0] %}
+                    {% for _, tag := range intrinsicTagList[1:] %}
+                        ,{%q= tag %}
+                    {% endfor %}
+                {% endif %}
+            ]
+        },
 	    {
             "name": "resource",
             "tags": [
@@ -121,32 +132,39 @@
 
 {% func summaryJson(summary traceSummary) %}
 {
-	"traceID":{%q= summary.traceID %},
-	"rootServiceName":{%q= summary.rootServiceName %},
-	"rootTraceName":{%q= summary.rootTraceName %},
-	"startTimeUnixNano":{%dl= summary.startTimeUnixNano %},
-	"durationMs":{% if summary.endTimeUnixNano > 0 && summary.startTimeUnixNano > 0 %}{%dl= (summary.endTimeUnixNano - summary.startTimeUnixNano) / 1e6 %}{% else %}0{% endif %},
-	"spanSet":{%= spanSetJSON(summary) %},
-	"spanSets":[{%= spanSetJSON(summary) %}]
+	"traceID":{%q= summary.rootSpan.traceID %},
+	"rootServiceName":{%q= summary.rootSpan.serviceName %},
+	"rootTraceName":{%q= summary.rootSpan.name %},
+	"startTimeUnixNano":{%dl= summary.rootSpan.startTimeUnixNano %},
+	"durationMs":{% if summary.rootSpan.endTimeUnixNano > 0 && summary.rootSpan.startTimeUnixNano > 0 %}{%dl= (summary.rootSpan.endTimeUnixNano - summary.rootSpan.startTimeUnixNano) / 1e6 %}{% else %}0{% endif %},
+	"spanSets":[{%= spanSetJSON(summary.spanSet) %}]
 }
 {% endfunc %}
 
-{% func spanSetJSON(summary traceSummary) %}
+{% func spanSetJSON(spanSet []spanSummary) %}
 {
 	"spans":[
-		{% if summary.rootSpanID != "" %}
-			{
-				"spanID":{%q= summary.rootSpanID %},
-				"startTimeUnixNano":{%q= strconv.FormatInt(summary.rootStartTimeUnixNano, 10) %},
-				"durationNanos":{%q= strconv.FormatInt(summary.rootEndTimeUnixNano - summary.rootStartTimeUnixNano, 10) %},
-				"attributes":[
-					{"key":"service.name","value":{"stringValue":{%q= summary.rootServiceName %}}},
-					{"key":"nestedSetParent","value":{"intValue":"-1"}}
-				]
-			}
-		{% endif %}
-	],
-	"matched":{% if summary.rootSpanID != "" %}1{% else %}0{% endif %}
+	    {% if len(spanSet) > 0 %}
+            {%= spanSummaryJson(spanSet[0]) %}
+            {% for _, span := range spanSet[1:] %}
+                ,{%= spanSummaryJson(span) %}
+            {% endfor %}
+        {% endif %}
+    ],
+    "matched": {%d= len(spanSet) %}
+}
+{% endfunc %}
+
+{% func spanSummaryJson(span spanSummary) %}
+{
+	"spanID":{%q= span.spanID %},
+	"startTimeUnixNano":{%dl= span.startTimeUnixNano %},
+	"durationNanos":{% if span.endTimeUnixNano > 0 && span.startTimeUnixNano > 0 %}{%dl= span.endTimeUnixNano - span.startTimeUnixNano %}{% else %}0{% endif %},
+    "attributes":[
+        {"key":"service.name","value":{"stringValue":{%q= span.serviceName %}}},
+        {"key":"name","value":{"stringValue":{%q= span.name %}}},
+		{"key":"nestedSetParent","value":{"intValue": {% if span.parentSpanID == "" %}"-1"{% else %}"0"{% endif %}}}
+    ]
 }
 {% endfunc %}
 

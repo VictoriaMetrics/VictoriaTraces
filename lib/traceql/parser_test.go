@@ -77,6 +77,8 @@ func TestParseQuery(t *testing.T) {
 	f(`{status = "error"}`, `status_code:=2`)
 	f(`{status = "unset"}`, `status_code:=0`)
 	f(`{resource.service.name = "my_service"}`, `{"resource_attr:service.name"=my_service}`)
+	f(`{kind = "internal"}`, `kind:=1`)
+	f(`{kind = "client"}`, `kind:=3`)
 
 	// span.* attribute regex. The internal field name "span_attr:http.status_code"
 	// contains ':' so quoteFieldNameIfNeeded wraps it in quotes.
@@ -94,6 +96,14 @@ func TestParseQuery(t *testing.T) {
 
 	// status field: case-insensitive name match.
 	f(`{status =~ "OK|Error"}`, `status_code:~"1|2"`)
+
+	// span kind field: name -> code rewrite at word boundaries.
+	f(`{kind =~ "internal|server"}`, `kind:~"1|2"`)
+	f(`{kind =~ "^(consumer|producer)$"}`, `kind:~"^(5|4)$"`)
+	f(`{kind !~ "UNSPECIFIED"}`, `kind:!~"0"`)
+
+	// span kind field: case-insensitive name match.
+	f(`{kind =~ "UNSPECIFIED|Server|consumer"}`, `kind:~"0|2|5"`)
 
 	// Regex match operator `=~` must become LogsQL `~` (not `=~`).
 	f(`{resource.host.name =~ "kimi-k2-a.*"}`, `"resource_attr:host.name":~"kimi-k2-a.*"`)

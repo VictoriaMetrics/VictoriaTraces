@@ -49,7 +49,7 @@ func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]st
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	serviceHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.ResourceAttrServiceName, "", *tracecommon.TraceMaxServiceNameList)
+	serviceHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.ResourceAttrServiceName, "", uint64(*tracecommon.TraceMaxTags))
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
@@ -78,7 +78,7 @@ func GetSpanNameList(ctx context.Context, cp *tracecommon.CommonParams, serviceN
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	spanNameHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.NameField, "", *tracecommon.TraceMaxSpanNameList)
+	spanNameHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.NameField, "", uint64(*tracecommon.TraceMaxTags))
 	if err != nil {
 		return nil, fmt.Errorf("get span name hits error: %s", err)
 	}
@@ -642,7 +642,7 @@ func GetServiceGraphTimeRange(ctx context.Context, tenantID logstorage.TenantID,
 	)
 	// join by span_id
 	qStr := fmt.Sprintf(
-		`%s | join by (%s) (%s) inner | NOT %s:eq_field(%s) | stats by (%s, %s) count() %s`,
+		`%s | join by (%s) (%s) inner | filter NOT %s:eq_field(%s) | stats by (%s, %s) count() %s`,
 		qStrChildSpans,
 		otelpb.SpanIDField,
 		qStrParentSpans,

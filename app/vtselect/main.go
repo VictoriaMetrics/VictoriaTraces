@@ -10,17 +10,17 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/tempo"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmalertproxy"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/internalselect"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/logsql"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/jaeger"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/tempo"
 )
 
 var (
@@ -39,6 +39,7 @@ var (
 		"via delete API at vtstorage nodes")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second,
 		"Log queries with execution time exceeding this value. Zero disables slow query logging")
+	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert; see https://docs.victoriametrics.com/victoriatraces/#vmalert")
 )
 
 func getDefaultMaxConcurrentRequests() int {
@@ -58,6 +59,8 @@ func getDefaultMaxConcurrentRequests() int {
 // Init initializes vtselect
 func Init() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
+
+	vmalertproxy.Init(*vmalertProxyURL)
 
 	internalselect.Init()
 }
@@ -186,6 +189,19 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 		// Process live tailing request without timeout, since it is OK to run live tailing requests for very long time.
 		// Also do not apply concurrency limit to tail requests, since these limits are intended for non-tail requests.
 		logsql.ProcessLiveTailRequest(ctx, w, r)
+		return true
+	}
+	if strings.HasPrefix(path, "/select/vmalert/") {
+		vmalertRequests.Inc()
+		if len(*vmalertProxyURL) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "%s", `{"status":"error","msg":"the '-vmalert.proxyURL' command-line flag must be configured; `+
+				`see https://docs.victoriametrics.com/victorialogs/#vmalert"}`)
+			return true
+		}
+		path = strings.TrimPrefix(path, "/select")
+		vmalertproxy.HandleRequest(w, r, path)
 		return true
 	}
 
