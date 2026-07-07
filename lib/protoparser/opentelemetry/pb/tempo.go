@@ -3,6 +3,7 @@ package pb
 import "github.com/VictoriaMetrics/easyproto"
 
 // Tempo Proto
+// todo: move this file to a dedicate package instead of opentelemetry/pb.
 
 type TempoTraceByIDResponse struct {
 	Trace TempoTrace
@@ -16,6 +17,7 @@ func (tbir *TempoTraceByIDResponse) MarshalProtobuf(dst []byte) []byte {
 	mp.Put(m)
 	return dst
 }
+
 func (tbir *TempoTraceByIDResponse) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	//message TraceByIDResponse {
 	//	Trace trace = 1;
@@ -28,6 +30,18 @@ func (tbir *TempoTraceByIDResponse) marshalProtobuf(mm *easyproto.MessageMarshal
 
 type TempoTrace struct {
 	ResourceSpan []*ResourceSpans
+}
+
+// MarshalProtobuf marshals t to protobuf message, appends it to dst and returns the result.
+//
+// This is the response shape of the Tempo /api/traces/<trace_id> (v1) API, which returns
+// the bare Trace message rather than the TraceByIDResponse wrapper used by the v2 API.
+func (t *TempoTrace) MarshalProtobuf(dst []byte) []byte {
+	m := mp.Get()
+	t.marshalProtobuf(m.MessageMarshaler())
+	dst = m.Marshal(dst)
+	mp.Put(m)
+	return dst
 }
 
 func (t *TempoTrace) marshalProtobuf(mm *easyproto.MessageMarshaler) {

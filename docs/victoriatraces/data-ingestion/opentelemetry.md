@@ -146,6 +146,6 @@ exporters:
 
 See also:
 
-- [Data ingestion troubleshooting](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#troubleshooting).
+- [Data ingestion troubleshooting](https://docs.victoriametrics.com/victoriatraces/troubleshooting/#data-ingestion).
 - [How to query VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/querying/).
 - [Docker-compose demo for HotROD application integration with VictoriaTraces](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/deployment/docker/compose-vt-single.yml).

@@ -1,7 +1,7 @@
 # App Integration Tests
 
-The `apptest` package contains the integration tests for the VictoriaLogs
-applications (such as victoria-traces).
+The `apptest` package contains the integration tests for the VictoriaTraces
+applications.
 
 An integration test aims at verifying the behavior of an application as a whole,
 as apposed to a unit test that verifies the behavior of a building block of an
@@ -12,7 +12,7 @@ and then issues HTTP requests to it and verifies the responses, examines the
 metrics the app exposes and/or files it creates, etc.
 
 Note that an object of testing may be not just a single app, but several apps
-working together. A good example is VictoriaMetrics cluster. An integration test
+working together. A good example is VictoriaTraces cluster. An integration test
 may reproduce an arbitrary cluster configuration and verify how the components
 work together as a system.
 
@@ -36,5 +36,5 @@ the application binary files to be built and put into the `bin` directory. The
 build rule used for running integration tests, `make integration-test`,
 accounts for that, it builds all application binaries before running the tests.
 But if you want to run the tests without `make`, i.e. by executing
-`go test ./app/apptest`, you will need to build the binaries first (for example,
+`go test ./apptest/tests`, you will need to build the binaries first (for example,
 by executing `make all`).

@@ -41,10 +41,10 @@ import (
 // 1. input time range: [00:00, 09:00]
 // 2. found 20 trace id, and adjust time range to: [08:00, 09:00]
 // 3. find spans on time range: [08:00-traceMaxDurationWindow, 09:00+traceMaxDurationWindow]
-func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery *traceql.Query, start, end time.Time, limit int64) ([]string, []*tracecommon.Row, error) {
+func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery *traceql.Query, start, end time.Time, limit int) ([]string, []*tracecommon.Row, error) {
 	currentTime := time.Now()
 
-	// query 1: * AND filter_conditions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
+	// query 1: {resource_attr:service.name!=""} AND filter_conditions | last 1 by (_time) partition by (trace_id) | fields _time, trace_id | sort by (_time) desc
 	traceIDs, startTime, err := getTraceIDList(ctx, cp, filterQuery, start, end, limit)
 	if err != nil {
 		return nil, nil, fmt.Errorf("get trace id error: %w", err)
@@ -53,8 +53,8 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery
 		return nil, nil, nil
 	}
 
-	// query 2: trace_id:in(traceID, traceID, ...)
-	qStr := fmt.Sprintf(otelpb.TraceIDField+":in(%s)", strings.Join(traceIDs, ","))
+	// query 2: {resource_attr:service.name!=""} AND (filter_conditions or parent_span_id:="") AND trace_id:in(traceID, traceID, ...)
+	qStr := `{resource_attr:service.name!=""} AND (` + filterQuery.String() + ` OR parent_span_id:="") AND ` + otelpb.TraceIDField + `:in(` + strings.Join(traceIDs, ",") + `)`
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
@@ -120,8 +120,8 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery
 	return traceIDs, rows, nil
 }
 
-func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery *traceql.Query, start, end time.Time, limit int64) ([]string, time.Time, error) {
-	qStr := `{trace_id_idx_stream=""} AND ` + filterQuery.String() + ` | last 1 by (_time) partition by (` + otelpb.TraceIDField + ") | fields _time, " + otelpb.TraceIDField + " | sort by (_time) desc"
+func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery *traceql.Query, start, end time.Time, limit int) ([]string, time.Time, error) {
+	qStr := `{resource_attr:service.name!=""} AND ` + filterQuery.String() + ` | last 1 by (_time) partition by (` + otelpb.TraceIDField + ") | fields _time, " + otelpb.TraceIDField + " | sort by (_time) desc"
 
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, end.UnixNano())
 	if err != nil {
@@ -183,7 +183,7 @@ func GetTrace(ctx context.Context, cp *tracecommon.CommonParams, traceID string,
 // findTraceIDsSplitTimeRange try to search from the nearest time range of the end time.
 // if the result already met requirement of `limit`, return.
 // otherwise, amplify the time range to 5x and search again, until the start time exceed the input.
-func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, startTime, endTime time.Time, limit int64) ([]string, time.Time, error) {
+func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, startTime, endTime time.Time, limit int) ([]string, time.Time, error) {
 	currentTime := time.Now()
 
 	step := time.Minute
@@ -235,7 +235,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 		}
 
 		// found enough trace_id, return directly
-		if len(traceIDList) == int(limit) {
+		if len(traceIDList) == limit {
 			maxStartTime, err := time.Parse(time.RFC3339, maxStartTimeStr)
 			if err != nil {
 				return nil, maxStartTime, err

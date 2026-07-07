@@ -19,10 +19,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
-	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 	"github.com/valyala/fastrand"
+
+	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
 // the maximum size of a single data block sent to storage node.
@@ -280,7 +281,7 @@ func (sn *storageNode) doRequest(path string, body io.Reader) error {
 	resp, err := sn.c.Do(req)
 	if err != nil {
 		sn.setDisableTemporarily()
-		return fmt.Errorf("cannot send http request to %s: %s", reqURL, err)
+		return fmt.Errorf("cannot send http request to %s: %w", reqURL, err)
 	}
 	defer resp.Body.Close()
 
