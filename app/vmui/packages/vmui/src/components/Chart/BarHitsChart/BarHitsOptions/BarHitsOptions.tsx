@@ -8,13 +8,16 @@ import Button from "../../../Main/Button/Button";
 import { SettingsIcon, VisibilityIcon, VisibilityOffIcon } from "../../../Main/Icons";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import Popper from "../../../Main/Popper/Popper";
+import Modal from "../../../Main/Modal/Modal";
 import useBoolean from "../../../../hooks/useBoolean";
+import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 
 interface Props {
   onChange: (options: GraphOptions) => void;
 }
 
 const BarHitsOptions: FC<Props> = ({ onChange }) => {
+  const { isMobile } = useDeviceDetect();
   const [searchParams, setSearchParams] = useSearchParams();
   const optionsButtonRef = useRef<HTMLDivElement>(null);
   const {
@@ -59,6 +62,25 @@ const BarHitsOptions: FC<Props> = ({ onChange }) => {
     onChange(options);
   }, [options]);
 
+  const settings = (
+    <div className="vm-bar-hits-options-settings">
+      <div className="vm-bar-hits-options-settings-item">
+        <Switch
+          label={"Stacked"}
+          value={stacked}
+          onChange={handleChangeStacked}
+        />
+      </div>
+      <div className="vm-bar-hits-options-settings-item">
+        <Switch
+          label={"Fill"}
+          value={fill === "true"}
+          onChange={handleChangeFill}
+        />
+      </div>
+    </div>
+  );
+
   return (
     <div className="vm-bar-hits-options">
       <Tooltip title={hideChart ? "Show chart and resume hits updates" : "Hide chart and pause hits updates"}>
@@ -81,30 +103,26 @@ const BarHitsOptions: FC<Props> = ({ onChange }) => {
           />
         </Tooltip>
       </div>
-      <Popper
-        open={openOptions}
-        placement="bottom-right"
-        onClose={handleCloseOptions}
-        buttonRef={optionsButtonRef}
-        title={"Graph settings"}
-      >
-        <div className="vm-bar-hits-options-settings">
-          <div className="vm-bar-hits-options-settings-item">
-            <Switch
-              label={"Stacked"}
-              value={stacked}
-              onChange={handleChangeStacked}
-            />
-          </div>
-          <div className="vm-bar-hits-options-settings-item">
-            <Switch
-              label={"Fill"}
-              value={fill === "true"}
-              onChange={handleChangeFill}
-            />
-          </div>
-        </div>
-      </Popper>
+      {isMobile ? (
+        openOptions && (
+          <Modal
+            title={"Graph settings"}
+            onClose={handleCloseOptions}
+          >
+            {settings}
+          </Modal>
+        )
+      ) : (
+        <Popper
+          open={openOptions}
+          placement="bottom-right"
+          onClose={handleCloseOptions}
+          buttonRef={optionsButtonRef}
+          title={"Graph settings"}
+        >
+          {settings}
+        </Popper>
+      )}
     </div>
   );
 };
