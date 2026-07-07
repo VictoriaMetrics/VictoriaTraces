@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return span kinds in strings (`internal`, `client`, `server`, etc.) rather than integers for the Tempo `/api/v2/search/tag/status/values` endpoint; also add support for span kind transformation in TraceQL. Thank @pkieszcz for reporting [the issue #200](https://github.com/VictoriaMetrics/VictoriaTraces/issues/200).
+
 ## [v0.9.4](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.4)
 
 Released at 2026-07-03
