@@ -34,6 +34,8 @@ jobs:
     steps:
       - name: Code checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         id: go
@@ -75,6 +77,8 @@ jobs:
     steps:
       - name: Code checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         id: go
@@ -107,6 +111,8 @@ jobs:
     steps:
       - name: Code checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        with:
+          persist-credentials: false
 
       - name: Setup Go
         id: go
