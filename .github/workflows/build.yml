@@ -20,8 +20,7 @@ on:
       - '!app/vmui/Makefile'
       - '.github/workflows/build.yml'
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   cancel-in-progress: true
@@ -30,6 +29,8 @@ concurrency:
 jobs:
   build:
     name: Build
+    permissions:
+      contents: read
     # Runs on dedicated runner with extra resources to increase build speed.
     runs-on: 'vm-runner'
     steps:

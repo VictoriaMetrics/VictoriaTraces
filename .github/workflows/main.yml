@@ -18,16 +18,17 @@ on:
       - 'go.*'
       - '.github/workflows/main.yml'
 
-permissions:
-  contents: read
-
 concurrency:
   cancel-in-progress: true
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
 
+permissions: {}
+
 jobs:
   lint:
     name: lint
+    permissions:
+      contents: read
     # Runs on dedicated runner with extra resources since golangci-lint requires extra memory
     runs-on: 'vm-runner'
     steps:
@@ -59,6 +60,8 @@ jobs:
   test:
     name: test
     needs: lint
+    permissions:
+      contents: read
     # Runs on dedicated runner with extra resources to increase tests speed.
     runs-on: 'vm-runner'
 
@@ -96,6 +99,8 @@ jobs:
   integration-test:
     name: integration-test
     needs: [lint, test]
+    permissions:
+      contents: read
     # Runs on dedicated runner to isolate app tests from other tests.
     runs-on: apptest
 
