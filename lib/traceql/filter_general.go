@@ -56,7 +56,7 @@ var streamFieldMap = map[string]bool{
 	otelpb.NameField:               true,
 }
 
-// spanKindRegex matches the three TraceQL SpanKind keywords at word
+// spanKindRegex matches the TraceQL SpanKind keywords at word
 // boundaries so they can be rewritten into their numeric OpenTelemetry SpanKind
 // equivalents inside regex patterns on the `kind` field.
 var spanKindRegex = regexp.MustCompile(`(?i)\b(unspecified|internal|server|client|producer|consumer)\b`)
