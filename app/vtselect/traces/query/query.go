@@ -32,7 +32,7 @@ type TraceQueryParam struct {
 	Limit        int
 }
 
-// GetServiceNameList returns all unique service names within *traceServiceAndSpanNameLookbehind window.
+// GetServiceNameList returns all unique service names within *search.tagsLookbehind window.
 // todo: cache of recent result.
 func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]string, error) {
 	currentTime := time.Now()
@@ -43,7 +43,7 @@ func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]st
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
-	q.AddTimeFilter(currentTime.Add(-*tracecommon.TraceServiceAndSpanNameLookbehind).UnixNano(), currentTime.UnixNano())
+	q.AddTimeFilter(currentTime.Add(-*tracecommon.TraceStreamFieldsLookbehind).UnixNano(), currentTime.UnixNano())
 
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctx)
@@ -61,7 +61,7 @@ func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]st
 	return serviceList, nil
 }
 
-// GetSpanNameList returns all unique span names for a service within *traceServiceAndSpanNameLookbehind window.
+// GetSpanNameList returns all unique span names for a service within *search.tagsLookbehind window.
 // todo: cache of recent result.
 func GetSpanNameList(ctx context.Context, cp *tracecommon.CommonParams, serviceName string) ([]string, error) {
 	currentTime := time.Now()
@@ -72,7 +72,7 @@ func GetSpanNameList(ctx context.Context, cp *tracecommon.CommonParams, serviceN
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
-	q.AddTimeFilter(currentTime.Add(-*tracecommon.TraceServiceAndSpanNameLookbehind).UnixNano(), currentTime.UnixNano())
+	q.AddTimeFilter(currentTime.Add(-*tracecommon.TraceStreamFieldsLookbehind).UnixNano(), currentTime.UnixNano())
 
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctx)

@@ -713,7 +713,7 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 	}
 
 	if allowDefaultTime {
-		p.start = time.Now().Add(-10 * time.Minute)
+		p.start = time.Now().Add(-*tracecommon.TraceFieldsLookbehind)
 		p.end = time.Now()
 	}
 
