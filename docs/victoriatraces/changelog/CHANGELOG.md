@@ -12,10 +12,13 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+**Update note 1:** the base Docker image has been changed from [Alpine](https://www.alpinelinux.org/) to [distroless](https://github.com/googlecontainertools/distroless) in order to reduce an attack surface (The `distroless` base image doesn't contain any executables contrary to the Alpine base image). For debugging VictoriaTraces containers in Kubernetes it is recommended to use [`kubectl debug`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_debug/).
+**Update note 2:** VictoriaTraces no longer provides a Docker image for the `linux/386` platform because the `distroless` base image [doesn't support this platform](https://github.com/GoogleContainerTools/distroless/issues/881). Executable files for `linux/386` platform are still published at [the VictoriaTraces releases page](https://github.com/VictoriaMetrics/VictoriaTraces/releases).
+
+* FEATURE: switch base Docker image from [Alpine](https://www.alpinelinux.org/) to [distroless](https://github.com/GoogleContainerTools/distroless/). This reduces the image size and attack surface. See [the issue #182](https://github.com/VictoriaMetrics/VictoriaTraces/issues/182) and [issue #1228 in VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1228).
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): unify the command-line flags for configuring the lookbehind window of stream fields and fields search APIs with `-search.fieldsLookbehind` (default 2 hours) and `-search.streamFieldsLookbehind` (default 3 days). The old flag `-search.traceServiceAndSpanNameLookbehind` is now deprecated.
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return span kinds in strings (`internal`, `client`, `server`, etc.) rather than integers for the Tempo `/api/v2/search/tag/status/values` endpoint; also add support for span kind transformation in TraceQL. Thank @pkieszcz for reporting [the issue #200](https://github.com/VictoriaMetrics/VictoriaTraces/issues/200).
-
 
 ## [v0.9.4](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.4)
 

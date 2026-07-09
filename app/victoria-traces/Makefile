@@ -45,27 +45,6 @@ victoria-traces-openbsd-amd64-prod:
 victoria-traces-windows-amd64-prod:
 	APP_NAME=victoria-traces $(MAKE) app-via-docker-windows-amd64
 
-package-victoria-traces:
-	APP_NAME=victoria-traces $(MAKE) package-via-docker
-
-package-victoria-traces-pure:
-	APP_NAME=victoria-traces $(MAKE) package-via-docker-pure
-
-package-victoria-traces-amd64:
-	APP_NAME=victoria-traces $(MAKE) package-via-docker-amd64
-
-package-victoria-traces-arm:
-	APP_NAME=victoria-traces $(MAKE) package-via-docker-arm
-
-package-victoria-traces-arm64:
-	APP_NAME=victoria-traces $(MAKE) package-via-docker-arm64
-
-package-victoria-traces-ppc64le:
-	APP_NAME=victoria-traces $(MAKE) package-via-docker-ppc64le
-
-package-victoria-traces-386:
-	APP_NAME=victoria-traces $(MAKE) package-via-docker-386
-
 publish-victoria-traces:
 	APP_NAME=victoria-traces $(MAKE) publish-via-docker
 
@@ -107,10 +86,3 @@ victoria-traces-windows-amd64:
 
 victoria-traces-pure:
 	APP_NAME=victoria-traces $(MAKE) app-local-pure
-
-run-victoria-traces:
-	mkdir -p victoria-traces-data
-	DOCKER_OPTS='-v $(shell pwd)/victoria-traces-data:/victoria-traces-data' \
-	APP_NAME=victoria-traces \
-	ARGS='' \
-	$(MAKE) run-via-docker
