@@ -98,7 +98,7 @@ func processSearchTagsRequest(ctx context.Context, w http.ResponseWriter, r *htt
 		return
 	}
 
-	params, err := parseTempoAPIParam(ctx, r, true)
+	params, err := parseTempoAPIParam(ctx, r, true, *tracecommon.TraceMaxTags)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -115,7 +115,7 @@ func processSearchTagsRequest(ctx context.Context, w http.ResponseWriter, r *htt
 
 	// Write results
 	w.Header().Set("Content-Type", "application/json")
-	WriteSearchTagsResponse(w, result.resourceTagList, result.spanTagList, result.eventTagList, result.linkTagList, result.instrumentationScopeTagList)
+	WriteSearchTagsResponse(w, result.resourceTagList, result.spanTagList, result.eventTagList, result.linkTagList, result.instrumentationScopeTagList, result.intrinsicTagList)
 }
 
 // processSearchTagValuesRequest handle the Tempo /api/v2/search/tag/*/values API request.
@@ -141,7 +141,7 @@ func processSearchTagValuesRequest(ctx context.Context, w http.ResponseWriter, r
 		return
 	}
 
-	params, err := parseTempoAPIParam(ctx, r, true)
+	params, err := parseTempoAPIParam(ctx, r, true, *tracecommon.TraceMaxTags)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -187,13 +187,23 @@ func processSearchRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	params, err := parseTempoAPIParam(ctx, r, true)
+	params, err := parseTempoAPIParam(ctx, r, true, *tracecommon.TraceMaxTraces)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
 	}
 
-	result, err := searchTraces(ctx, cp, params.q, params.start, params.end, params.limit)
+	spss := 3
+	spssStr := r.URL.Query().Get("spss")
+	if spssStr != "" {
+		spss, err = strconv.Atoi(spssStr)
+		if err != nil {
+			httpserver.Errorf(w, r, "incorrect spss param:%s , %s", spssStr, err)
+			return
+		}
+	}
+
+	result, err := searchTraces(ctx, cp, params.q, params.start, params.end, params.limit, spss)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot get traces list: %s", err)
 		return
@@ -234,7 +244,7 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	params, err := parseTempoAPIParam(ctx, r, false)
+	params, err := parseTempoAPIParam(ctx, r, false, *tracecommon.TraceMaxTraces)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -286,7 +296,7 @@ func processQueryV2Request(ctx context.Context, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	params, err := parseTempoAPIParam(ctx, r, false)
+	params, err := parseTempoAPIParam(ctx, r, false, *tracecommon.TraceMaxTraces)
 	if err != nil {
 		httpserver.Errorf(w, r, "incorrect query params: %s", err)
 		return
@@ -333,10 +343,34 @@ func writeTraceByIDV2Proto(w http.ResponseWriter, resourceSpans []*otelpb.Resour
 }
 
 type searchTagResult struct {
-	resourceTagList, spanTagList, eventTagList, linkTagList, instrumentationScopeTagList []string
+	resourceTagList, spanTagList, eventTagList, linkTagList, instrumentationScopeTagList, intrinsicTagList []string
 }
 
-func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, scope string, start, end, limit int64) (*searchTagResult, error) {
+// intrinsicTags is the static set of intrinsic span attributes advertised under
+// the "intrinsic" scope of /api/v2/search/tags, matching Tempo. Intrinsics have
+// no attribute prefix (unlike resource_attr:/span_attr:) so they are not
+// discovered by the field_names scan; without this list they never appear in
+// Grafana Traces Drilldown's attribute breakdown. Only intrinsics that
+// VictoriaTraces can filter and group by are listed, so every advertised tag
+// works in the breakdown:
+//   - name     -> NameField
+//   - kind     -> KindField
+//   - status   -> StatusCodeField (see TraceQLFieldToVTField)
+//   - duration -> DurationField
+var intrinsicTags = []string{
+	otelpb.NameField,
+	otelpb.KindField,
+	"status",
+	otelpb.DurationField,
+}
+
+func getIntrinsicTagsCopy() []string {
+	c := make([]string, len(intrinsicTags))
+	copy(c, intrinsicTags)
+	return c
+}
+
+func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, scope string, start, end int64, limit int) (*searchTagResult, error) {
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
 	filterQuery, err := traceql.ParseQuery(traceQLStr)
 	if err != nil {
@@ -365,7 +399,16 @@ func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr st
 		return nil, errors.New("scope: link is not supported yet")
 		//scopes = fmt.Sprintf(`| filter name:"%s:"*`, otelpb.LinkPrefix+otelpb.LinkAttrPrefix)
 	case "intrinsic":
-		return nil, errors.New("scope: intrinsic is not supported yet")
+		// Intrinsics are a fixed set independent of ingested data, so there is no
+		// need to scan field names — return the static list directly.
+		return &searchTagResult{
+			resourceTagList:             []string{},
+			spanTagList:                 []string{},
+			instrumentationScopeTagList: []string{},
+			eventTagList:                []string{},
+			linkTagList:                 []string{},
+			intrinsicTagList:            getIntrinsicTagsCopy(),
+		}, nil
 	case "", "all":
 		// todo: this does not align with the doc, but user usually don't expect a result fully match the limit
 		// because they're not really looking for a specific tag name when no scope argument is used. it's likely
@@ -398,14 +441,20 @@ func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr st
 		instrumentationScopeTagList: []string{},
 		eventTagList:                []string{},
 		linkTagList:                 []string{},
+		intrinsicTagList:            []string{},
+	}
+	// scope=all / empty scope: advertise intrinsics alongside the discovered
+	// attribute tags so the Drilldown breakdown lists name/kind/status/duration.
+	if scope == "" || scope == "all" {
+		result.intrinsicTagList = getIntrinsicTagsCopy()
 	}
 	for i := range fieldNames {
 		if strings.HasPrefix(fieldNames[i], otelpb.SpanAttrPrefixField) {
-			result.spanTagList = appendNoExceedN(result.spanTagList, fieldNames[i][len(otelpb.SpanAttrPrefixField):], limit)
+			result.spanTagList = appendNoExceedN(result.spanTagList, fieldNames[i][len(otelpb.SpanAttrPrefixField):], int64(limit))
 		} else if strings.HasPrefix(fieldNames[i], otelpb.ResourceAttrPrefix) {
-			result.resourceTagList = appendNoExceedN(result.resourceTagList, fieldNames[i][len(otelpb.ResourceAttrPrefix):], limit)
+			result.resourceTagList = appendNoExceedN(result.resourceTagList, fieldNames[i][len(otelpb.ResourceAttrPrefix):], int64(limit))
 		} else if strings.HasPrefix(fieldNames[i], otelpb.InstrumentationScopeAttrPrefix) {
-			result.instrumentationScopeTagList = appendNoExceedN(result.instrumentationScopeTagList, fieldNames[i][len(otelpb.InstrumentationScopeAttrPrefix):], limit)
+			result.instrumentationScopeTagList = appendNoExceedN(result.instrumentationScopeTagList, fieldNames[i][len(otelpb.InstrumentationScopeAttrPrefix):], int64(limit))
 		} else {
 			// strings.HasPrefix(fieldNames[i], otelpb.LinkPrefix+otelpb.LinkAttrPrefix) || strings.HasPrefix(fieldNames[i], otelpb.EventPrefix+otelpb.EventAttrPrefix)
 			//lIdx := strings.LastIndex(fieldNames[i], ":")
@@ -428,7 +477,7 @@ func appendNoExceedN(s []string, item string, n int64) []string {
 	return append(s, item)
 }
 
-func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr, tagName string, start, end, limit int64) ([]string, error) {
+func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr, tagName string, start, end int64, limit int) ([]string, error) {
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
 	filterQuery, err := traceql.ParseQuery(traceQLStr)
 	if err != nil {
@@ -470,7 +519,7 @@ func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLS
 
 // singleFieldQueryHelper execute queries which contains only a single field in response, and return as []string.
 // it's useful for queries looking for `field_name`s or `field_value`s.
-func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, limit int64) ([]string, error) {
+func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, limit int) ([]string, error) {
 	resultList := make([]string, 0, limit)
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
 		columns := db.GetColumns(false)
@@ -496,7 +545,7 @@ func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracec
 	return resultList, nil
 }
 
-func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, start, end time.Time, limit int64) ([]traceSummary, error) {
+func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, start, end time.Time, limit, spss int) ([]traceSummary, error) {
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
 	filterQuery, err := traceql.ParseQuery(traceQLStr)
 	if err != nil {
@@ -516,7 +565,7 @@ func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr 
 		return nil, err
 	}
 
-	result, err := summarySearchTracesResult(ctx, rows, limit)
+	result, err := summarySearchTracesResult(ctx, rows, spss)
 	if err != nil {
 		return nil, err
 	}
@@ -525,27 +574,34 @@ func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr 
 }
 
 type traceSummary struct {
-	traceID           string
-	rootServiceName   string
-	rootTraceName     string
-	rootSpanID        string
-	startTimeUnixNano int64
-	endTimeUnixNano   int64
-	// rootStartTimeUnixNano / rootEndTimeUnixNano are the root span's own bounds,
-	// used to populate spanSets[0].spans[0].startTimeUnixNano and durationNanos.
-	// Grafana's Tempo datasource reads durationNanos from the span, not the
-	// trace-level durationMs, so we must emit it on the synthesized root span.
-	rootStartTimeUnixNano int64
-	rootEndTimeUnixNano   int64
+	rootSpan spanSummary
+	spanSet  []spanSummary
 }
 
-func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, limit int64) ([]traceSummary, error) {
+type spanSummary struct {
+	traceID           string
+	spanID            string
+	parentSpanID      string
+	name              string
+	serviceName       string
+	startTimeUnixNano int64
+	endTimeUnixNano   int64
+	attributes        []attribute
+}
+
+type attribute struct {
+	key  string
+	vStr string
+}
+
+func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, limit int) ([]traceSummary, error) {
 	traceMap := make(map[string]traceSummary)
 
 	for _, row := range rows {
 		var traceID, serviceName, spanName, spanID, parentSpanID string
 		var startTimeUnixNano, endTimeUnixNano int64
 		var err error
+		var attributes []attribute
 		for _, field := range row.Fields {
 			switch field.Name {
 			case otelpb.ResourceAttrServiceName:
@@ -569,7 +625,19 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 					return nil, err
 				}
 			default:
-				continue
+				// span attributes
+				v := strings.Clone(field.Value)
+				if strings.HasPrefix(field.Name, otelpb.ResourceAttrPrefix) { // resource attributes
+					attributes = append(attributes, attribute{
+						key:  strings.TrimPrefix(field.Name, otelpb.ResourceAttrPrefix),
+						vStr: v,
+					})
+				} else if strings.HasPrefix(field.Name, otelpb.SpanAttrPrefixField) {
+					attributes = append(attributes, attribute{
+						key:  strings.TrimPrefix(field.Name, otelpb.SpanAttrPrefixField),
+						vStr: v,
+					})
+				}
 			}
 		}
 
@@ -577,29 +645,42 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 			return nil, fmt.Errorf("trace ID not found for a span %v", row)
 		}
 
-		// get the summary for this trace
-		summary, ok := traceMap[traceID]
+		// get the trace summary for this trace
+		trace, ok := traceMap[traceID]
 		if !ok {
-			summary = traceSummary{
-				startTimeUnixNano: math.MaxInt64,
-				rootServiceName:   "<root span not yet received>",
+			trace = traceSummary{
+				rootSpan: spanSummary{
+					startTimeUnixNano: math.MaxInt64,
+					serviceName:       "<root span not yet received>",
+				},
 			}
-			traceMap[traceID] = summary
 		}
 
-		summary.traceID = traceID
-		summary.startTimeUnixNano = min(summary.startTimeUnixNano, startTimeUnixNano)
-		summary.endTimeUnixNano = max(summary.endTimeUnixNano, endTimeUnixNano)
+		span := spanSummary{
+			traceID:           traceID,
+			spanID:            spanID,
+			parentSpanID:      parentSpanID,
+			name:              spanName,
+			serviceName:       serviceName,
+			startTimeUnixNano: startTimeUnixNano,
+			endTimeUnixNano:   endTimeUnixNano,
+			attributes:        attributes,
+		}
+
+		trace.rootSpan.traceID = traceID
+		trace.rootSpan.startTimeUnixNano = min(trace.rootSpan.startTimeUnixNano, span.startTimeUnixNano)
+		trace.rootSpan.endTimeUnixNano = max(trace.rootSpan.endTimeUnixNano, span.endTimeUnixNano)
+
 		// if it's the root span
 		if parentSpanID == "" {
-			summary.rootServiceName = serviceName
-			summary.rootTraceName = spanName
-			summary.rootSpanID = spanID
-			summary.rootStartTimeUnixNano = startTimeUnixNano
-			summary.rootEndTimeUnixNano = endTimeUnixNano
+			trace.rootSpan = span
 		}
-		// summary is not a pointer so it must be put back to the map.
-		traceMap[traceID] = summary
+		if len(trace.spanSet) < limit {
+			trace.spanSet = append(trace.spanSet, span)
+		}
+
+		// trace is not a pointer so it must be put back to the map.
+		traceMap[traceID] = trace
 	}
 
 	resultList := make([]traceSummary, 0, len(traceMap))
@@ -613,11 +694,11 @@ type commonAPIParam struct {
 	q     string
 	start time.Time
 	end   time.Time
-	limit int64
+	limit int
 }
 
 // parseTempoAPIParam parse Tempo request.
-func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime bool) (*commonAPIParam, error) {
+func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime bool, maxLimit int) (*commonAPIParam, error) {
 	// default params
 	p := &commonAPIParam{
 		q:     "{}",
@@ -655,12 +736,16 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 
 	limit := q.Get("limit")
 	if limit != "" {
-		l, err := strconv.ParseInt(limit, 10, 64)
+		l, err := strconv.Atoi(limit)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse limit: %s", limit)
+			return nil, fmt.Errorf("cannot parse limit: %s, err: %v", limit, err)
 		}
-		// Let's limit this to [0, 1000] to prevent users from specifying an excessively large value.
-		p.limit = max(0, min(1000, l))
+		// Let's limit this to (0, *tracecommon.TraceMaxTraces] to prevent users from specifying an excessively large value.
+		if l > maxLimit {
+			p.limit = maxLimit
+		} else if l > 0 {
+			p.limit = l
+		}
 	}
 
 	p.q = q.Get("q")

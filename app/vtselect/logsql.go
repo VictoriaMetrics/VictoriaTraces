@@ -66,6 +66,8 @@ var (
 	// no need to track the duration for query_time_range requests, since they are instant
 	logsqlQueryTimeRangeRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/logsql/query_time_range"}`)
 
+	vmalertRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/vmalert"}`)
+
 	// no need to track duration for /delete/* requests, because they are asynchronous
 	deleteRunTaskRequests     = metrics.NewCounter(`vt_http_requests_total{path="/delete/run_task"}`)
 	deleteStopTaskRequests    = metrics.NewCounter(`vt_http_requests_total{path="/delete/stop_task"}`)
