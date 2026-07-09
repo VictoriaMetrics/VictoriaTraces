@@ -506,12 +506,17 @@ func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLS
 		return nil, err
 	}
 
-	// Map raw OTLP status_code integers (0=unset, 1=ok, 2=error) to the
+	// Map raw OpenTelemetry integers in StatusCode, SpanKind to the
 	// lowercase string names that Tempo returns from this endpoint, so the
-	// Grafana Tempo datasource displays "ok"/"error"/"unset" instead of 0/1/2.
-	if tagName == otelpb.StatusCodeField {
+	// Grafana Tempo datasource displays "ok"/"error"/"unset", "client"/"server"/... instead of ints.
+	switch tagName {
+	case otelpb.StatusCodeField:
 		for i, v := range values {
 			values[i] = traceql.StatusCodeToName(v)
+		}
+	case otelpb.KindField:
+		for i, v := range values {
+			values[i] = traceql.SpanKindToName(v)
 		}
 	}
 	return values, nil
@@ -708,7 +713,7 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 	}
 
 	if allowDefaultTime {
-		p.start = time.Now().Add(-10 * time.Minute)
+		p.start = time.Now().Add(-*tracecommon.TraceFieldsLookbehind)
 		p.end = time.Now()
 	}
 

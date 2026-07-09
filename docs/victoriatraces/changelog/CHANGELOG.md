@@ -12,6 +12,11 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): unify the command-line flags for configuring the lookbehind window of stream fields and fields search APIs with `-search.fieldsLookbehind` (default 2 hours) and `-search.streamFieldsLookbehind` (default 3 days). The old flag `-search.traceServiceAndSpanNameLookbehind` is now deprecated.
+
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return span kinds in strings (`internal`, `client`, `server`, etc.) rather than integers for the Tempo `/api/v2/search/tag/status/values` endpoint; also add support for span kind transformation in TraceQL. Thank @pkieszcz for reporting [the issue #200](https://github.com/VictoriaMetrics/VictoriaTraces/issues/200).
+
+
 ## [v0.9.4](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.9.4)
 
 Released at 2026-07-03
