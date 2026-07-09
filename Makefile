@@ -34,9 +34,6 @@ clean:
 publish: \
 	publish-victoria-traces
 
-package: \
-	package-victoria-traces
-
 crossbuild:
 	$(MAKE_PARALLEL) victoria-traces-crossbuild
 
