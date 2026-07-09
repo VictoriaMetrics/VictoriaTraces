@@ -67,7 +67,7 @@ The `/select/jaeger/api/traces` HTTP endpoint provides the following params:
 - `maxDuration`: the maximum duration of the span, with units `ns`, `us`, `ms`, `s`, `m`, or `h`.
 - `limit`: the trace limit of the query, default `20`.
 
-#### Querying Traces
+#### Querying Examples
 
 The following queries are typically how users try to find a specific trace:
 
@@ -220,6 +220,69 @@ Some valid filter examples:
 - Multiple regex filters: `span.kind=~cli.* http.status_code:~^2`
 
 Note that the examples are for user input on the Jaeger frontend, which parses and sends the request in JSON format later.
+
+### Tempo HTTP API
+
+> Support for Grafana Tempo HTTP APIs is **experimental**. This feature acts as a complement to the [Jaeger HTTP API](#jaeger-http-api),
+> primarily to enable compatibility with the [Grafana Tempo datasource](https://docs.victoriametrics.com/victoriatraces/querying/grafana/#grafana-tempo-datasource)
+> and the [Grafana Traces Drilldown](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/traces/) plugin.
+> Certain TraceQL functions and drilldown panels may not yet fully supported.
+>
+> Minimum required VictoriaTraces version: `v0.9.4`.
+
+VictoriaTraces implements a subset of the [Grafana Tempo HTTP API](https://grafana.com/docs/tempo/latest/api_docs/).
+All endpoints are served under the `/select/tempo` prefix. For Grafana Tempo datasource, use:
+- `http://<victoria-traces>:10428/select/tempo` (or `http://<vtselect>:10471/select/tempo` for [cluster](https://docs.victoriametrics.com/victoriatraces/cluster/)).
+
+VictoriaTraces provides the following Tempo HTTP endpoints:
+
+- `/select/tempo/api/echo` for datasource health check (used by Grafana "Save & Test").
+- `/select/tempo/api/search` for searching traces with a TraceQL query.
+- `/select/tempo/api/v2/search/tags` for listing attribute (tag) names for query auto-completion.
+- `/select/tempo/api/v2/search/tag/{tag}/values` for listing values of a given attribute for query auto-completion.
+- `/select/tempo/api/traces/{trace_id}` for fetching a single trace by its ID (v1).
+- `/select/tempo/api/v2/traces/{trace_id}` for fetching a single trace by its ID (v2, similar to v1 but with different data structure).
+- `/select/tempo/api/metrics/query_range` for evaluating a TraceQL metrics query over a time range.
+
+#### Querying Examples
+
+1. Find traces of the `frontend` service with status `error`:
+
+```sh
+curl -G http://<victoria-traces>:10428/select/tempo/api/search \
+  --data-urlencode 'q={ resource.service.name = "frontend" && status = error }'
+```
+
+Here's a response example:
+
+```json
+{"traces":[{"traceID":"c5acfeeaf4d64ac026da0c30d2513082","rootServiceName":"example-gateway","rootTraceName":"","startTimeUnixNano":1783567376769803488,"durationMs":3011,"spanSets":[{"spans":[{"spanID":"430871c05136c0b5","startTimeUnixNano":1783567376769803488,"durationNanos":3011746753,"attributes":[{"key":"service.name","value":{"stringValue":"frontend"}},{"key":"name","value":{"stringValue":"GET"}},{"key":"nestedSetParent","value":{"intValue":"0"}}]}],"matched":1}]}]}
+```
+
+2. Querying a trace by ID
+
+```sh
+curl http://<victoria-traces>:10428/select/tempo/api/v2/traces/d8d8d9c6d1cdfa5344ef3d69b8b594d8
+```
+
+Here's a response example:
+
+```json
+{"trace":{"resourceSpans":[{"resource":{"attributes":[{"key":"docker.cli.cobra.command_path","value":{"stringValue":"docker%20compose"}},{"key":"service.name","value":{"stringValue":"frontend-proxy"}}]},"scopeSpans":[{"scope":{"name":"","version":"","attributes":[]},"spans":[{"traceId":"2NjZxtHN+lNE7z1puLWU2A==","spanId":"yuSYZPL61X8=","parentSpanId":"M+KIEWQP/FQ=","name":"router image-provider egress","kind":"SPAN_KIND_CLIENT","startTimeUnixNano":"1783062881157505553","endTimeUnixNano":"1783062881196836233","attributes":[{"key":"component","value":{"stringValue":"proxy"}},{"key":"http.protocol","value":{"stringValue":"HTTP/1.1"}}],"status":{}}]}]}]},"metrics":{"inspectedBytes":"0"}}
+```
+
+3. Querying metrics of trace spans
+
+```sh
+curl -G http://<victoria-traces>:10428/select/tempo/api/metrics/query_range \
+  --data-urlencode 'q={ resource.service.name = "frontend" } | rate() by (name)'
+```
+
+Here's a response example:
+
+```json
+{"series":[{"labels":[{"key":"name","value":{"stringValue":"GET"}}],"samples":[{"timestampMs":"1783567368000","value":346},{"timestampMs":"1783567404000","value":28.166666666666668}],"exemplars":[{"labels":[{"key":"trace:id","value":{"stringValue":"fca92157fc0d84fdaa960f9bc83634f8"}},{"key":"span:id","value":{"stringValue":"38546d070ac097e8"}}],"value":346,"timestampMs":"1783567368000"}]}],"metrics":{"inspectedBytes":"0","inspectedTraces":0,"totalJobs":0,"completedJobs":0},"status":"COMPLETE"}
+```
 
 ## Hidden fields
 
