@@ -1,6 +1,6 @@
 module github.com/VictoriaMetrics/VictoriaTraces
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/VictoriaMetrics/VictoriaLogs v1.121.1-0.20260617051904-6ae2da3c11f3 // v1.51.0
