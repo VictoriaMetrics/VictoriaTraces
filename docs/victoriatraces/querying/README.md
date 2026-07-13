@@ -244,7 +244,12 @@ VictoriaTraces provides the following Tempo HTTP endpoints:
 - `/select/tempo/api/v2/traces/{trace_id}` for fetching a single trace by its ID (v2, similar to v1 but with different data structure).
 - `/select/tempo/api/metrics/query_range` for evaluating a TraceQL metrics query over a time range.
 
-#### Querying Examples
+#### Searching traces
+
+Searching traces with TraceQL is done via the `/select/tempo/api/search` endpoint.
+See the example below for details.
+
+##### Querying Examples
 
 1. Find traces of the `frontend` service with status `error`:
 
@@ -270,6 +275,16 @@ Here's a response example:
 ```json
 {"trace":{"resourceSpans":[{"resource":{"attributes":[{"key":"docker.cli.cobra.command_path","value":{"stringValue":"docker%20compose"}},{"key":"service.name","value":{"stringValue":"frontend-proxy"}}]},"scopeSpans":[{"scope":{"name":"","version":"","attributes":[]},"spans":[{"traceId":"2NjZxtHN+lNE7z1puLWU2A==","spanId":"yuSYZPL61X8=","parentSpanId":"M+KIEWQP/FQ=","name":"router image-provider egress","kind":"SPAN_KIND_CLIENT","startTimeUnixNano":"1783062881157505553","endTimeUnixNano":"1783062881196836233","attributes":[{"key":"component","value":{"stringValue":"proxy"}},{"key":"http.protocol","value":{"stringValue":"HTTP/1.1"}}],"status":{}}]}]}]},"metrics":{"inspectedBytes":"0"}}
 ```
+
+#### Auto-completion of tags and values
+
+Auto-completion of tag names and values is available via the `/select/tempo/api/v2/search/tags` and `/select/tempo/api/v2/search/tag/{tag}/values` endpoints.
+These are used by the Grafana Traces Drilldown for filtering and exploration.
+
+#### TraceQL metrics
+
+TraceQL metrics enable rate, error, and duration (RED) queries over trace spans.
+They are available via the `/select/tempo/api/metrics/query_range` endpoint.
 
 3. Querying metrics of trace spans
 
