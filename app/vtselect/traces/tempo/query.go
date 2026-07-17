@@ -54,7 +54,7 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery
 	}
 
 	// query 2: {resource_attr:service.name!=""} AND (filter_conditions or parent_span_id:="") AND trace_id:in(traceID, traceID, ...)
-	qStr := `{resource_attr:service.name!=""} AND (` + filterQuery.String() + ` OR parent_span_id:="") AND ` + otelpb.TraceIDField + `:in(` + strings.Join(traceIDs, ",") + `)`
+	qStr := `{resource_attr:service.name!=""} AND (` + filterQuery.FilterString() + ` OR parent_span_id:="") AND ` + otelpb.TraceIDField + `:in(` + strings.Join(traceIDs, ",") + `)`
 	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
