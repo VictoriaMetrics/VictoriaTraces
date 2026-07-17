@@ -187,7 +187,7 @@ VictoriaTraces can be deployed as:
 VictoriaTraces is available as:
 
 - docker images at [Docker Hub](https://hub.docker.com/r/victoriametrics/victoria-traces) and [Quay](https://quay.io/repository/victoriametrics/victoria-traces).
-- [Binary releases](https://github.com/VictoriaMetrics/VictoriaTraces/releases/)
+- [Binary releases](https://github.com/VictoriaMetrics/VictoriaTraces/releases/) - see how to start [a single node](#starting-victoriatraces-single-node-from-a-binary) or [a cluster](#starting-victoriatraces-cluster-from-binaries) from binaries
 - [Helm charts](#helm-charts) and custom resources with [VictoriaMetrics Operator](#victoriaMetrics-operator)
 - [Source code](https://github.com/VictoriaMetrics/VictoriaTraces). See [How to build from sources](https://docs.victoriametrics.com/victoriatraces/#how-to-build-from-sources)
 
@@ -216,29 +216,250 @@ See how to [write](#write-data) or [read](#read-data) from VictoriaTraces.
 
 ### Starting VictoriaTraces Single Node from a Binary
 
-- Download the correct binary for your OS and architecture from [GitHub](https://github.com/VictoriaMetrics/VictoriaTraces/releases/). Here's an example for `Linux/amd64`:
+1. Download the archive for your OS and architecture from the [releases page](https://github.com/VictoriaMetrics/VictoriaTraces/releases/latest).
+For example, on Linux with `amd64` architecture:
 
 ```sh
 curl -L -O https://github.com/VictoriaMetrics/VictoriaTraces/releases/download/v0.9.4/victoria-traces-linux-amd64-v0.9.4.tar.gz
 ```
 
-- Extract the archive by running:
+2. Extract the archive to /usr/local/bin by running:
 
 ```sh
-tar -xvf victoria-traces-linux-amd64-v0.9.4.tar.gz
+sudo tar xzf victoria-traces-linux-amd64-v0.9.4.tar.gz -C /usr/local/bin
 ```
 
-- Go to the binary's folder and start VictoriaTraces:
+3. Create a VictoriaTraces user on the system:
 
 ```sh
-./victoria-traces-prod
+sudo useradd -s /usr/sbin/nologin victoriatraces
 ```
 
-This command will make VictoriaTraces run in the foreground, and store the ingested data to the `victoria-traces-data` directory by default.
+4. Create a folder for storing VictoriaTraces data:
 
-After VictoriaTraces is running, verify VMUI is working by going to `http://<victoria-traces>:10428/select/vmui`.
+```sh
+sudo mkdir -p /var/lib/victoria-traces && sudo chown -R victoriatraces:victoriatraces /var/lib/victoria-traces
+```
 
-See how to [write](#write-data) or [read](#read-data) from VictoriaTraces.
+5. Create a Linux Service by running the following:
+
+```sh
+sudo bash -c 'cat <<END >/etc/systemd/system/victoriatraces.service
+[Unit]
+Description=VictoriaTraces service
+After=network.target
+
+[Service]
+Type=simple
+User=victoriatraces
+Group=victoriatraces
+ExecStart=/usr/local/bin/victoria-traces-prod -storageDataPath=/var/lib/victoria-traces
+SyslogIdentifier=victoriatraces
+Restart=always
+
+PrivateTmp=yes
+ProtectHome=yes
+NoNewPrivileges=yes
+
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
+END'
+```
+
+Extra [command-line flags](https://docs.victoriametrics.com/victoriatraces/#list-of-command-line-flags) can be added to the `ExecStart` line.
+
+> Please note, `victoriatraces` service is listening on `:10428` for HTTP connections (see `-httpListenAddr` flag).
+
+6. Start and enable the service by running the following command:
+
+```sh
+sudo systemctl daemon-reload && sudo systemctl enable --now victoriatraces.service
+```
+
+7. Check that the service started successfully:
+
+```sh
+sudo systemctl status victoriatraces.service
+```
+
+8. After VictoriaTraces is in `Running` state, verify the [Web UI](https://docs.victoriametrics.com/victoriatraces/querying/#web-ui) is working
+by going to `http://<ip_or_hostname>:10428/select/vmui`.
+
+### Starting VictoriaTraces Cluster from Binaries
+
+VictoriaTraces cluster consists of [3 components](https://docs.victoriametrics.com/victoriatraces/cluster/#architecture) -
+`vtinsert`, `vtselect` and `vtstorage`. All of them share the same single-node VictoriaTraces executable,
+and the role of every node is defined by its command-line flags.
+It is recommended to run these components in the same private network (for [security reasons](https://docs.victoriametrics.com/victoriatraces/#security)),
+but on separate physical nodes for the best performance.
+
+On all nodes, you will need to do the following:
+
+1. Download the archive for your OS and architecture from the [releases page](https://github.com/VictoriaMetrics/VictoriaTraces/releases/latest).
+For example, on Linux with `amd64` architecture:
+
+```sh
+curl -L -O https://github.com/VictoriaMetrics/VictoriaTraces/releases/download/v0.9.4/victoria-traces-linux-amd64-v0.9.4.tar.gz
+```
+
+2. Extract the archive to /usr/local/bin by running:
+
+```sh
+sudo tar xzf victoria-traces-linux-amd64-v0.9.4.tar.gz -C /usr/local/bin
+```
+
+3. Create a user account for VictoriaTraces:
+
+```sh
+sudo useradd -s /usr/sbin/nologin victoriatraces
+```
+
+See recommendations for installing each type of cluster component below.
+
+> Please note, every cluster component is listening on `:10428` for HTTP connections by default (see `-httpListenAddr` flag).
+
+#### Installing vtstorage
+
+1. Create a folder for storing `vtstorage` data:
+
+```sh
+sudo mkdir -p /var/lib/vtstorage && sudo chown -R victoriatraces:victoriatraces /var/lib/vtstorage
+```
+
+2. Create a Linux Service for `vtstorage` by running the following command:
+
+```sh
+sudo bash -c 'cat <<END >/etc/systemd/system/vtstorage.service
+[Unit]
+Description=VictoriaTraces vtstorage service
+After=network.target
+
+[Service]
+Type=simple
+User=victoriatraces
+Group=victoriatraces
+Restart=always
+ExecStart=/usr/local/bin/victoria-traces-prod -storageDataPath=/var/lib/vtstorage
+
+PrivateTmp=yes
+ProtectHome=yes
+NoNewPrivileges=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
+END'
+```
+
+3. Start and Enable `vtstorage`:
+
+```sh
+sudo systemctl daemon-reload && sudo systemctl enable --now vtstorage
+```
+
+4. Check that the service started successfully:
+
+```sh
+sudo systemctl status vtstorage
+```
+
+5. After `vtstorage` is in `Running` state, confirm the service is healthy by visiting `http://<ip_or_hostname>:10428/health` link.
+It should return `OK`.
+
+#### Installing vtinsert
+
+1. Create a Linux Service for `vtinsert` by running the following command:
+
+```sh
+sudo bash -c 'cat <<END >/etc/systemd/system/vtinsert.service
+[Unit]
+Description=VictoriaTraces vtinsert service
+After=network.target
+
+[Service]
+Type=simple
+User=victoriatraces
+Group=victoriatraces
+Restart=always
+ExecStart=/usr/local/bin/victoria-traces-prod -storageNode=<list of vtstorages> -select.disable
+
+PrivateTmp=yes
+ProtectHome=yes
+NoNewPrivileges=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
+END'
+```
+
+Replace `<list of vtstorages>` with comma-separated addresses of previously configured `vtstorage` services
+(e.g. `vtstorage-1:10428,vtstorage-2:10428`). See more details in the `-storageNode` flag description
+in [cluster docs](https://docs.victoriametrics.com/victoriatraces/cluster/#architecture).
+The `-select.disable` flag makes this node serve the [insert APIs](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-apis) only.
+
+2. Start and Enable `vtinsert`:
+
+```sh
+sudo systemctl daemon-reload && sudo systemctl enable --now vtinsert.service
+```
+
+3. Check that the service started successfully:
+
+```sh
+sudo systemctl status vtinsert.service
+```
+
+4. After `vtinsert` is in `Running` state, confirm the service is healthy by visiting `http://<ip_or_hostname>:10428/health` link.
+It should return `OK`.
+
+#### Installing vtselect
+
+1. Create a Linux Service for `vtselect` by running the following command:
+
+```sh
+sudo bash -c 'cat <<END >/etc/systemd/system/vtselect.service
+[Unit]
+Description=VictoriaTraces vtselect service
+After=network.target
+
+[Service]
+Type=simple
+User=victoriatraces
+Group=victoriatraces
+Restart=always
+ExecStart=/usr/local/bin/victoria-traces-prod -storageNode=<list of vtstorages> -insert.disable
+
+PrivateTmp=yes
+ProtectHome=yes
+NoNewPrivileges=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target
+END'
+```
+
+Replace `<list of vtstorages>` with comma-separated addresses of previously configured `vtstorage` services,
+the same way as for `vtinsert`. The `-insert.disable` flag makes this node serve
+the [select APIs](https://docs.victoriametrics.com/victoriatraces/querying/#http-api) only.
+
+2. Start and Enable `vtselect`:
+
+```sh
+sudo systemctl daemon-reload && sudo systemctl enable --now vtselect.service
+```
+
+3. Check that the service started successfully:
+
+```sh
+sudo systemctl status vtselect.service
+```
+
+4. After `vtselect` is in `Running` state, confirm the service is healthy by visiting `http://<ip_or_hostname>:10428/select/vmui` link.
+It should open the [Web UI](https://docs.victoriametrics.com/victoriatraces/querying/#web-ui) page.
 
 ### Helm charts
 
