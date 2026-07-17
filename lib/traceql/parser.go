@@ -46,6 +46,12 @@ func (q *Query) String() string {
 	return s
 }
 
+// FilterString returns string representation for the simple filters for q.
+// complex join condition and pipe will not be included.
+func (q *Query) FilterString() string {
+	return q.f.String()
+}
+
 // HasPipe indicates whether this query contains only filter(s), or contains filter(s) along with pipe(s).
 func (q *Query) HasPipe() bool {
 	return len(q.pipes) > 0
