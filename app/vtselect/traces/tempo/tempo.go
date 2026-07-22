@@ -631,16 +631,15 @@ func summarySearchTracesResult(ctx context.Context, rows []*tracecommon.Row, lim
 				}
 			default:
 				// span attributes
-				v := strings.Clone(field.Value)
 				if strings.HasPrefix(field.Name, otelpb.ResourceAttrPrefix) { // resource attributes
 					attributes = append(attributes, attribute{
 						key:  strings.TrimPrefix(field.Name, otelpb.ResourceAttrPrefix),
-						vStr: v,
+						vStr: field.Value,
 					})
 				} else if strings.HasPrefix(field.Name, otelpb.SpanAttrPrefixField) {
 					attributes = append(attributes, attribute{
 						key:  strings.TrimPrefix(field.Name, otelpb.SpanAttrPrefixField),
-						vStr: v,
+						vStr: field.Value,
 					})
 				}
 			}
