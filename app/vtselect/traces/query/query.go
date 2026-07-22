@@ -231,7 +231,7 @@ func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, param *Tr
 		for k, v := range param.Attributes {
 			if strings.HasPrefix(v, "~") {
 				// ~ prefix forces regex (e.g. tags={"key":"~value.*"})
-				qStr += fmt.Sprintf(`AND %q:re(%s) `, k, strconv.Quote(v[1:]))
+				qStr += fmt.Sprintf(`AND %q:~%q `, k, v[1:])
 			} else {
 				qStr += fmt.Sprintf(`AND %q:=%q `, k, v)
 			}
