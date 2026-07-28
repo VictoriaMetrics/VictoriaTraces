@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [dashboards/single-node](https://grafana.com/grafana/dashboards/24136), [dashboards/cluster](https://grafana.com/grafana/dashboards/24134): add `Fsync avg duration` panel to the Troubleshooting section of the single-node, and cluster dashboards. This panel surfaces degradation of IO operation for faster incident triage. See [VictoriaMetrics#10432](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10432).
+
 ## [v0.10.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.10.0)
 
 Released at 2026-07-22
