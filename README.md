@@ -10,7 +10,6 @@ Please feel free to raise an issue to report these problems. We will continuousl
 
 [![Latest Release](https://img.shields.io/github/v/release/VictoriaMetrics/VictoriaTraces?sort=semver&label=&logo=github&labelColor=gray&color=gray&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaTraces%2Freleases%2Flatest)](https://github.com/VictoriaMetrics/VictoriaTraces/releases)
 ![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-traces?label=&logo=docker&logoColor=white&labelColor=2496ED&color=2496ED&link=https%3A%2F%2Fhub.docker.com%2Fr%2Fvictoriametrics%2Fvictoria-traces)
-[![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaTraces?link=https%3A%2F%2Fgoreportcard.com%2Freport%2Fgithub.com%2FVictoriaMetrics%2FVictoriaTraces)](https://goreportcard.com/report/github.com/VictoriaMetrics/VictoriaTraces)
 [![Build Status](https://github.com/VictoriaMetrics/VictoriaTraces/actions/workflows/main.yml/badge.svg?branch=master&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaTraces%2Factions)](https://github.com/VictoriaMetrics/VictoriaTraces/actions/workflows/main.yml)
 [![License](https://img.shields.io/github/license/VictoriaMetrics/VictoriaTraces?labelColor=green&label=&link=https%3A%2F%2Fgithub.com%2FVictoriaMetrics%2FVictoriaTraces%2Fblob%2Fmaster%2FLICENSE)](https://github.com/VictoriaMetrics/VictoriaTraces/blob/master/LICENSE)
 ![Slack](https://img.shields.io/badge/Join-4A154B?logo=slack&link=https%3A%2F%2Fslack.victoriametrics.com)
