@@ -12,7 +12,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
-* BUGFIX: [cluster version](https://docs.victoriametrics.com/victoriatraces/cluster/): evenly spread rerouted data across available `vtstorage` nodes. Previously, healthy nodes adjacent to unavailable nodes in the `-storageNode` list could receive much more data, resulting in uneven resource usage. See [this issue #228](https://github.com/VictoriaMetrics/VictoriaLogs/issues/228).
+* BUGFIX: [cluster version](https://docs.victoriametrics.com/victoriatraces/cluster/): evenly spread rerouted data across available `vtstorage` nodes. Previously, healthy nodes adjacent to unavailable nodes in the `-storageNode` list could receive much more data, resulting in uneven resource usage. See [this issue #228](https://github.com/VictoriaMetrics/VictoriaTraces/issues/228).
 
 ## [v0.10.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.10.0)
 
