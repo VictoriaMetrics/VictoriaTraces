@@ -61,7 +61,6 @@ The [Grafana Traces Drilldown](https://grafana.com/docs/grafana-cloud/visualizat
 runs on top of the Tempo datasource configured above. After adding the datasource, navigate to **Explore -> Drilldown -> Traces** (or
 open the standalone Traces Drilldown app) and select your VictoriaTraces Tempo datasource.
 
-Drilldown relies on the [TraceQL metrics](https://docs.victoriametrics.com/victoriatraces/querying/#traceql-metrics) endpoint to
-render its rate, error, and duration panels, and on the [trace search](https://docs.victoriametrics.com/victoriatraces/querying/#searching-traces)
-and [auto-completion](https://docs.victoriametrics.com/victoriatraces/querying/#auto-completion-of-tags-and-values) endpoints for
+Drilldown relies on the TraceQL metrics (`/api/metrics/query_range`) endpoint to
+render its rate, error, and duration panels, and on various [Tempo query endpoints](https://docs.victoriametrics.com/victoriatraces/querying/#tempo-http-api) for
 filtering and exploration. This integration support is experimental, meaning certain panels or TraceQL capabilities may not function identically to native Grafana Tempo.

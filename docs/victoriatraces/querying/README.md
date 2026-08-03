@@ -110,7 +110,7 @@ Here's a response example:
         "orders publish",
         "oteldemo.CartService/EmptyCart",
         "oteldemo.CartService/GetCart",
-        "oteldemo.CheckoutService/PlaceOrder",
+        "oteldemo.CheckoutService/PlaceOrder"
     ],
     "errors": null,
     "limit": 0,
