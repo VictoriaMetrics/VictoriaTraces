@@ -244,6 +244,8 @@ VictoriaTraces provides the following Tempo HTTP endpoints:
 - `/select/tempo/api/v2/traces/{trace_id}` for fetching a single trace by its ID (v2, similar to v1 but with different data structure).
 - `/select/tempo/api/metrics/query_range` for evaluating a TraceQL metrics query over a time range.
 
+#### Querying Examples
+
 1. Find traces of the `frontend` service with status `error`:
 
 ```sh
