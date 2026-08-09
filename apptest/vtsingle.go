@@ -37,6 +37,7 @@ type Vtsingle struct {
 	jaegerAPIV3OperationsURL string
 	jaegerAPIV3TracesURL     string
 	jaegerAPIV3TraceURL      string
+	jaegerAPIV3SummariesURL  string
 
 	tempoAPISearchURL string
 
@@ -93,6 +94,7 @@ func StartVtsingle(instance string, flags, env []string, cli *Client) (*Vtsingle
 		jaegerAPIV3OperationsURL: fmt.Sprintf("http://%s/select/jaeger/api/v3/operations", stderrExtracts[1]),
 		jaegerAPIV3TracesURL:     fmt.Sprintf("http://%s/select/jaeger/api/v3/traces", stderrExtracts[1]),
 		jaegerAPIV3TraceURL:      fmt.Sprintf("http://%s/select/jaeger/api/v3/traces/%%s", stderrExtracts[1]),
+		jaegerAPIV3SummariesURL:  fmt.Sprintf("http://%s/select/jaeger/api/v3/trace-summaries", stderrExtracts[1]),
 
 		tempoAPISearchURL: fmt.Sprintf("http://%s/select/tempo/api/search", stderrExtracts[1]),
 
@@ -253,6 +255,21 @@ func (app *Vtsingle) JaegerAPIV3Trace(t *testing.T, traceID string, opts QueryOp
 	url := fmt.Sprintf(app.jaegerAPIV3TraceURL, traceID)
 	res, _ := app.cli.Get(t, url+"?"+opts.asURLValues().Encode())
 	return NewJaegerAPIV3TracesResponse(t, res)
+}
+
+// JaegerAPIV3TraceSummaries is a test helper function that queries for trace summaries
+// by sending an HTTP GET request to /select/jaeger/api/v3/trace-summaries Vtsingle endpoint.
+func (app *Vtsingle) JaegerAPIV3TraceSummaries(t *testing.T, param JaegerV3QueryParam, opts QueryOpts) *JaegerAPIV3TraceSummariesResponse {
+	t.Helper()
+
+	uv := opts.asURLValues()
+	for name, values := range param.asURLValues() {
+		for _, value := range values {
+			uv.Add(name, value)
+		}
+	}
+	res, _ := app.cli.Get(t, app.jaegerAPIV3SummariesURL+"?"+uv.Encode())
+	return NewJaegerAPIV3TraceSummariesResponse(t, res)
 }
 
 func (app *Vtsingle) LogsQLQuery(t *testing.T, LogsQL string, opts QueryOpts) *LogsQLQueryResponse {
