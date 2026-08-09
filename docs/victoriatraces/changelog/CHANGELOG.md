@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* SECURITY: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): accept only `POST` requests at `/delete/run_task` and `/internal/delete/run_task`. These endpoints remove spans, and a `GET` request needs no body, so a server-side request forgery on any host with access to VictoriaTraces could destroy the stored spans with a plain URL fetch. Other HTTP methods now return `405 Method Not Allowed`. See [this issue #225](https://github.com/VictoriaMetrics/VictoriaTraces/issues/225).
+
 ## [v0.11.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.11.0)
 
 Released at 2026-08-14
