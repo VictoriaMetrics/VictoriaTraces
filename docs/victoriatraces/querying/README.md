@@ -224,7 +224,9 @@ Note that the examples are for user input on the Jaeger frontend, which parses a
 ### Jaeger HTTP API v3
 
 Jaeger UI v2.15 and newer calls the [Jaeger HTTP API v3](https://github.com/jaegertracing/jaeger-idl/blob/main/proto/api_v3/query_service.proto)
-instead of the endpoints above. VictoriaTraces provides the following v3 endpoints:
+for the service and span name lists, and v2.19 and newer also calls it for search. A single trace
+and the service dependency graph still come from the v1 endpoints above, so both API versions serve
+a running Jaeger UI at the same time. VictoriaTraces provides the following v3 endpoints:
 
 - `/select/jaeger/api/v3/services` for querying all the services.
 - `/select/jaeger/api/v3/operations` for querying all the span names of a service.

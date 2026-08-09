@@ -126,11 +126,16 @@ bookkeeping needed to place commas between an unknown set of fields.
 ]
 {% endfunc %}
 
+{% comment %}
+A KeyValue may carry no value at all, so the empty object must be written as a whole.
+Writing the opening brace before the check leaves it unclosed and breaks the whole response.
+{% endcomment %}
 {% func anyValueJSON(av *AnyValue) %}
+{% if av == nil %}
+	{}
+	{% return %}
+{% endif %}
 {
-	{% if av == nil %}
-		{% return %}
-	{% endif %}
 	{% switch %}
 	{% case av.StringValue != nil %}
 		"stringValue":{%q= *av.StringValue %}
