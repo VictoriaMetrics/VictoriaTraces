@@ -228,15 +228,19 @@ instead of the endpoints above. VictoriaTraces provides the following v3 endpoin
 
 - `/select/jaeger/api/v3/services` for querying all the services.
 - `/select/jaeger/api/v3/operations` for querying all the span names of a service.
+- `/select/jaeger/api/v3/trace-summaries` for querying a summary per matching trace.
 - `/select/jaeger/api/v3/traces/{trace_id}` for querying a trace.
 - `/select/jaeger/api/v3/traces` for querying traces.
 
 The v3 endpoints return traces in the OpenTelemetry format instead of the Jaeger format, and they
 take a different set of params. The `/select/jaeger/api/v3/operations` endpoint reads the service
-name from the `service` param instead of the path. The `/select/jaeger/api/v3/traces` endpoint
-provides the following params:
+name from the `service` param instead of the path.
 
-- `query.serviceName`: the service name. This param is required.
+The search screen of Jaeger UI uses `/select/jaeger/api/v3/trace-summaries`, which returns the few
+fields the result list shows rather than every span of every matching trace. It takes the same
+params as `/select/jaeger/api/v3/traces`:
+
+- `query.serviceName`: the service name. An absent service name matches any service.
 - `query.operationName`: the span name (also known as the operation name in Jaeger).
 - `query.attributes`: the attributes (also known as tags) filter, example: `{"key":"value"}`. It works the same way as the `tags` param of the v1 endpoint.
 - `query.startTimeMin`: the start timestamp in [RFC3339](https://www.rfc-editor.org/rfc/rfc3339) format.
@@ -248,8 +252,14 @@ provides the following params:
 The snake_case names which Jaeger keeps for backwards compatibility, such as `query.service_name`,
 are accepted as well.
 
+Two params are accepted and ignored. `spanKind` on `/select/jaeger/api/v3/operations` does not
+narrow the result, since the span name list is stored without the span kind. `query.rawTraces` on
+the search endpoints does not change the result, since spans are always returned as stored.
+
 The service dependency graph has no v3 endpoint in Jaeger, so
 [`/select/jaeger/api/dependencies`](#querying-dependencies) serves it for both API versions.
+
+The v1 endpoints keep working, so an older Jaeger UI needs no change.
 
 ### Tempo HTTP API
 

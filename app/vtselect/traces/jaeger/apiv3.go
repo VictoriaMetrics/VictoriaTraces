@@ -28,6 +28,9 @@ var (
 
 	jaegerV3TraceRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/jaeger/api/v3/traces/*"}`)
 	jaegerV3TraceDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/jaeger/api/v3/traces/*"}`)
+
+	jaegerV3TraceSummariesRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/jaeger/api/v3/trace-summaries"}`)
+	jaegerV3TraceSummariesDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/jaeger/api/v3/trace-summaries"}`)
 )
 
 // defaultSpanKind is reported for every operation, since the span name list is stored without
@@ -59,6 +62,11 @@ func requestHandlerV3(ctx context.Context, w http.ResponseWriter, r *http.Reques
 		jaegerV3OperationsRequests.Inc()
 		processGetOperationsRequestV3(ctx, w, r)
 		jaegerV3OperationsDuration.UpdateDuration(startTime)
+		return true
+	} else if path == "/select/jaeger/api/v3/trace-summaries" {
+		jaegerV3TraceSummariesRequests.Inc()
+		processFindTraceSummariesRequestV3(ctx, w, r)
+		jaegerV3TraceSummariesDuration.UpdateDuration(startTime)
 		return true
 	} else if path == "/select/jaeger/api/v3/traces" {
 		jaegerV3TracesRequests.Inc()
@@ -159,6 +167,40 @@ func processFindTracesRequestV3(ctx context.Context, w http.ResponseWriter, r *h
 	writeTracesResponseV3(w, rows)
 }
 
+// processFindTraceSummariesRequestV3 handles the Jaeger /api/v3/trace-summaries API request.
+//
+// Jaeger UI v2.19 and newer uses this endpoint for the search screen, since a summary carries
+// the few fields the result list shows instead of every span of every matched trace.
+func processFindTraceSummariesRequestV3(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	cp, err := tracecommon.GetCommonParams(r)
+	if err != nil {
+		writeErrorResponseV3(w, http.StatusBadRequest, fmt.Sprintf("incorrect query params: %s", err))
+		return
+	}
+
+	param, err := parseJaegerV3TraceQueryParam(r)
+	if err != nil {
+		writeErrorResponseV3(w, http.StatusBadRequest, fmt.Sprintf("incorrect trace query params: %s", err))
+		return
+	}
+
+	_, rows, err := query.GetTraceList(ctx, cp, param)
+	if err != nil {
+		writeErrorResponseV3(w, http.StatusInternalServerError, fmt.Sprintf("get trace list error: %s", err))
+		return
+	}
+
+	summaries, err := summarizeTraces(rows)
+	if err != nil {
+		writeErrorResponseV3(w, http.StatusInternalServerError, fmt.Sprintf("cannot summarize traces: %s", err))
+		return
+	}
+
+	// an empty result is a valid answer for a search, so it isn't reported as 404 here.
+	w.Header().Set("Content-Type", "application/json")
+	WriteTraceSummariesResponseV3(w, summaries)
+}
+
 // writeTracesResponseV3 writes rows as an OTLP/JSON TracesData wrapped into the grpc-gateway
 // streaming envelope.
 //
@@ -206,10 +248,8 @@ func parseJaegerV3TraceQueryParam(r *http.Request) (*query.TraceQueryParam, erro
 		Limit:        min(defaultSearchDepth, *tracecommon.TraceMaxTraces),
 	}
 
+	// unlike the v1 API, the service name is optional here. An absent one means any service.
 	p.ServiceName = getQueryArgV3(r, "query.serviceName", "query.service_name")
-	if p.ServiceName == "" {
-		return nil, fmt.Errorf("query.serviceName is required")
-	}
 	p.SpanName = getQueryArgV3(r, "query.operationName", "query.operation_name")
 
 	if s := getQueryArgV3(r, "query.startTimeMin", "query.start_time_min"); s != "" {

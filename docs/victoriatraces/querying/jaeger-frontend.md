@@ -64,3 +64,17 @@ cd /opt/homebrew/etc/nginx/servers/
 ```
 
 After reloading Nginx, you should be able to visit Jaeger UI on: [http://127.0.0.1:8080/](http://127.0.0.1:8080/).
+
+## Jaeger UI versions
+
+Jaeger UI moved to the [Jaeger HTTP API v3](https://docs.victoriametrics.com/victoriatraces/querying/#jaeger-http-api-v3)
+in steps, so different versions call different endpoints:
+
+| Jaeger UI version | Endpoints it calls |
+| --- | --- |
+| below v2.15 | the v1 endpoints only |
+| v2.15 to v2.18 | v3 for the service and span name lists, v1 for search and for a single trace |
+| v2.19 and above | also v3 for search, through `/api/v3/trace-summaries` |
+
+VictoriaTraces serves both API versions, so every version above works. The Nginx config shown
+above needs no change for v3, since it forwards the whole `/api` path.
