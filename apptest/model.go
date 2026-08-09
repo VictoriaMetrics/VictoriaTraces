@@ -79,6 +79,7 @@ type JaegerQuerier interface {
 	JaegerAPIV3Operations(t *testing.T, serviceName string, opts QueryOpts) *JaegerAPIV3OperationsResponse
 	JaegerAPIV3Traces(t *testing.T, params JaegerV3QueryParam, opts QueryOpts) *JaegerAPIV3TracesResponse
 	JaegerAPIV3Trace(t *testing.T, traceID string, opts QueryOpts) *JaegerAPIV3TracesResponse
+	JaegerAPIV3TraceSummaries(t *testing.T, params JaegerV3QueryParam, opts QueryOpts) *JaegerAPIV3TraceSummariesResponse
 }
 
 type LogsQLQuerier interface {
@@ -532,6 +533,44 @@ func NewJaegerAPIV3TracesResponse(t *testing.T, s string) *JaegerAPIV3TracesResp
 	t.Helper()
 
 	res := &JaegerAPIV3TracesResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", s, err)
+	}
+	return res
+}
+
+// JaegerAPIV3TraceSummariesResponse is an in-memory representation of the
+// /select/jaeger/api/v3/trace-summaries response.
+type JaegerAPIV3TraceSummariesResponse struct {
+	Summaries []JaegerV3TraceSummary `json:"summaries"`
+}
+
+// JaegerV3TraceSummary is a single entry of the /api/v3/trace-summaries response.
+type JaegerV3TraceSummary struct {
+	TraceID              string                   `json:"traceId"`
+	RootServiceName      string                   `json:"rootServiceName"`
+	RootOperationName    string                   `json:"rootOperationName"`
+	MinStartTimeUnixNano string                   `json:"minStartTimeUnixNano"`
+	MaxEndTimeUnixNano   string                   `json:"maxEndTimeUnixNano"`
+	SpanCount            int                      `json:"spanCount"`
+	ErrorSpanCount       int                      `json:"errorSpanCount"`
+	OrphanSpanCount      int                      `json:"orphanSpanCount"`
+	Services             []JaegerV3ServiceSummary `json:"services"`
+}
+
+// JaegerV3ServiceSummary holds the span counts of a single service within a trace.
+type JaegerV3ServiceSummary struct {
+	Name           string `json:"name"`
+	SpanCount      int    `json:"spanCount"`
+	ErrorSpanCount int    `json:"errorSpanCount"`
+}
+
+// NewJaegerAPIV3TraceSummariesResponse is a test helper function that creates a new
+// instance of JaegerAPIV3TraceSummariesResponse by unmarshalling a json string.
+func NewJaegerAPIV3TraceSummariesResponse(t *testing.T, s string) *JaegerAPIV3TraceSummariesResponse {
+	t.Helper()
+
+	res := &JaegerAPIV3TraceSummariesResponse{}
 	if err := json.Unmarshal([]byte(s), res); err != nil {
 		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", s, err)
 	}

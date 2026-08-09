@@ -193,3 +193,115 @@ func cmpAttributesSorted() cmp.Option {
 		return sorted
 	})
 }
+
+// TestSingleJaegerAPIV3TraceSummaries tests the `/select/jaeger/api/v3/trace-summaries` API,
+// which Jaeger UI v2.19 and newer uses for the search screen.
+func TestSingleJaegerAPIV3TraceSummaries(t *testing.T) {
+	os.RemoveAll(t.Name())
+
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	sut := tc.MustStartDefaultVtsingle()
+
+	testJaegerAPIV3TraceSummaries(tc, sut)
+}
+
+func testJaegerAPIV3TraceSummaries(tc *at.TestCase, sut at.VictoriaTracesWriteQuerier) {
+	t := tc.T()
+
+	rootService := "testSummaryRootService"
+	childService := "testSummaryChildService"
+	traceID := "bda5886e99fffef35a847cb2d493fde2"
+	rootSpanID := "0123456789abcde0"
+	childSpanID := "0123456789abcde1"
+	spanTime := time.Now()
+
+	// a two-service trace where the child span reports an error, so every summary field
+	// carries a value which a single-span trace would leave at zero.
+	req := &otelpb.ExportTraceServiceRequest{
+		ResourceSpans: []*otelpb.ResourceSpans{
+			newSummaryResourceSpans(rootService, &otelpb.Span{
+				TraceID:           traceID,
+				SpanID:            rootSpanID,
+				Name:              "rootOperation",
+				StartTimeUnixNano: uint64(spanTime.UnixNano()),
+				EndTimeUnixNano:   uint64(spanTime.Add(time.Second).UnixNano()),
+			}),
+			newSummaryResourceSpans(childService, &otelpb.Span{
+				TraceID:           traceID,
+				SpanID:            childSpanID,
+				ParentSpanID:      rootSpanID,
+				Name:              "childOperation",
+				StartTimeUnixNano: uint64(spanTime.Add(100 * time.Millisecond).UnixNano()),
+				EndTimeUnixNano:   uint64(spanTime.Add(500 * time.Millisecond).UnixNano()),
+				Status:            otelpb.Status{Code: 2, Message: "boom"},
+			}),
+		},
+	}
+
+	sut.OTLPHTTPExportTraces(t, req, at.QueryOpts{})
+	sut.ForceFlush(t)
+	time.Sleep(2 * time.Second) // index will be created after -insert.traceMaxDuration (2s in integration test)
+
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected /select/jaeger/api/v3/trace-summaries response",
+		Got: func() any {
+			return sut.JaegerAPIV3TraceSummaries(t, at.JaegerV3QueryParam{
+				ServiceName:  rootService,
+				StartTimeMin: spanTime.Add(-time.Hour),
+				StartTimeMax: spanTime.Add(time.Hour),
+			}, at.QueryOpts{})
+		},
+		Want: &at.JaegerAPIV3TraceSummariesResponse{
+			Summaries: []at.JaegerV3TraceSummary{
+				{
+					TraceID:              traceID,
+					RootServiceName:      rootService,
+					RootOperationName:    "rootOperation",
+					MinStartTimeUnixNano: strconv.FormatInt(spanTime.UnixNano(), 10),
+					MaxEndTimeUnixNano:   strconv.FormatInt(spanTime.Add(time.Second).UnixNano(), 10),
+					SpanCount:            2,
+					ErrorSpanCount:       1,
+					Services: []at.JaegerV3ServiceSummary{
+						{Name: childService, SpanCount: 1, ErrorSpanCount: 1},
+						{Name: rootService, SpanCount: 1},
+					},
+				},
+			},
+		},
+	})
+
+	// an absent service name means any service, so the same trace must still be found.
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected /select/jaeger/api/v3/trace-summaries response without a service name",
+		Got: func() any {
+			res := sut.JaegerAPIV3TraceSummaries(t, at.JaegerV3QueryParam{
+				StartTimeMin: spanTime.Add(-time.Hour),
+				StartTimeMax: spanTime.Add(time.Hour),
+			}, at.QueryOpts{})
+			// other tests may share the storage, so only the trace of this test is checked.
+			for _, s := range res.Summaries {
+				if s.TraceID == traceID {
+					return s.SpanCount
+				}
+			}
+			return 0
+		},
+		Want: 2,
+	})
+}
+
+// newSummaryResourceSpans wraps a span into a ResourceSpans of the given service.
+func newSummaryResourceSpans(serviceName string, span *otelpb.Span) *otelpb.ResourceSpans {
+	return &otelpb.ResourceSpans{
+		Resource: otelpb.Resource{
+			Attributes: []*otelpb.KeyValue{
+				{Key: "service.name", Value: &otelpb.AnyValue{StringValue: &serviceName}},
+			},
+		},
+		ScopeSpans: []*otelpb.ScopeSpans{
+			{Spans: []*otelpb.Span{span}},
+		},
+	}
+}

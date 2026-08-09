@@ -1,5 +1,6 @@
 {% import (
 	"sort"
+	"strconv"
 
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 ) %}
@@ -43,6 +44,39 @@ See https://github.com/jaegertracing/jaeger-idl/blob/main/proto/api_v3/query_ser
 {% func TracesResponseV3(rss []*otelpb.ResourceSpans) %}
 {
 	"result":{%= otelpb.TracesDataJSON(rss) %}
+}
+{% endfunc %}
+
+{% comment %}
+The timestamps are 64-bit integers, so they are written as decimal strings.
+{% endcomment %}
+{% func TraceSummariesResponseV3(summaries []traceSummaryV3) %}
+{
+	"summaries":[
+		{% for i, s := range summaries %}
+			{% if i > 0 %},{% endif %}
+			{
+				"traceId":{%q= s.traceID %},
+				"rootServiceName":{%q= s.rootServiceName %},
+				"rootOperationName":{%q= s.rootOperationName %},
+				"minStartTimeUnixNano":{%q= strconv.FormatUint(s.minStartTimeUnixNano, 10) %},
+				"maxEndTimeUnixNano":{%q= strconv.FormatUint(s.maxEndTimeUnixNano, 10) %},
+				"spanCount":{%d= s.spanCount %},
+				"errorSpanCount":{%d= s.errorSpanCount %},
+				"orphanSpanCount":{%d= s.orphanSpanCount %},
+				"services":[
+					{% for j, svc := range s.services %}
+						{% if j > 0 %},{% endif %}
+						{
+							"name":{%q= svc.name %},
+							"spanCount":{%d= svc.spanCount %},
+							"errorSpanCount":{%d= svc.errorSpanCount %}
+						}
+					{% endfor %}
+				]
+			}
+		{% endfor %}
+	]
 }
 {% endfunc %}
 
