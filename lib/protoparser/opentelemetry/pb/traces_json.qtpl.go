@@ -474,103 +474,105 @@ func keyValuesJSON(kvs []*KeyValue) string {
 //line lib/protoparser/opentelemetry/pb/traces_json.qtpl:127
 }
 
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:129
-func streamanyValueJSON(qw422016 *qt422016.Writer, av *AnyValue) {
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:129
-	qw422016.N().S(`{`)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:131
-	if av == nil {
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:132
-		return
 //line lib/protoparser/opentelemetry/pb/traces_json.qtpl:133
-	}
+func streamanyValueJSON(qw422016 *qt422016.Writer, av *AnyValue) {
 //line lib/protoparser/opentelemetry/pb/traces_json.qtpl:134
-	switch {
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:135
-	case av.StringValue != nil:
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:135
-		qw422016.N().S(`"stringValue":`)
+	if av == nil {
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:134
+		qw422016.N().S(`{}`)
 //line lib/protoparser/opentelemetry/pb/traces_json.qtpl:136
-		qw422016.N().Q(*av.StringValue)
+		return
 //line lib/protoparser/opentelemetry/pb/traces_json.qtpl:137
-	case av.BoolValue != nil:
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:137
-		qw422016.N().S(`"boolValue":`)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:138
-		qw422016.N().V(*av.BoolValue)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:139
-	case av.IntValue != nil:
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:139
-		qw422016.N().S(`"intValue":`)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:140
-		qw422016.N().Q(strconv.FormatInt(*av.IntValue, 10))
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:141
-	case av.DoubleValue != nil:
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:141
-		qw422016.N().S(`"doubleValue":`)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:142
-		qw422016.N().S(float64AsString(*av.DoubleValue))
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:143
-	case av.BytesValue != nil:
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:143
-		qw422016.N().S(`"bytesValue":`)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:144
-		qw422016.N().Q(base64.StdEncoding.EncodeToString(*av.BytesValue))
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:145
-	case av.ArrayValue != nil:
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:145
-		qw422016.N().S(`"arrayValue":{"values":[`)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:148
-		for i, v := range av.ArrayValue.Values {
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:149
-			if i > 0 {
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:149
-				qw422016.N().S(`,`)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:149
-			}
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:150
-			streamanyValueJSON(qw422016, v)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:151
-		}
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:151
-		qw422016.N().S(`]}`)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:154
-	case av.KeyValueList != nil:
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:154
-		qw422016.N().S(`"kvlistValue":{"values":`)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:156
-		streamkeyValuesJSON(qw422016, av.KeyValueList.Values)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:156
-		qw422016.N().S(`}`)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:158
 	}
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:158
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:137
+	qw422016.N().S(`{`)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:139
+	switch {
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:140
+	case av.StringValue != nil:
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:140
+		qw422016.N().S(`"stringValue":`)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:141
+		qw422016.N().Q(*av.StringValue)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:142
+	case av.BoolValue != nil:
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:142
+		qw422016.N().S(`"boolValue":`)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:143
+		qw422016.N().V(*av.BoolValue)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:144
+	case av.IntValue != nil:
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:144
+		qw422016.N().S(`"intValue":`)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:145
+		qw422016.N().Q(strconv.FormatInt(*av.IntValue, 10))
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:146
+	case av.DoubleValue != nil:
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:146
+		qw422016.N().S(`"doubleValue":`)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:147
+		qw422016.N().S(float64AsString(*av.DoubleValue))
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:148
+	case av.BytesValue != nil:
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:148
+		qw422016.N().S(`"bytesValue":`)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:149
+		qw422016.N().Q(base64.StdEncoding.EncodeToString(*av.BytesValue))
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:150
+	case av.ArrayValue != nil:
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:150
+		qw422016.N().S(`"arrayValue":{"values":[`)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:153
+		for i, v := range av.ArrayValue.Values {
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:154
+			if i > 0 {
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:154
+				qw422016.N().S(`,`)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:154
+			}
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:155
+			streamanyValueJSON(qw422016, v)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:156
+		}
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:156
+		qw422016.N().S(`]}`)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:159
+	case av.KeyValueList != nil:
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:159
+		qw422016.N().S(`"kvlistValue":{"values":`)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:161
+		streamkeyValuesJSON(qw422016, av.KeyValueList.Values)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:161
+		qw422016.N().S(`}`)
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:163
+	}
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:163
 	qw422016.N().S(`}`)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 }
 
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 func writeanyValueJSON(qq422016 qtio422016.Writer, av *AnyValue) {
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 	streamanyValueJSON(qw422016, av)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 	qt422016.ReleaseWriter(qw422016)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 }
 
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 func anyValueJSON(av *AnyValue) string {
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 	writeanyValueJSON(qb422016, av)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 	qs422016 := string(qb422016.B)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 	return qs422016
-//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:160
+//line lib/protoparser/opentelemetry/pb/traces_json.qtpl:165
 }

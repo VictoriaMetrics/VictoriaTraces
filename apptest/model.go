@@ -379,6 +379,8 @@ type JaegerV3QueryParam struct {
 	ServiceName   string
 	OperationName string
 	Attributes    map[string]string
+	DurationMin   time.Duration
+	DurationMax   time.Duration
 	StartTimeMin  time.Time
 	StartTimeMax  time.Time
 	SearchDepth   int
@@ -398,6 +400,12 @@ func (jqp *JaegerV3QueryParam) asURLValues() url.Values {
 	if len(jqp.Attributes) > 0 {
 		b, _ := json.Marshal(jqp.Attributes)
 		uv.Add("query.attributes", string(b))
+	}
+	if jqp.DurationMin > 0 {
+		uv.Add("query.durationMin", jqp.DurationMin.String())
+	}
+	if jqp.DurationMax > 0 {
+		uv.Add("query.durationMax", jqp.DurationMax.String())
 	}
 	if !jqp.StartTimeMin.IsZero() {
 		uv.Add("query.startTimeMin", jqp.StartTimeMin.Format(time.RFC3339Nano))
