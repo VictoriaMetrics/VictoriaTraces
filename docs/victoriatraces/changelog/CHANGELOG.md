@@ -16,6 +16,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 * FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.51.0 to v1.52.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.51.0...v1.52.0).
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): properly handle HTTP/2 handshake requests (`PRI *`) from clients such as the Grafana Tempo datasource to eliminate unnecessary warning logs.
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): add support for the [Jaeger HTTP API v3](https://github.com/jaegertracing/jaeger-idl/blob/main/proto/api_v3/query_service.proto) at `/select/jaeger/api/v3/services`, `/select/jaeger/api/v3/operations`, `/select/jaeger/api/v3/traces` and `/select/jaeger/api/v3/traces/{trace_id}`. These endpoints return traces in the OpenTelemetry format, which is what Jaeger UI v2.15 and newer asks for. Thanks to @timur-ND for reporting [the issue #141](https://github.com/VictoriaMetrics/VictoriaTraces/issues/141).
 
 ## [v0.11.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.11.0)
 
