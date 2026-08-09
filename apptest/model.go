@@ -378,6 +378,7 @@ func NewLogsQLQueryResponse(t *testing.T, s string) *LogsQLQueryResponse {
 type JaegerV3QueryParam struct {
 	ServiceName   string
 	OperationName string
+	Attributes    map[string]string
 	StartTimeMin  time.Time
 	StartTimeMax  time.Time
 	SearchDepth   int
@@ -393,6 +394,10 @@ func (jqp *JaegerV3QueryParam) asURLValues() url.Values {
 	}
 	if len(jqp.OperationName) > 0 {
 		uv.Add("query.operationName", jqp.OperationName)
+	}
+	if len(jqp.Attributes) > 0 {
+		b, _ := json.Marshal(jqp.Attributes)
+		uv.Add("query.attributes", string(b))
 	}
 	if !jqp.StartTimeMin.IsZero() {
 		uv.Add("query.startTimeMin", jqp.StartTimeMin.Format(time.RFC3339Nano))

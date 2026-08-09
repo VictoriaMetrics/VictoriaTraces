@@ -215,6 +215,7 @@ func testJaegerAPIV3TraceSummaries(tc *at.TestCase, sut at.VictoriaTracesWriteQu
 	traceID := "bda5886e99fffef35a847cb2d493fde2"
 	rootSpanID := "0123456789abcde0"
 	childSpanID := "0123456789abcde1"
+	childSpanAttr := "redis"
 	spanTime := time.Now()
 
 	// a two-service trace where the child span reports an error, so every summary field
@@ -236,6 +237,9 @@ func testJaegerAPIV3TraceSummaries(tc *at.TestCase, sut at.VictoriaTracesWriteQu
 				StartTimeUnixNano: uint64(spanTime.Add(100 * time.Millisecond).UnixNano()),
 				EndTimeUnixNano:   uint64(spanTime.Add(500 * time.Millisecond).UnixNano()),
 				Status:            otelpb.Status{Code: 2, Message: "boom"},
+				Attributes: []*otelpb.KeyValue{
+					{Key: "db.system", Value: &otelpb.AnyValue{StringValue: &childSpanAttr}},
+				},
 			}),
 		},
 	}
@@ -289,6 +293,40 @@ func testJaegerAPIV3TraceSummaries(tc *at.TestCase, sut at.VictoriaTracesWriteQu
 			return 0
 		},
 		Want: 2,
+	})
+
+	// the Tags box of Jaeger UI arrives as query.attributes. A filter which matches a span of
+	// the trace returns the whole trace, since a summary covers every span of it.
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected /select/jaeger/api/v3/trace-summaries response for a matching attribute",
+		Got: func() any {
+			res := sut.JaegerAPIV3TraceSummaries(t, at.JaegerV3QueryParam{
+				Attributes:   map[string]string{"db.system": childSpanAttr},
+				StartTimeMin: spanTime.Add(-time.Hour),
+				StartTimeMax: spanTime.Add(time.Hour),
+			}, at.QueryOpts{})
+			for _, s := range res.Summaries {
+				if s.TraceID == traceID {
+					return s.SpanCount
+				}
+			}
+			return 0
+		},
+		Want: 2,
+	})
+
+	// a filter which matches nothing must return no summaries at all.
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected /select/jaeger/api/v3/trace-summaries response for a non-matching attribute",
+		Got: func() any {
+			res := sut.JaegerAPIV3TraceSummaries(t, at.JaegerV3QueryParam{
+				Attributes:   map[string]string{"db.system": "no-such-value"},
+				StartTimeMin: spanTime.Add(-time.Hour),
+				StartTimeMax: spanTime.Add(time.Hour),
+			}, at.QueryOpts{})
+			return len(res.Summaries)
+		},
+		Want: 0,
 	})
 }
 
