@@ -315,6 +315,40 @@ func testJaegerAPIV3TraceSummaries(tc *at.TestCase, sut at.VictoriaTracesWriteQu
 		Want: 2,
 	})
 
+	// the duration filters narrow by the span duration. The root span runs for a second,
+	// so a floor above that must drop the trace.
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected /select/jaeger/api/v3/trace-summaries response for a duration range",
+		Got: func() any {
+			res := sut.JaegerAPIV3TraceSummaries(t, at.JaegerV3QueryParam{
+				DurationMin:  500 * time.Millisecond,
+				DurationMax:  2 * time.Second,
+				StartTimeMin: spanTime.Add(-time.Hour),
+				StartTimeMax: spanTime.Add(time.Hour),
+			}, at.QueryOpts{})
+			for _, s := range res.Summaries {
+				if s.TraceID == traceID {
+					return s.SpanCount
+				}
+			}
+			return 0
+		},
+		Want: 2,
+	})
+
+	tc.Assert(&at.AssertOptions{
+		Msg: "unexpected /select/jaeger/api/v3/trace-summaries response for a too high minimum duration",
+		Got: func() any {
+			res := sut.JaegerAPIV3TraceSummaries(t, at.JaegerV3QueryParam{
+				DurationMin:  time.Hour,
+				StartTimeMin: spanTime.Add(-time.Hour),
+				StartTimeMax: spanTime.Add(time.Hour),
+			}, at.QueryOpts{})
+			return len(res.Summaries)
+		},
+		Want: 0,
+	})
+
 	// a filter which matches nothing must return no summaries at all.
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /select/jaeger/api/v3/trace-summaries response for a non-matching attribute",
