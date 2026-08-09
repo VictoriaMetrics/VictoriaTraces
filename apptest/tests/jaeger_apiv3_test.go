@@ -316,7 +316,7 @@ func testJaegerAPIV3TraceSummaries(tc *at.TestCase, sut at.VictoriaTracesWriteQu
 	})
 
 	// the duration filters narrow by the span duration. The root span runs for a second,
-	// so a floor above that must drop the trace.
+	// so a range around that keeps the trace.
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /select/jaeger/api/v3/trace-summaries response for a duration range",
 		Got: func() any {
@@ -336,6 +336,7 @@ func testJaegerAPIV3TraceSummaries(tc *at.TestCase, sut at.VictoriaTracesWriteQu
 		Want: 2,
 	})
 
+	// a floor above the duration of every span must drop the trace.
 	tc.Assert(&at.AssertOptions{
 		Msg: "unexpected /select/jaeger/api/v3/trace-summaries response for a too high minimum duration",
 		Got: func() any {
