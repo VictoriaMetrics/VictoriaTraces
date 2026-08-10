@@ -1,0 +1,69 @@
+package remotewrite
+
+import (
+	"math"
+	"net/http"
+	"testing"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+)
+
+func TestParseRetryAfterHeader(t *testing.T) {
+	f := func(retryAfterString string, expectResult time.Duration) {
+		t.Helper()
+
+		result := parseRetryAfterHeader(retryAfterString)
+		// expect `expectResult == result` when retryAfterString is in seconds or invalid
+		// expect the difference between result and expectResult to be lower than 10%
+		if !(expectResult == result || math.Abs(float64(expectResult-result))/float64(expectResult) < 0.10) {
+			t.Fatalf(
+				"incorrect retry after duration, want (ms): %d, got (ms): %d",
+				expectResult.Milliseconds(), result.Milliseconds(),
+			)
+		}
+	}
+
+	// retry after header in seconds
+	f("10", 10*time.Second)
+	// retry after header in date time
+	f(time.Now().Add(30*time.Second).UTC().Format(http.TimeFormat), 30*time.Second)
+	// retry after header invalid
+	f("invalid-retry-after", 0)
+	// retry after header not in GMT
+	f(time.Now().Add(10*time.Second).Format("Mon, 02 Jan 2006 15:04:05 FAKETZ"), 0)
+}
+
+func TestInitSecretFlags(t *testing.T) {
+	showRemoteWriteURLOrig := *showRemoteWriteURL
+	defer func() {
+		*showRemoteWriteURL = showRemoteWriteURLOrig
+		flagutil.UnregisterAllSecretFlags()
+	}()
+
+	flagutil.UnregisterAllSecretFlags()
+	*showRemoteWriteURL = false
+	InitSecretFlags()
+	if !flagutil.IsSecretFlag("remotewrite.url") {
+		t.Fatalf("expecting remoteWrite.url to be secret")
+	}
+	if !flagutil.IsSecretFlag("remotewrite.proxyurl") {
+		t.Fatalf("expecting remoteWrite.proxyURL to be secret")
+	}
+	if !flagutil.IsSecretFlag("remotewrite.headers") {
+		t.Fatalf("expecting remoteWrite.headers to be secret")
+	}
+
+	flagutil.UnregisterAllSecretFlags()
+	*showRemoteWriteURL = true
+	InitSecretFlags()
+	if flagutil.IsSecretFlag("remotewrite.url") {
+		t.Fatalf("remoteWrite.url must remain visible when -remoteWrite.showURL is set")
+	}
+	if !flagutil.IsSecretFlag("remotewrite.proxyurl") {
+		t.Fatalf("expecting remoteWrite.proxyURL to remain secret")
+	}
+	if !flagutil.IsSecretFlag("remotewrite.headers") {
+		t.Fatalf("expecting remoteWrite.headers to remain secret")
+	}
+}
