@@ -4,6 +4,8 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/nativeinsert"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/nativeinsert/nativemultitenant"
 	"net/http"
 	"strings"
 	"time"
@@ -83,6 +85,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 // insertHandler handles HTTP insert request from public APIs.
 func insertHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 	switch path {
+	case "/insert/native":
+		nativeinsert.RequestHandler(w, r)
+		return true
+	case "/insert/multitenant/native":
+		nativemultitenant.RequestHandler(w, r)
+		return true
 	case "/insert/ready":
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
