@@ -161,7 +161,7 @@ integration-test:
 	$(MAKE) apptest
 
 apptest:
-	$(MAKE) victoria-traces
+	$(MAKE) victoria-traces-race vtagent-race
 	go test ./apptest/...
 
 benchmark:

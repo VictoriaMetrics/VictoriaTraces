@@ -1,8 +1,10 @@
 package apptest
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
-	"net/http"
+	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 	"os"
 	"regexp"
 	"strings"
@@ -10,173 +12,105 @@ import (
 	"time"
 )
 
-// Vlagent holds the state of a vlagent app and provides vlagent-specific functions
-type Vlagent struct {
+// Vtagent holds the state of a vtagent app and provides vtagent-specific functions
+// Vtsingle holds the state of a Vtsingle app and provides Vtsingle-specific
+// functions.
+type Vtagent struct {
 	*app
 	*ServesMetrics
 
 	remoteStoragesCount int
 	httpListenAddr      string
+
+	otlpTracesURL     string
+	otlpGRPCTracesURL string
 }
 
-// MustStartVlagent starts an instance of vlagent with the given flags.
-// It also sets the default flags and populates the app instance state with runtime
-// values extracted from the application log (such as httpListenAddr)
-func MustStartVlagent(t *testing.T, instance string, remoteWriteURLs []string, flags []string, cli *Client) *Vlagent {
-	t.Helper()
-
-	extractREs := []*regexp.Regexp{
-		httpListenAddrRE,
+// StartVtagent starts an instance of Vtagent with the given flags.
+// It also sets the default flags and populates the app instance state with
+// values extracted from the application log (such as httpListenAddr).
+func StartVtagent(instance string, remoteWriteURLs, flags []string, cli *Client) (*Vtagent, error) {
+	app, stderrExtracts, err := startApp(instance, "../../bin/vtagent-race", flags, &appOptions{
+		defaultFlags: map[string]string{
+			"-httpListenAddr":            "127.0.0.1:0",
+			"-otlpGRPCListenAddr":        "127.0.0.1:0",
+			"-otlpGRPC.tls":              "false",
+			"-remoteWrite.url":           strings.Join(remoteWriteURLs, ","),
+			"-remoteWrite.tmpDataPath":   fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
+			"-remoteWrite.flushInterval": "10ms",
+			"-remoteWrite.showURL":       "true",
+		},
+		extractREs: []*regexp.Regexp{
+			httpListenAddrRE,
+			gRPCListenAddrRE,
+		},
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	flags = setDefaultFlags(flags, map[string]string{
-		"-httpListenAddr":            "127.0.0.1:0",
-		"-remoteWrite.url":           strings.Join(remoteWriteURLs, ","),
-		"-remoteWrite.tmpDataPath":   fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
-		"-remoteWrite.flushInterval": "10ms",
-		"-remoteWrite.showURL":       "true",
-	})
-	app, extracts := mustStartApp(t, instance, "../../bin/vlagent-race", flags, extractREs)
-
-	return &Vlagent{
-		app:                 app,
-		remoteStoragesCount: len(remoteWriteURLs),
+	return &Vtagent{
+		app: app,
 		ServesMetrics: &ServesMetrics{
-			metricsURL: fmt.Sprintf("http://%s/metrics", extracts[0]),
+			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[1]),
 			cli:        cli,
 		},
-		httpListenAddr: extracts[0],
-	}
+
+		remoteStoragesCount: len(remoteWriteURLs),
+		httpListenAddr:      stderrExtracts[0],
+		otlpTracesURL:       fmt.Sprintf("http://%s/insert/opentelemetry/v1/traces", stderrExtracts[0]),
+		otlpGRPCTracesURL:   fmt.Sprintf("http://%s/opentelemetry.proto.collector.trace.v1.TraceService/Export", stderrExtracts[1]),
+	}, nil
 }
 
-// JSONLineWrite is a test helper function that inserts a
-// collection of records in json line format by sending a HTTP
-// POST request to /insert/jsonline vlagent endpoint.
-//
-// See https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api
-func (app *Vlagent) JSONLineWrite(t *testing.T, records []string, opts IngestOpts) {
+// OTLPHTTPExportTraces is a test helper function that exports OTLP trace data
+// by sending an HTTP POST request to /insert/opentelemetry/v1/traces
+// Vtagent endpoint.
+func (app *Vtagent) OTLPHTTPExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, opts QueryOpts) {
 	t.Helper()
 
-	data := []byte(strings.Join(records, "\n"))
-
-	url := fmt.Sprintf("http://%s/insert/jsonline", app.httpListenAddr)
-	uv := opts.asURLValues()
-	uvs := uv.Encode()
-	if len(uvs) > 0 {
-		url += "?" + uvs
-	}
-	app.sendBlocking(t, len(records), func() {
-		_, statusCode := app.cli.PostWithTenant(t, opts.AccountID, opts.ProjectID, url, "text/plain", data)
-		if statusCode != http.StatusOK {
-			t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
-		}
-	})
+	pbData := request.MarshalProtobuf(nil)
+	app.OTLPHTTPExportRawTraces(t, pbData, opts)
 }
 
-// WaitQueueEmptyAfter checks that persistent queue is empty
-// after execution of provided callback
-func (app *Vlagent) WaitQueueEmptyAfter(t *testing.T, cb func()) {
-	t.Helper()
-	const (
-		retries = 70
-		period  = 100 * time.Millisecond
-	)
-	// vlagent_remotewrite_blocks_sent_total
-	// take in account data replication
-	blocksSent := app.remoteWriteBlocksSent(t)
-	cb()
-	for range retries {
-		if app.remoteWriteBlocksSent(t) > blocksSent && app.persistentQueueSize(t) == 0 {
-			return
-		}
-		time.Sleep(period)
-	}
-	t.Fatalf("timed out while waiting for inserted logs to be flushed to remote storage")
-}
-
-// WaitRemoteWriteRequests waits until the remote write URL reaches the given requests count.
-func (app *Vlagent) WaitRemoteWriteRequests(t *testing.T, remoteWriteURL string, requests int) {
+// OTLPgRPCExportTraces is a test helper function that exports OTLP trace data
+// by sending an `Export` gRPC call to a TraceService provider (Vtagent).
+func (app *Vtagent) OTLPgRPCExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, _ QueryOpts) {
 	t.Helper()
 
-	const (
-		retries = 50
-		period  = 100 * time.Millisecond
-	)
-	for range retries {
-		if app.RemoteWriteRequests(t, remoteWriteURL) == requests {
-			return
-		}
-		time.Sleep(period)
+	pbData := request.MarshalProtobuf(nil)
+
+	// 5 bytes prefix: 1 byte compress flag + 4 bytes body length
+	buf := make([]byte, 5)
+	binary.BigEndian.PutUint32(buf[1:5], uint32(len(pbData)))
+
+	reqBody := append(buf, pbData...)
+
+	// must use a http2 client
+	client := GetHTTP2Client()
+
+	resp, err := client.Post(app.otlpGRPCTracesURL, "application/grpc", bytes.NewReader(reqBody))
+	if err != nil {
+		t.Fatalf("go error: %s", err)
 	}
-	t.Fatalf("timed out while waiting for remote write requests for %q to reach %d", remoteWriteURL, requests)
+	if resp.StatusCode != 200 {
+		t.Fatalf("got %d, expected 200", resp.StatusCode)
+	}
 }
 
-// sendBlocking executes send and waits until the data is added to every remote
-// write queue.
-//
-// vlagent does not send the data immediately. It first puts the data into a
-// buffer. Then a background goroutine takes the data from the buffer and sends it
-// to the vmstorage. This happens every 1s by default.
-//
-// Waiting is implemented by retrieving the value of `vlagent_remotewrite_block_size_rows_sum`
-// metric and checking whether it is equal or greater than the wanted value.
-// This doesn't guarantee that remote storage has received the data.
-//
-// Unreliable if the records are inserted concurrently.
-func (app *Vlagent) sendBlocking(t *testing.T, numRecordsToSend int, send func()) {
+// OTLPHTTPExportRawTraces is a test helper function that exports raw OTLP trace data in []byte
+// by sending an HTTP POST request to /insert/opentelemetry/v1/traces
+// Vtagent endpoint.
+func (app *Vtagent) OTLPHTTPExportRawTraces(t *testing.T, data []byte, opts QueryOpts) {
 	t.Helper()
 
-	// Take the current counter value before calling send(), since it may be updated
-	// concurrently with the request execution. See TestVlagentRemoteWriteReplication
-	// flakiness in CI when the counter is read after send().
-	rowsPushed := app.remoteWriteRowsPushed(t)
-
-	send()
-
-	const (
-		retries = 50
-		period  = 100 * time.Millisecond
-	)
-	// take in account data replication
-	wantRowsSentCount := rowsPushed + numRecordsToSend*app.remoteStoragesCount
-	for range retries {
-		if app.remoteWriteRowsPushed(t) >= wantRowsSentCount {
-			return
-		}
-		time.Sleep(period)
+	contentType := "application/x-protobuf"
+	if opts.HTTPHeaders != nil && opts.HTTPHeaders["Content-Type"] != "" {
+		contentType = opts.HTTPHeaders["Content-Type"]
 	}
-	t.Fatalf("timed out while waiting for inserted rows to be sent to remote storage")
-}
 
-// RemoteWriteRequests returns the number of successful remote write requests for the given URL.
-func (app *Vlagent) RemoteWriteRequests(t *testing.T, url string) int {
-	metricName := fmt.Sprintf(`vlagent_remotewrite_requests_total{url=%q, status_code="2XX"}`, url)
-	return int(app.GetMetric(t, metricName))
-}
-
-func (app *Vlagent) remoteWriteBlocksSent(t *testing.T) int {
-	total := 0.0
-	for _, v := range app.GetMetricsByPrefix(t, "vlagent_remotewrite_blocks_sent_total") {
-		total += v
+	body, code := app.cli.Post(t, app.otlpTracesURL, contentType, data)
+	if code != 200 {
+		t.Fatalf("got %d, expected 200. body: %s", code, body)
 	}
-	return int(total)
-}
-
-func (app *Vlagent) remoteWriteRowsPushed(t *testing.T) int {
-	total := 0.0
-	for _, v := range app.GetMetricsByPrefix(t, "vlagent_remotewrite_block_size_rows_sum") {
-		total += v
-	}
-	return int(total)
-}
-
-func (app *Vlagent) persistentQueueSize(t *testing.T) int {
-	total := 0.0
-	for _, v := range app.GetMetricsByPrefix(t, "vlagent_remotewrite_pending_data_bytes") {
-		total += v
-	}
-	for _, v := range app.GetMetricsByPrefix(t, "vlagent_remotewrite_pending_inmemory_blocks") {
-		total += v
-	}
-	return int(total)
 }

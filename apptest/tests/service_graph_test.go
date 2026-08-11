@@ -1,13 +1,13 @@
 package tests
 
 import (
-	"os"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/query"
 	at "github.com/VictoriaMetrics/VictoriaTraces/apptest"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
@@ -16,7 +16,7 @@ import (
 // TestSingleServiceGraphGenerationJaegerQuery test service graph data generation
 // and query of `/select/jaeger/api/dependencies` API for vt-single.
 func TestSingleServiceGraphGenerationJaegerQuery(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := at.NewTestCase(t)
 	defer tc.Stop()

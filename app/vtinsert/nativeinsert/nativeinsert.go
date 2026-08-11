@@ -48,31 +48,31 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cp.IsTimeFieldSet {
-		unsupportedOptionsLogger.Warnf("/insert/native endpoint doesn't support setting time fields via _time_field query arg and via VL-Time-Field request header; "+
-			"ignoring them; timeFields=%q; see https://docs.victoriametrics.com/victorialogs/vlagent/#multitenancy", cp.TimeFields)
+		unsupportedOptionsLogger.Warnf("/insert/native endpoint doesn't support setting time fields via _time_field query arg and via VT-Time-Field request header; "+
+			"ignoring them; timeFields=%q; see https://docs.victoriametrics.com/victoriatraces/vtagent/#multitenancy", cp.TimeFields)
 	}
 	// Unconditionally reset cp.TimeFields, since the code below shouldn't depend on this field.
 	cp.TimeFields = nil
 
 	if len(cp.MsgFields) > 0 {
-		unsupportedOptionsLogger.Warnf("/insert/native endpoint doesn't support setting msg fields via _msg_field query arg and via VL-Msg-Field request header; "+
-			"ignoring them; msgFields=%q; see https://docs.victoriametrics.com/victorialogs/vlagent/#multitenancy", cp.MsgFields)
+		unsupportedOptionsLogger.Warnf("/insert/native endpoint doesn't support setting msg fields via _msg_field query arg and via VT-Msg-Field request header; "+
+			"ignoring them; msgFields=%q; see https://docs.victoriametrics.com/victoriatraces/vtagent/#multitenancy", cp.MsgFields)
 		cp.MsgFields = nil
 	}
 	if len(cp.StreamFields) > 0 {
-		unsupportedOptionsLogger.Warnf("/insert/native endpoint doesn't support setting stream fields via _stream_fields query arg and via VL-Stream-Fields request header; "+
-			"ignoring them; streamFields=%q; see https://docs.victoriametrics.com/victorialogs/vlagent/#multitenancy", cp.StreamFields)
+		unsupportedOptionsLogger.Warnf("/insert/native endpoint doesn't support setting stream fields via _stream_fields query arg and via VT-Stream-Fields request header; "+
+			"ignoring them; streamFields=%q; see https://docs.victoriametrics.com/victoriatraces/vtagent/#multitenancy", cp.StreamFields)
 		cp.StreamFields = nil
 	}
 	if len(cp.DecolorizeFields) > 0 {
-		unsupportedOptionsLogger.Warnf("/insert/native endpoint doesn't support setting decolorize_fields query arg and VL-Decolorize-Fields request header; "+
-			"ignoring them; decolorizeFields=%q; see https://docs.victoriametrics.com/victorialogs/vlagent/#multitenancy", cp.DecolorizeFields)
+		unsupportedOptionsLogger.Warnf("/insert/native endpoint doesn't support setting decolorize_fields query arg and VT-Decolorize-Fields request header; "+
+			"ignoring them; decolorizeFields=%q; see https://docs.victoriametrics.com/victoriatraces/vtagent/#multitenancy", cp.DecolorizeFields)
 		cp.DecolorizeFields = nil
 	}
 
 	encoding := r.Header.Get("Content-Encoding")
 	err = protoparserutil.ReadUncompressedData(r.Body, encoding, MaxRequestSize, func(data []byte) error {
-		lmp := cp.NewLogMessageProcessor("nativeinsert", false)
+		lmp := cp.NewTraceProcessor("nativeinsert", false)
 		irp := lmp.(insertutil.InsertRowProcessor)
 		err := parseData(irp, data, cp.TenantID)
 		lmp.MustClose()
@@ -107,7 +107,7 @@ func parseData(irp insertutil.InsertRowProcessor, data []byte, tenantID logstora
 
 		if !r.TenantID.Equal(&zeroTenantID) && !r.TenantID.Equal(&tenantID) {
 			invalidTenantIDLogger.Warnf("use %q from AccountID and ProjectID request headers as tenantID for the log entry instead of %q; "+
-				"see https://docs.victoriametrics.com/victorialogs/vlagent/#multitenancy ; "+
+				"see https://docs.victoriametrics.com/victoriatraces/vtagent/#multitenancy ; "+
 				"log entry: %s", tenantID, r.TenantID, logstorage.MarshalFieldsToJSON(nil, r.Fields))
 		}
 
@@ -122,8 +122,8 @@ func parseData(irp insertutil.InsertRowProcessor, data []byte, tenantID logstora
 var invalidTenantIDLogger = logger.WithThrottler("invalid_tenant_id", 5*time.Second)
 
 var (
-	requestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/native"}`)
-	errorsTotal   = metrics.NewCounter(`vl_http_errors_total{path="/insert/native"}`)
+	requestsTotal = metrics.NewCounter(`vt_http_requests_total{path="/insert/native"}`)
+	errorsTotal   = metrics.NewCounter(`vt_http_errors_total{path="/insert/native"}`)
 
-	requestDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/native"}`)
+	requestDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/insert/native"}`)
 )

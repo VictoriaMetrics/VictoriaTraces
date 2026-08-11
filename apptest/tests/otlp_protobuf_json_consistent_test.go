@@ -2,6 +2,7 @@ package tests
 
 import (
 	"encoding/json"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"os"
 	"path"
 	"sort"
@@ -15,7 +16,7 @@ import (
 // TestSingleOTLPIngestionProtobufJSONConsistency test protobuf and JSON data ingestion of `/insert/opentelemetry/v1/traces` API,
 // to verify that they can parse and ingest data in the exact same way.
 func TestSingleOTLPIngestionProtobufJSONConsistency(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
