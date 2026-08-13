@@ -60,8 +60,6 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
      Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.header.csp string
      Value for 'Content-Security-Policy' header, recommended: "default-src 'self'"
-  -http.header.disableServerHostname
-     Whether to disable 'X-Server-Hostname' header in HTTP responses
   -http.header.frameOptions string
      Value for 'X-Frame-Options' header
   -http.header.hsts string
@@ -93,7 +91,7 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
   -insert.concurrency int
      The average number of concurrent data ingestion requests, which can be sent to every -storageNode (default 2)
   -insert.disable
-     Whether to disable both /insert/* and /internal/insert HTTP endpoints and OpenTelemetry gRPC ingestion endpoint. Useful for dedicated vtselect nodes. See also -internalinsert.disable. See https://docs.victoriametrics.com/victoriatraces/cluster/#security
+     Whether to disable /insert/* HTTP endpoints
   -insert.disableCompression
      Whether to disable compression when sending the ingested data to -storageNode nodes. Disabled compression reduces CPU usage at the cost of higher network usage
   -insert.indexFlushInterval duration
@@ -111,14 +109,14 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
   -internaldelete.enable
      Whether to enable /internal/delete/* HTTP endpoints, which are used by vtselect for deleting spans via delete API at vtstorage nodes
   -internalinsert.disable
-     Whether to disable /internal/insert HTTP endpoint. See also -insert.disable. See https://docs.victoriametrics.com/victoriatraces/cluster/#security
+     Whether to disable /internal/insert HTTP endpoint. See https://docs.victoriametrics.com/victoriatraces/cluster/#security
   -internalinsert.maxRequestSize size
      The maximum size in bytes of a single request, which can be accepted at /internal/insert HTTP endpoint
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -internalselect.disable
      Whether to disable /internal/select/* HTTP endpoints
   -internalselect.maxConcurrentRequests int
-     The limit on the number of concurrent requests to /internal/select/* endpoints; other requests are put into the wait queue; see https://docs.victoriametrics.com/victoriatraces/cluster/ (default 8)
+     The limit on the number of concurrent requests to /internal/select/* endpoints; other requests are put into the wait queue; see https://docs.victoriametrics.com/victorialogs/cluster/ (default 100)
   -logIngestedRows
      Whether to log all the ingested trace spans; this can be useful for debugging of data ingestion; see https://docs.victoriametrics.com/victoriatraces/data-ingestion/ ; see also -logNewStreams
   -logNewStreams
@@ -151,7 +149,7 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
   -maxConcurrentInserts int
      The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 2x CPU cores)
   -memory.allowedBytes size
-     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage. The process may behave unexpectedly if this flag is set too small (e.g., 1 byte).
+     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache which will result in higher disk IO usage (default 60)
@@ -228,16 +226,12 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
      The following unit suffixes are required: s (second), m (minute), h (hour), d (day), w (week), y (year). Bare numbers without units are not allowed (except 0) (default 0)
   -search.maxQueueDuration duration
      The maximum time the search request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
-  -search.maxTags int
-     The maximum number of tags (including service name, span name) that can be returned in a single search request. This limit applies to Jaeger’s /api/services, /api/services/*/operations APIs, and various Tempo tag-related APIs. (default 1000)
-  -search.maxTraces int
-     The maximum number of traces that can be returned in a single search request. Users may request with different limit value via query argument which shouldn't exceed this limit. This limit applies to Jaeger’s /api/traces API and Tempo's /api/search API. (default 1000)
   -search.traceMaxDurationWindow duration
      The window of searching for the rest trace spans after finding one span.It allows extending the search start time and end time by -search.traceMaxDurationWindow to make sure all spans are included.It affects both Jaeger's /api/traces and /api/traces/<trace_id> APIs. (default 1m0s)
   -search.traceMaxServiceNameList uint
-     Deprecated, see -search.maxTags. (default 1000)
+     The maximum number of service name can return in a get service name request. This limit affects Jaeger's /api/services API. (default 1000)
   -search.traceMaxSpanNameList uint
-     Deprecated, see -search.maxTags. (default 1000)
+     The maximum number of span name can return in a get span name request. This limit affects Jaeger's /api/services/*/operations API. (default 1000)
   -search.traceSearchStep duration
      Splits the [0, now] time range into many small time ranges by -search.traceSearchStep when searching for spans by trace_id. Once it finds spans in a time range, it performs an additional search according to -search.traceMaxDurationWindow and then stops. It affects Jaeger's /api/traces/<trace_id> API. (default 24h0m0s)
   -search.traceServiceAndSpanNameLookbehind duration
@@ -344,6 +338,4 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -version
      Show VictoriaMetrics version
-  -vmalert.proxyURL string
-     Optional URL for proxying requests to vmalert; see https://docs.victoriametrics.com/victoriatraces/#vmalert
 ```

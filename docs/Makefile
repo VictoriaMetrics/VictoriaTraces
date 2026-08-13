@@ -83,6 +83,32 @@ docs-update-victoria-traces-flags:
 	rm -f docs/victoriatraces/victoria_traces_common_flags.md.bak
 	#rm -f docs/victoriatraces/victoria_traces_enterprise_flags.md.bak
 
+docs-update-vtagent-flags:
+	# ---- vtagent
+	#(cd /tmp/vt-enterprise && make vtagent)
+	(cd /tmp/vt-opensource && make vtagent)
+	#(cd /tmp/vt-enterprise && ./bin/vtagent -help 2>&1) > /tmp/vt-enterprise/vtagent_enterprise_flags_tmp.md
+	(cd /tmp/vt-opensource && ./bin/vtagent -help 2>&1) > /tmp/vt-opensource/vtagent_common_flags_tmp.md
+
+	echo "$$FLAGS_HEADER" > docs/victorialogs/vtagent_common_flags.md
+	cat /tmp/vt-opensource/vtagent_common_flags_tmp.md >> docs/victorialogs/vtagent_common_flags.md
+	printf -- '```\n' >> docs/victorialogs/vtagent_common_flags.md
+
+	#echo "$$FLAGS_HEADER" > docs/victorialogs/vtagent_enterprise_flags.md
+	#$(call extract_enterprise_flags,/tmp/vt-opensource/vtagent_common_flags_tmp.md,/tmp/vt-enterprise/vtagent_enterprise_flags_tmp.md,docs/victorialogs/vtagent_enterprise_flags.md)
+	#printf -- '```\n' >> docs/victorialogs/vtagent_enterprise_flags.md
+
+	# replace tabs in output with one space
+	sed -i.bak 's/\t/ /g' docs/victorialogs/vtagent_common_flags.md
+	#sed -i.bak 's/\t/ /g' docs/victorialogs/vtagent_enterprise_flags.md
+
+	# adjust flags with dynamic default values
+	sed -i.bak '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2x CPU cores)/' docs/victorialogs/vtagent_common_flags.md
+	sed -i.bak '/The number of concurrent queues to each -remoteWrite.url/ s/(default [0-9]\+)/(default 2x CPU cores)/' docs/victorialogs/vtagent_common_flags.md
+	sed -i.bak '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default 16x CPU cores, default capped at 256)/' docs/victorialogs/vtagent_common_flags.md
+	#rm -f docs/victorialogs/vtagent_common_flags.md.bak
+	#rm -f docs/victorialogs/vtagent_enterprise_flags.md.bak
+
 # docs-update-flags updates flags in the documentation using the actual binaries compiled
 # from the given TAG.
 # The command also normalizes the output a bit.
@@ -110,3 +136,4 @@ docs-update-flags:
 	git worktree add /tmp/vt-opensource $(TAG)
 
 	make docs-update-victoria-traces-flags
+	make docs-update-vtagent-flags
