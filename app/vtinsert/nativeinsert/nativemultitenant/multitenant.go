@@ -43,30 +43,30 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 
 	if cp.TenantID.AccountID != 0 || cp.TenantID.ProjectID != 0 {
 		unsupportedOptionsLogger.Warnf("/insert/multitenant/native endpoint doesn't support setting tenantID via AccountID and ProjectID request headers; "+
-			"ignoring it; tenantID=%q; see https://docs.victoriametrics.com/victorialogs/vlagent/#multitenancy", cp.TenantID)
+			"ignoring it; tenantID=%q; see https://docs.victoriametrics.com/victoriatraces/vtagent/#multitenancy", cp.TenantID)
 		cp.TenantID = logstorage.TenantID{}
 	}
 
 	if cp.IsTimeFieldSet {
 		unsupportedOptionsLogger.Warnf("/insert/multitenant/native endpoint doesn't support setting time fields via _time_field query arg and via VL-Time-Field request header; "+
-			"ignoring them; timeFields=%q; see https://docs.victoriametrics.com/victorialogs/vlagent/#multitenancy", cp.TimeFields)
+			"ignoring them; timeFields=%q; see https://docs.victoriametrics.com/victoriatraces/vtagent/#multitenancy", cp.TimeFields)
 	}
 	// Unconditionally reset cp.TimeFields, since the code below shouldn't depend on this field.
 	cp.TimeFields = nil
 
 	if len(cp.MsgFields) > 0 {
 		unsupportedOptionsLogger.Warnf("/insert/multitenant/native endpoint doesn't support setting msg fields via _msg_field query arg and via VL-Msg-Field request header; "+
-			"ignoring them; msgFields=%q; see https://docs.victoriametrics.com/victorialogs/vlagent/#multitenancy", cp.MsgFields)
+			"ignoring them; msgFields=%q; see https://docs.victoriametrics.com/victoriatraces/vtagent/#multitenancy", cp.MsgFields)
 		cp.MsgFields = nil
 	}
 	if len(cp.StreamFields) > 0 {
 		unsupportedOptionsLogger.Warnf("/insert/multitenant/native endpoint doesn't support setting stream fields via _stream_fields query arg and via VL-Stream-Fields request header; "+
-			"ignoring them; streamFields=%q; see https://docs.victoriametrics.com/victorialogs/vlagent/#multitenancy", cp.StreamFields)
+			"ignoring them; streamFields=%q; see https://docs.victoriametrics.com/victoriatraces/vtagent/#multitenancy", cp.StreamFields)
 		cp.StreamFields = nil
 	}
 	if len(cp.DecolorizeFields) > 0 {
 		unsupportedOptionsLogger.Warnf("/insert/multitenant/native endpoint doesn't support setting decolorize_fields query arg and VL-Decolorize-Fields request header; "+
-			"ignoring them; decolorizeFields=%q; see https://docs.victoriametrics.com/victorialogs/vlagent/#multitenancy", cp.DecolorizeFields)
+			"ignoring them; decolorizeFields=%q; see https://docs.victoriametrics.com/victoriatraces/vtagent/#multitenancy", cp.DecolorizeFields)
 		cp.DecolorizeFields = nil
 	}
 
@@ -110,8 +110,8 @@ func parseData(irp insertutil.InsertRowProcessor, data []byte) error {
 }
 
 var (
-	requestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/multitenant/native"}`)
-	errorsTotal   = metrics.NewCounter(`vl_http_errors_total{path="/insert/multitenant/native"}`)
+	requestsTotal = metrics.NewCounter(`vt_http_requests_total{path="/insert/multitenant/native"}`)
+	errorsTotal   = metrics.NewCounter(`vt_http_errors_total{path="/insert/multitenant/native"}`)
 
-	requestDuration = metrics.NewSummary(`vl_http_request_duration_seconds{path="/insert/multitenant/native"}`)
+	requestDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/insert/multitenant/native"}`)
 )
