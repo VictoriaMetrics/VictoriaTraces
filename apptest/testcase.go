@@ -175,7 +175,6 @@ func (tc *TestCase) MustStartVtsingle(instance string, flags []string) *Vtsingle
 	return app
 }
 
-
 // MustStartVtagent is a test helper function that starts an instance of
 // vtagent and fails the test if the app fails to start.
 func (tc *TestCase) MustStartVtagent(instance string, remoteWriteURLs, flags []string) *Vtagent {
