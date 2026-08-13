@@ -28,8 +28,7 @@ var (
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	tmpDataPath = flag.String("tmpDataPath", "", "Base directory for storing vtagent data. "+
-		"Used as default for -remoteWrite.tmpDataPath, -kubernetesCollector.checkpointsPath, "+
-		"and -fileCollector.checkpointsPath unless those flags are set explicitly")
+		"Used as default for -remoteWrite.tmpDataPath unless those flags are set explicitly")
 )
 
 func main() {
