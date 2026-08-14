@@ -37,7 +37,7 @@ publish: \
 	publish-vtagent
 
 vtutils: \
-	vlagent
+	vtagent
 
 vtutils-pure: \
 	vtagent-pure
@@ -58,7 +58,7 @@ vtutils-linux-ppc64le: \
 	vtagent-linux-ppc64le
 
 vtutils-linux-s390x: \
-	vlagent-linux-s390x
+	vtagent-linux-s390x
 
 vtutils-darwin-amd64: \
 	vtagent-darwin-amd64
