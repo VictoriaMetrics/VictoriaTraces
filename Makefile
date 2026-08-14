@@ -26,16 +26,57 @@ include dashboards/Makefile
 include package/release/Makefile
 
 all: \
-	victoria-traces-prod
+	victoria-traces-prod \
+	vtagent-prod
 
 clean:
 	rm -rf bin/*
 
 publish: \
-	publish-victoria-traces
+	publish-victoria-traces \
+	publish-vtagent
+
+vtutils: \
+	vlagent
+
+vtutils-pure: \
+	vtagent-pure
+
+vtutils-linux-amd64: \
+	vtagent-linux-amd64
+
+vtutils-linux-arm64: \
+	vtagent-linux-arm64
+
+vtutils-linux-arm: \
+	vtagent-linux-arm
+
+vtutils-linux-386: \
+	vtagent-linux-386
+
+vtutils-linux-ppc64le: \
+	vtagent-linux-ppc64le
+
+vtutils-linux-s390x: \
+	vlagent-linux-s390x
+
+vtutils-darwin-amd64: \
+	vtagent-darwin-amd64
+
+vtutils-darwin-arm64: \
+	vtagent-darwin-arm64
+
+vtutils-freebsd-amd64: \
+	vtagent-freebsd-amd64
+
+vtutils-openbsd-amd64: \
+	vtagent-openbsd-amd64
+
+vtutils-windows-amd64: \
+	vtagent-windows-amd64
 
 crossbuild:
-	$(MAKE_PARALLEL) victoria-traces-crossbuild
+	$(MAKE_PARALLEL) victoria-traces-crossbuild vtutils-crossbuild
 
 victoria-traces-crossbuild: \
 	victoria-traces-linux-386 \
@@ -50,19 +91,34 @@ victoria-traces-crossbuild: \
 	victoria-traces-openbsd-amd64 \
 	victoria-traces-windows-amd64
 
+vtutils-crossbuild: \
+	vtutils-linux-386 \
+	vtutils-linux-amd64 \
+	vtutils-linux-arm64 \
+	vtutils-linux-arm \
+	vtutils-linux-ppc64le \
+	vtutils-linux-s390x \
+	vtutils-darwin-amd64 \
+	vtutils-darwin-arm64 \
+	vtutils-freebsd-amd64 \
+	vtutils-openbsd-amd64 \
+	vtutils-windows-amd64
+
 publish-final-images:
 	PKG_TAG=$(TAG) APP_NAME=victoria-traces $(MAKE) publish-via-docker-from-rc && \
 	PKG_TAG=$(TAG) $(MAKE) publish-latest
 
 publish-latest:
 	PKG_TAG=$(TAG) APP_NAME=victoria-traces $(MAKE) publish-via-docker-latest
+	PKG_TAG=$(TAG) APP_NAME=vtagent $(MAKE) publish-via-docker-latest
 
 publish-release:
 	rm -rf bin/*
 	git checkout $(TAG) && $(MAKE) release && $(MAKE) publish
 
 release: \
-	release-victoria-traces
+	release-victoria-traces \
+	release-vtutils
 
 release-victoria-traces:
 	$(MAKE_PARALLEL) release-victoria-traces-linux-386 \
@@ -124,6 +180,71 @@ release-victoria-traces-windows-goarch: victoria-traces-windows-$(GOARCH)-prod
 			> victoria-traces-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
 	cd bin && rm -rf \
 		victoria-traces-windows-$(GOARCH)-prod.exe
+
+release-vtutils: \
+	release-vtutils-linux-386 \
+	release-vtutils-linux-amd64 \
+	release-vtutils-linux-arm64 \
+	release-vtutils-linux-arm \
+	release-vtutils-linux-s390x \
+	release-vtutils-darwin-amd64 \
+	release-vtutils-darwin-arm64 \
+	release-vtutils-freebsd-amd64 \
+	release-vtutils-openbsd-amd64 \
+	release-vtutils-windows-amd64
+
+release-vtutils-linux-386:
+	GOOS=linux GOARCH=386 $(MAKE) release-vtutils-goos-goarch
+
+release-vtutils-linux-amd64:
+	GOOS=linux GOARCH=amd64 $(MAKE) release-vtutils-goos-goarch
+
+release-vtutils-linux-arm64:
+	GOOS=linux GOARCH=arm64 $(MAKE) release-vtutils-goos-goarch
+
+release-vtutils-linux-arm:
+	GOOS=linux GOARCH=arm $(MAKE) release-vtutils-goos-goarch
+
+release-vtutils-linux-s390x:
+	GOOS=linux GOARCH=s390x $(MAKE) release-vtutils-goos-goarch
+
+release-vtutils-darwin-amd64:
+	GOOS=darwin GOARCH=amd64 $(MAKE) release-vtutils-goos-goarch
+
+release-vtutils-darwin-arm64:
+	GOOS=darwin GOARCH=arm64 $(MAKE) release-vtutils-goos-goarch
+
+release-vtutils-freebsd-amd64:
+	GOOS=freebsd GOARCH=amd64 $(MAKE) release-vtutils-goos-goarch
+
+release-vtutils-openbsd-amd64:
+	GOOS=openbsd GOARCH=amd64 $(MAKE) release-vtutils-goos-goarch
+
+release-vtutils-windows-amd64:
+	GOARCH=amd64 $(MAKE) release-vtutils-windows-goarch
+
+release-vtutils-goos-goarch: \
+	vtagent-$(GOOS)-$(GOARCH)-prod
+	cd bin && \
+		tar $(TAR_OWNERSHIP) --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf vtutils-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+			vtagent-$(GOOS)-$(GOARCH)-prod \
+		&& sha256sum vtutils-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+			vtagent-$(GOOS)-$(GOARCH)-prod \
+			| sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ > vtutils-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	cd bin && rm -rf \
+		vtagent-$(GOOS)-$(GOARCH)-prod
+
+release-vtutils-windows-goarch: \
+	vtagent-windows-$(GOARCH)-prod
+	cd bin && \
+		zip vtutils-windows-$(GOARCH)-$(PKG_TAG).zip \
+			vtagent-windows-$(GOARCH)-prod.exe \
+		&& sha256sum vtutils-windows-$(GOARCH)-$(PKG_TAG).zip \
+			vtagent-windows-$(GOARCH)-prod.exe \
+			> vtutils-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	cd bin && rm -rf \
+		vtagent-windows-$(GOARCH)-prod.exe
+
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaTraces@ $(PPROF_FILE)
