@@ -63,6 +63,11 @@ const (
 	// It must be updated every time the protocol changes.
 	QueryProtocolVersion = "v5"
 
+	// QueryProfileProtocolVersion is the version of the protocol used for /internal/select/query_profile HTTP endpoint.
+	//
+	// It must be updated every time the protocol changes.
+	QueryProfileProtocolVersion = "v1"
+
 	// DeleteRunTaskProtocolVersion is the version of the protocol used for /internal/delete/run_task HTTP endpoint.
 	//
 	// It must be updated every time the protocol changes.
@@ -93,6 +98,9 @@ type storageNode struct {
 	// addr is TCP address of the storage node to query
 	addr string
 
+	// index is the coordinator-assigned index in the configured storage node list.
+	index int
+
 	// s is a storage, which holds the given storageNode
 	s *Storage
 
@@ -106,7 +114,7 @@ type storageNode struct {
 	sendErrors *metrics.Counter
 }
 
-func newStorageNode(s *Storage, addr string, ac *promauth.Config, isTLS bool) *storageNode {
+func newStorageNode(s *Storage, index int, addr string, ac *promauth.Config, isTLS bool) *storageNode {
 	tr := httputil.NewTransport(false, "vtselect_backend")
 	tr.TLSHandshakeTimeout = 20 * time.Second
 	tr.DisableCompression = true
@@ -119,6 +127,7 @@ func newStorageNode(s *Storage, addr string, ac *promauth.Config, isTLS bool) *s
 	sn := &storageNode{
 		scheme: scheme,
 		addr:   addr,
+		index:  index,
 		s:      s,
 		c: &http.Client{
 			Transport: ac.NewRoundTripper(tr),
@@ -130,13 +139,35 @@ func newStorageNode(s *Storage, addr string, ac *promauth.Config, isTLS bool) *s
 	return sn
 }
 
-func (sn *storageNode) runQuery(qctx *logstorage.QueryContext, processBlock func(db *logstorage.DataBlock)) error {
-	args := sn.getCommonArgs(QueryProtocolVersion, qctx)
+func (sn *storageNode) runQuery(qctx *logstorage.QueryContext, processBlock func(db *logstorage.DataBlock)) (err error) {
+	profileCollector := qctx.QueryProfileCollector()
+	requestStage, _ := qctx.QueryProfileStage()
+	requestQuery := qctx.Query.String()
+	protocolVersion := QueryProtocolVersion
+	path := "/internal/select/query"
+	if profileCollector != nil {
+		protocolVersion = QueryProfileProtocolVersion
+		path = "/internal/select/query_profile"
+	}
+	args := sn.getCommonArgs(protocolVersion, qctx)
 
 	qsLocal := &logstorage.QueryStats{}
-	defer qctx.QueryStats.UpdateAtomic(qsLocal)
+	if profileCollector != nil {
+		qsLocal.EnableDetailedProfiling()
+	}
+	var queryProfileSnapshot logstorage.QueryProfileSnapshot
+	var gotQueryProfile bool
+	defer func() {
+		qctx.QueryStats.UpdateAtomic(qsLocal)
+		if profileCollector == nil {
+			return
+		}
+		if err != nil && queryProfileSnapshot.Error == "" {
+			queryProfileSnapshot.Error = err.Error()
+		}
+		profileCollector.MergeRemote(queryProfileSnapshot, qsLocal.Snapshot(), sn.addr, sn.index, requestStage, requestQuery)
+	}()
 
-	path := "/internal/select/query"
 	responseBody, reqURL, err := sn.getResponseBodyForPathAndArgs(qctx.Context, path, args)
 	if err != nil {
 		return err
@@ -148,13 +179,26 @@ func (sn *storageNode) runQuery(qctx *logstorage.QueryContext, processBlock func
 	var buf []byte
 	var db logstorage.DataBlock
 	var valuesBuf []string
+	var gotQueryStats bool
+	var queryProfileError string
 	for {
 		if _, err := io.ReadFull(responseBody, dataLenBuf[:]); err != nil {
 			if errors.Is(err, io.EOF) {
-				// The end of response stream
+				// The end of response stream.
+				if profileCollector != nil {
+					if !gotQueryStats {
+						return newUnavailableStorageNodeError("missing terminal query stats block in response from %q", reqURL)
+					}
+					if !gotQueryProfile {
+						return newUnavailableStorageNodeError("missing terminal query profile block in response from %q", reqURL)
+					}
+					if queryProfileError != "" {
+						return fmt.Errorf("remote query at %q failed: %s", reqURL, queryProfileError)
+					}
+				}
 				return nil
 			}
-			return fmt.Errorf("cannot read block size from %q: %w", reqURL, err)
+			return newUnavailableStorageNodeError("cannot read block size from %q: %s", reqURL, err)
 		}
 		blockLen := encoding.UnmarshalUint64(dataLenBuf[:])
 		if blockLen > math.MaxInt {
@@ -163,7 +207,7 @@ func (sn *storageNode) runQuery(qctx *logstorage.QueryContext, processBlock func
 
 		buf = slicesutil.SetLength(buf, int(blockLen))
 		if _, err := io.ReadFull(responseBody, buf); err != nil {
-			return fmt.Errorf("cannot read block with size of %d bytes from %q: %w", blockLen, reqURL, err)
+			return newUnavailableStorageNodeError("cannot read block with size of %d bytes from %q: %s", blockLen, reqURL, err)
 		}
 
 		src := buf
@@ -178,29 +222,59 @@ func (sn *storageNode) runQuery(qctx *logstorage.QueryContext, processBlock func
 		}
 
 		for len(src) > 0 {
-			isQueryStatsBlock := (src[0] == 1)
+			marker := src[0]
 			src = src[1:]
 
-			if isQueryStatsBlock {
+			switch marker {
+			case 0:
+				tail, vb, err := db.UnmarshalInplace(src, valuesBuf[:0])
+				if err != nil {
+					return fmt.Errorf("cannot unmarshal data block received from %q: %w", reqURL, err)
+				}
+				valuesBuf = vb
+				src = tail
+
+				processBlock(&db)
+				clear(valuesBuf)
+			case 1:
 				tail, err := unmarshalQueryStats(qsLocal, src)
 				if err != nil {
 					return fmt.Errorf("cannot unmarshal query stats received from %q: %w", reqURL, err)
 				}
 				src = tail
-				continue
+				gotQueryStats = true
+			case 2:
+				if profileCollector == nil {
+					return fmt.Errorf("unexpected query profile block received from %q", reqURL)
+				}
+				if !gotQueryStats {
+					return fmt.Errorf("query profile block received before terminal query stats block from %q", reqURL)
+				}
+				tail, vb, err := db.UnmarshalInplace(src, valuesBuf[:0])
+				if err != nil {
+					return fmt.Errorf("cannot unmarshal query profile block received from %q: %w", reqURL, err)
+				}
+				valuesBuf = vb
+				src = tail
+				snapshot, err := logstorage.QueryProfileSnapshotFromDataBlock(&db)
+				if err != nil {
+					return fmt.Errorf("cannot decode query profile received from %q: %w", reqURL, err)
+				}
+				queryProfileSnapshot = snapshot
+				gotQueryProfile = true
+				queryProfileError = snapshot.Error
+				clear(valuesBuf)
+			default:
+				return fmt.Errorf("unexpected query response marker %d received from %q", marker, reqURL)
 			}
-
-			tail, vb, err := db.UnmarshalInplace(src, valuesBuf[:0])
-			if err != nil {
-				return fmt.Errorf("cannot unmarshal data block received from %q: %w", reqURL, err)
-			}
-			valuesBuf = vb
-			src = tail
-
-			processBlock(&db)
-
-			clear(valuesBuf)
 		}
+	}
+}
+
+func newUnavailableStorageNodeError(format string, args ...any) error {
+	return &httpserver.ErrorWithStatusCode{
+		Err:        fmt.Errorf(format, args...),
+		StatusCode: http.StatusBadGateway,
 	}
 }
 
@@ -283,6 +357,10 @@ func (sn *storageNode) getCommonArgs(version string, qctx *logstorage.QueryConte
 		logger.Panicf("BUG: cannot marshal HiddenFieldsFilters=%#v: %s", qctx.HiddenFieldsFilters, err)
 	}
 	args.Set("hidden_fields_filters", string(hiddenFieldsFilters))
+	if version == QueryProfileProtocolVersion {
+		stage, _ := qctx.QueryProfileStage()
+		args.Set("profile_stage", stage)
+	}
 
 	return args
 }
@@ -406,7 +484,7 @@ func NewStorage(addrs []string, authCfgs []*promauth.Config, isTLSs []bool, disa
 
 	sns := make([]*storageNode, len(addrs))
 	for i, addr := range addrs {
-		sns[i] = newStorageNode(s, addr, authCfgs[i], isTLSs[i])
+		sns[i] = newStorageNode(s, i, addr, authCfgs[i], isTLSs[i])
 	}
 	s.sns = sns
 
@@ -420,6 +498,10 @@ func (s *Storage) MustStop() {
 
 // RunQuery runs the given qctx and calls writeBlock for the returned data blocks
 func (s *Storage) RunQuery(qctx *logstorage.QueryContext, writeBlock logstorage.WriteDataBlockFunc) error {
+	if qctx.QueryProfileCollector() != nil {
+		stage, _ := qctx.QueryProfileStage()
+		qctx.SetQueryProfileStage(stage, "coordinator")
+	}
 	nqr, err := logstorage.NewNetQueryRunner(qctx, s.RunQuery, writeBlock)
 	if err != nil {
 		return err

@@ -50,27 +50,74 @@ type QueryContext struct {
 	//
 	// It is used for calculating query duration.
 	startTime time.Time
+
+	profileCollector      *QueryProfileCollector
+	profileStage          string
+	profileScope          string
+	profileAggregateStats *QueryStats
 }
 
 // NewQueryContext returns new context for the given query.
 func NewQueryContext(ctx context.Context, qs *QueryStats, tenantIDs []TenantID, q *Query, allowPartialResponse bool, hiddenFieldsFilters []string) *QueryContext {
 	startTime := time.Now()
-	return newQueryContext(ctx, qs, tenantIDs, q, allowPartialResponse, hiddenFieldsFilters, startTime)
+	return newQueryContext(ctx, qs, tenantIDs, q, allowPartialResponse, hiddenFieldsFilters, startTime, nil, "", "", nil)
 }
 
 // WithQuery returns new QueryContext with the given q, while preserving other fields from qctx.
 func (qctx *QueryContext) WithQuery(q *Query) *QueryContext {
-	return newQueryContext(qctx.Context, qctx.QueryStats, qctx.TenantIDs, q, qctx.AllowPartialResponse, qctx.HiddenFieldsFilters, qctx.startTime)
+	return newQueryContext(qctx.Context, qctx.QueryStats, qctx.TenantIDs, q, qctx.AllowPartialResponse, qctx.HiddenFieldsFilters, qctx.startTime,
+		qctx.profileCollector, qctx.profileStage, qctx.profileScope, qctx.profileAggregateStats)
 }
 
 // WithContext returns new QueryContext with the given ctx, while preserving other fields from qctx.
 func (qctx *QueryContext) WithContext(ctx context.Context) *QueryContext {
-	return newQueryContext(ctx, qctx.QueryStats, qctx.TenantIDs, qctx.Query, qctx.AllowPartialResponse, qctx.HiddenFieldsFilters, qctx.startTime)
+	return newQueryContext(ctx, qctx.QueryStats, qctx.TenantIDs, qctx.Query, qctx.AllowPartialResponse, qctx.HiddenFieldsFilters, qctx.startTime,
+		qctx.profileCollector, qctx.profileStage, qctx.profileScope, qctx.profileAggregateStats)
 }
 
 // WithContextAndQuery returns new QueryContext with the given ctx and q, while preserving other fields from qctx.
 func (qctx *QueryContext) WithContextAndQuery(ctx context.Context, q *Query) *QueryContext {
-	return newQueryContext(ctx, qctx.QueryStats, qctx.TenantIDs, q, qctx.AllowPartialResponse, qctx.HiddenFieldsFilters, qctx.startTime)
+	return newQueryContext(ctx, qctx.QueryStats, qctx.TenantIDs, q, qctx.AllowPartialResponse, qctx.HiddenFieldsFilters, qctx.startTime,
+		qctx.profileCollector, qctx.profileStage, qctx.profileScope, qctx.profileAggregateStats)
+}
+
+// WithTenantIDs returns a derived QueryContext for tenantIDs while preserving profiling metadata.
+func (qctx *QueryContext) WithTenantIDs(tenantIDs []TenantID) *QueryContext {
+	return newQueryContext(qctx.Context, qctx.QueryStats, tenantIDs, qctx.Query, qctx.AllowPartialResponse, qctx.HiddenFieldsFilters, qctx.startTime,
+		qctx.profileCollector, qctx.profileStage, qctx.profileScope, qctx.profileAggregateStats)
+}
+
+func (qctx *QueryContext) withQueryStats(qs *QueryStats) *QueryContext {
+	return newQueryContext(qctx.Context, qs, qctx.TenantIDs, qctx.Query, qctx.AllowPartialResponse, qctx.HiddenFieldsFilters, qctx.startTime,
+		qctx.profileCollector, qctx.profileStage, qctx.profileScope, qctx.profileAggregateStats)
+}
+
+// AttachQueryProfile attaches the optional request-scoped profile collector to qctx.
+// Passing a non-nil collector also enables detailed data-layout accounting in QueryStats.
+// Passing nil detaches the collector; detailed accounting remains enabled once requested.
+func (qctx *QueryContext) AttachQueryProfile(profileCollector *QueryProfileCollector) {
+	qctx.profileCollector = profileCollector
+	if profileCollector != nil {
+		qctx.QueryStats.EnableDetailedProfiling()
+		qctx.profileAggregateStats = qctx.QueryStats
+		profileCollector.attachQueryStats(qctx.QueryStats)
+	}
+}
+
+// SetQueryProfileStage sets the physical execution stage and scope recorded for qctx.
+func (qctx *QueryContext) SetQueryProfileStage(stage, scope string) {
+	qctx.profileStage = stage
+	qctx.profileScope = scope
+}
+
+// QueryProfileStage returns the physical execution stage and scope recorded for qctx.
+func (qctx *QueryContext) QueryProfileStage() (string, string) {
+	return qctx.profileStage, qctx.profileScope
+}
+
+// QueryProfileCollector returns the optional request-scoped profile collector.
+func (qctx *QueryContext) QueryProfileCollector() *QueryProfileCollector {
+	return qctx.profileCollector
 }
 
 // QueryDurationNsecs returns the duration in nanoseconds since the NewQueryContext call.
@@ -78,7 +125,8 @@ func (qctx *QueryContext) QueryDurationNsecs() int64 {
 	return time.Since(qctx.startTime).Nanoseconds()
 }
 
-func newQueryContext(ctx context.Context, qs *QueryStats, tenantIDs []TenantID, q *Query, allowPartialResponse bool, hiddenFieldsFilters []string, startTime time.Time) *QueryContext {
+func newQueryContext(ctx context.Context, qs *QueryStats, tenantIDs []TenantID, q *Query, allowPartialResponse bool, hiddenFieldsFilters []string, startTime time.Time,
+	profileCollector *QueryProfileCollector, profileStage, profileScope string, profileAggregateStats *QueryStats) *QueryContext {
 	if q.opts.allowPartialResponse != nil {
 		// query options override other settings for allowPartialResponse.
 		allowPartialResponse = *q.opts.allowPartialResponse
@@ -93,7 +141,11 @@ func newQueryContext(ctx context.Context, qs *QueryStats, tenantIDs []TenantID, 
 		AllowPartialResponse: allowPartialResponse,
 		HiddenFieldsFilters:  hiddenFieldsFilters,
 
-		startTime: startTime,
+		startTime:             startTime,
+		profileCollector:      profileCollector,
+		profileStage:          profileStage,
+		profileScope:          profileScope,
+		profileAggregateStats: profileAggregateStats,
 	}
 }
 
@@ -217,6 +269,17 @@ func (s *Storage) RunQuery(qctx *QueryContext, writeBlock WriteDataBlockFunc) er
 type runQueryFunc func(qctx *QueryContext, writeBlock writeBlockResultFunc) error
 
 func (s *Storage) runQuery(qctx *QueryContext, writeBlock writeBlockResultFunc) error {
+	if qctx.profileCollector != nil {
+		aggregateStats := qctx.profileAggregateStats
+		if aggregateStats == nil {
+			aggregateStats = qctx.QueryStats
+		}
+		executionStats := &QueryStats{}
+		executionStats.EnableDetailedProfiling()
+		qctx = qctx.withQueryStats(executionStats)
+		defer aggregateStats.UpdateAtomic(executionStats)
+	}
+
 	qNew, err := initSubqueries(qctx, s.runQuery, false)
 	if err != nil {
 		return err
@@ -271,6 +334,13 @@ func (s *Storage) getSearchOptions(tenantIDs []TenantID, q *Query, hiddenFieldsF
 type searchFunc func(stopCh <-chan struct{}, writeBlock writeBlockResultFunc) error
 
 func runPipes(qctx *QueryContext, pipes []pipe, search searchFunc, writeBlock writeBlockResultFunc, concurrency int) error {
+	if qctx.profileCollector == nil {
+		return runPipesUnprofiled(qctx, pipes, search, writeBlock, concurrency)
+	}
+	return runPipesProfiled(qctx, pipes, search, writeBlock, concurrency)
+}
+
+func runPipesUnprofiled(qctx *QueryContext, pipes []pipe, search searchFunc, writeBlock writeBlockResultFunc, concurrency int) error {
 	ctx, topCancel := context.WithCancel(qctx.Context)
 	defer topCancel()
 
@@ -326,6 +396,122 @@ func runPipes(qctx *QueryContext, pipes []pipe, search searchFunc, writeBlock wr
 	}
 
 	return errFlush
+}
+
+func runPipesProfiled(qctx *QueryContext, pipes []pipe, search searchFunc, writeBlock writeBlockResultFunc, concurrency int) (err error) {
+	ctx, topCancel := context.WithCancel(qctx.Context)
+	defer topCancel()
+
+	operatorNames := make([]string, len(pipes)+1)
+	operatorNames[0] = "scan"
+	for i, p := range pipes {
+		operatorNames[i+1] = getPipeName(p)
+	}
+	if len(pipes) == 0 {
+		operatorNames = append(operatorNames, "final_output")
+	}
+	profileStats := qctx.QueryStats
+	if qctx.profileScope == "coordinator" {
+		// Coordinator pipelines consume remote blocks. Their storage stats are reported by each remote node.
+		profileStats = nil
+	}
+	profileQuery := qctx.profileCollector.beginQuery(qctx.profileStage, qctx.profileScope, qctx.Query.String(), operatorNames, false, profileStats)
+	profileQuery.operators[0].synthetic = true
+	if len(pipes) == 0 {
+		profileQuery.operators[1].synthetic = true
+	}
+	defer func() {
+		profileQuery.finish(err)
+	}()
+
+	stopCh := ctx.Done()
+	scanOp := profileQuery.operators[0]
+	if len(pipes) == 0 {
+		outputOp := profileQuery.operators[1]
+		writeProfiled := func(workerID uint, br *blockResult) {
+			rowsCount := uint64(br.rowsLen)
+			scanOp.outputBlocks.Add(1)
+			scanOp.outputRows.Add(rowsCount)
+			outputOp.inputBlocks.Add(1)
+			outputOp.inputRows.Add(rowsCount)
+			startTime := time.Now()
+			writeBlock(workerID, br)
+			duration := time.Since(startTime).Nanoseconds()
+			scanOp.downstreamDurationNsecs.Add(duration)
+			outputOp.inclusiveWriteDurationNsecs.Add(duration)
+			outputOp.outputBlocks.Add(1)
+			outputOp.outputRows.Add(rowsCount)
+		}
+		startTime := time.Now()
+		err = search(stopCh, writeProfiled)
+		scanOp.inclusiveWriteDurationNsecs.Add(time.Since(startTime).Nanoseconds())
+		return err
+	}
+
+	pp := newNoopPipeProcessor(stopCh, writeBlock)
+	cancels := make([]func(), len(pipes))
+	pps := make([]*queryProfilePipeProcessor, len(pipes))
+
+	for i := len(pipes) - 1; i >= 0; i-- {
+		p := pipes[i]
+		op := profileQuery.operators[i+1]
+		ctxChild, cancel := context.WithCancel(ctx)
+		ppOutput := &queryProfileOutputPipeProcessor{
+			op:     op,
+			ppNext: pp,
+		}
+		ppInner := p.newPipeProcessor(concurrency, stopCh, cancel, ppOutput)
+		ppProfiled := &queryProfilePipeProcessor{
+			op: op,
+			pp: ppInner,
+		}
+		pp = ppProfiled
+
+		cancels[i] = cancel
+		pps[i] = ppProfiled
+
+		stopCh = ctxChild.Done()
+		ctx = ctxChild
+	}
+
+	writeScanned := func(workerID uint, br *blockResult) {
+		scanOp.outputBlocks.Add(1)
+		scanOp.outputRows.Add(uint64(br.rowsLen))
+		startTime := time.Now()
+		pp.writeBlock(workerID, br)
+		scanOp.downstreamDurationNsecs.Add(time.Since(startTime).Nanoseconds())
+	}
+	startTime := time.Now()
+	errSearch := search(stopCh, writeScanned)
+	scanOp.inclusiveWriteDurationNsecs.Add(time.Since(startTime).Nanoseconds())
+	if errSearch != nil {
+		topCancel()
+	}
+
+	var errFlush error
+	for i, ppProfiled := range pps {
+		setPipeQueryStats(ppProfiled.pp, qctx.QueryStats, qctx.QueryDurationNsecs())
+
+		if err := ppProfiled.flush(); err != nil && errFlush == nil {
+			topCancel()
+			errFlush = err
+		}
+		cancels[i]()
+	}
+
+	if errSearch != nil {
+		return errSearch
+	}
+	return errFlush
+}
+
+func setPipeQueryStats(pp pipeProcessor, qs *QueryStats, queryDurationNsecs int64) {
+	switch t := pp.(type) {
+	case *pipeQueryStatsProcessor:
+		t.setQueryStats(qs, queryDurationNsecs)
+	case *pipeQueryStatsLocalProcessor:
+		t.setQueryStats(qs, queryDurationNsecs)
+	}
 }
 
 // GetFieldNames returns field names for the given qctx.
@@ -1306,6 +1492,8 @@ func (db *DataBlock) mustInitFromBlockResult(br *blockResult) {
 //
 // It uses workersCount parallel workers for the search and calls writeBlock for each matching block.
 func (s *Storage) searchParallel(workersCount int, sso *storageSearchOptions, qs *QueryStats, stopCh <-chan struct{}, writeBlock writeBlockResultFunc) {
+	collectDetailedStats := qs.DetailedProfilingEnabled()
+
 	// spin up workers
 	var wg sync.WaitGroup
 	workCh := make(chan *blockSearchWorkBatch, workersCount)
@@ -1321,6 +1509,9 @@ func (s *Storage) searchParallel(workersCount int, sso *storageSearchOptions, qs
 					bsw := &bsws[i]
 					if needStop(stopCh) {
 						// The search has been canceled. Just skip all the scheduled work in order to save CPU time.
+						if collectDetailedStats {
+							qsLocal.BlocksCancelledBeforeProcess++
+						}
 						bsw.reset()
 						continue
 					}
@@ -1351,8 +1542,16 @@ func (s *Storage) searchParallel(workersCount int, sso *storageSearchOptions, qs
 		})
 	}
 
-	// Select partitions according to the selected time range
-	ptws, ptwsDecRef := s.getPartitionsForTimeRange(sso.minTimestamp, sso.maxTimestamp)
+	// Select partitions according to the selected time range.
+	var ptws []*partitionWrapper
+	var ptwsDecRef func()
+	if collectDetailedStats {
+		var qsSelection QueryStats
+		ptws, ptwsDecRef = s.getPartitionsForTimeRangeWithStats(sso.minTimestamp, sso.maxTimestamp, &qsSelection)
+		qs.UpdateAtomic(&qsSelection)
+	} else {
+		ptws, ptwsDecRef = s.getPartitionsForTimeRange(sso.minTimestamp, sso.maxTimestamp)
+	}
 	defer ptwsDecRef()
 
 	// Schedule concurrent search across matching partitions.
@@ -1363,7 +1562,7 @@ func (s *Storage) searchParallel(workersCount int, sso *storageSearchOptions, qs
 		wgSearchers.Go(func() {
 			qsLocal := &QueryStats{}
 
-			psfs[idx] = ptw.pt.search(sso, qsLocal, workCh, stopCh)
+			psfs[idx] = ptw.pt.search(sso, qsLocal, workCh, stopCh, collectDetailedStats)
 
 			qs.UpdateAtomic(qsLocal)
 
@@ -1386,7 +1585,15 @@ func (s *Storage) searchParallel(workersCount int, sso *storageSearchOptions, qs
 //
 // The caller must call ptwsDecRef when the returned partitions are no longer needed.
 func (s *Storage) getPartitionsForTimeRange(minTimestamp, maxTimestamp int64) (ptws []*partitionWrapper, ptwsDecRef func()) {
+	return s.getPartitionsForTimeRangeWithStats(minTimestamp, maxTimestamp, nil)
+}
+
+func (s *Storage) getPartitionsForTimeRangeWithStats(minTimestamp, maxTimestamp int64, qs *QueryStats) (ptws []*partitionWrapper, ptwsDecRef func()) {
 	s.partitionsLock.Lock()
+
+	if qs != nil {
+		qs.PartitionsTotal += uint64(len(s.partitions))
+	}
 
 	// s.partitions are sorted by s.day. Use binary search for finding partitions for the given [minTimestamp, maxTimestamp] time range.
 	ptwsTmp := s.partitions
@@ -1403,6 +1610,11 @@ func (s *Storage) getPartitionsForTimeRange(minTimestamp, maxTimestamp int64) (p
 
 	// Copy the selected partitions, so they don't interfere with s.partitions.
 	ptws = append([]*partitionWrapper{}, ptwsTmp...)
+	if qs != nil {
+		selected := uint64(len(ptws))
+		qs.PartitionsSelected += selected
+		qs.PartitionsTimeSkipped += uint64(len(s.partitions)) - selected
+	}
 
 	for _, ptw := range ptws {
 		ptw.incRef()
@@ -1426,14 +1638,14 @@ var partitionSearchConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs
 
 type partitionSearchFinalizer func()
 
-func (pt *partition) search(sso *storageSearchOptions, qs *QueryStats, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
+func (pt *partition) search(sso *storageSearchOptions, qs *QueryStats, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}, collectDetailedStats bool) partitionSearchFinalizer {
 	if needStop(stopCh) {
 		// Do not spend CPU time on search, since it is already stopped.
 		return func() {}
 	}
 
 	pso := pt.getSearchOptions(sso)
-	return pt.ddb.search(pso, qs, workCh, stopCh)
+	return pt.ddb.search(pso, qs, workCh, stopCh, collectDetailedStats)
 }
 
 func (pt *partition) getSearchOptions(sso *storageSearchOptions) *partitionSearchOptions {
@@ -1523,13 +1735,19 @@ func initStreamFilters(tenantIDs []TenantID, idb *indexdb, f filter) filter {
 	return f
 }
 
-func (ddb *datadb) search(pso *partitionSearchOptions, qs *QueryStats, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) partitionSearchFinalizer {
-	// Select parts with data for the given time range
-	pws, pwsDecRef := ddb.getPartsForTimeRange(pso.minTimestamp, pso.maxTimestamp)
+func (ddb *datadb) search(pso *partitionSearchOptions, qs *QueryStats, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}, collectDetailedStats bool) partitionSearchFinalizer {
+	// Select parts with data for the given time range.
+	var pws []*partWrapper
+	var pwsDecRef func()
+	if collectDetailedStats {
+		pws, pwsDecRef = ddb.getPartsForTimeRangeWithStats(pso.minTimestamp, pso.maxTimestamp, qs)
+	} else {
+		pws, pwsDecRef = ddb.getPartsForTimeRange(pso.minTimestamp, pso.maxTimestamp)
+	}
 
 	// Apply search to matching parts
 	for _, pw := range pws {
-		pw.p.search(pso, qs, workCh, stopCh)
+		pw.p.search(pso, qs, workCh, stopCh, collectDetailedStats)
 	}
 
 	return pwsDecRef
@@ -1539,10 +1757,23 @@ func (ddb *datadb) search(pso *partitionSearchOptions, qs *QueryStats, workCh ch
 //
 // The caller must call pwsDecRef on the returned parts when they are no longer needed.
 func (ddb *datadb) getPartsForTimeRange(minTimestamp, maxTimestamp int64) (pws []*partWrapper, pwsDecRef func()) {
+	return ddb.getPartsForTimeRangeWithStats(minTimestamp, maxTimestamp, nil)
+}
+
+func (ddb *datadb) getPartsForTimeRangeWithStats(minTimestamp, maxTimestamp int64, qs *QueryStats) (pws []*partWrapper, pwsDecRef func()) {
 	ddb.partsLock.Lock()
+	partsTotal := len(ddb.bigParts) + len(ddb.smallParts) + len(ddb.inmemoryParts)
+	if qs != nil {
+		qs.PartsTotal += uint64(partsTotal)
+	}
 	pws = appendPartsInTimeRange(nil, ddb.bigParts, minTimestamp, maxTimestamp)
 	pws = appendPartsInTimeRange(pws, ddb.smallParts, minTimestamp, maxTimestamp)
 	pws = appendPartsInTimeRange(pws, ddb.inmemoryParts, minTimestamp, maxTimestamp)
+	if qs != nil {
+		selected := uint64(len(pws))
+		qs.PartsSelected += selected
+		qs.PartsTimeSkipped += uint64(partsTotal) - selected
+	}
 
 	for _, pw := range pws {
 		pw.incRef()
@@ -1558,12 +1789,12 @@ func (ddb *datadb) getPartsForTimeRange(minTimestamp, maxTimestamp int64) (pws [
 	return pws, pwsDecRef
 }
 
-func (p *part) search(pso *partitionSearchOptions, qs *QueryStats, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) {
+func (p *part) search(pso *partitionSearchOptions, qs *QueryStats, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}, collectDetailedStats bool) {
 	bhss := getBlockHeaders()
 	if len(pso.tenantIDs) > 0 {
-		p.searchByTenantIDs(pso, qs, bhss, workCh, stopCh)
+		p.searchByTenantIDs(pso, qs, bhss, workCh, stopCh, collectDetailedStats)
 	} else {
-		p.searchByStreamIDs(pso, qs, bhss, workCh, stopCh)
+		p.searchByStreamIDs(pso, qs, bhss, workCh, stopCh, collectDetailedStats)
 	}
 	putBlockHeaders(bhss)
 }
@@ -1607,7 +1838,7 @@ func (p *part) hasMatchingRows(pso *partitionSearchOptions, stopCh <-chan struct
 
 	// execute the search
 	var qs QueryStats
-	p.search(pso, &qs, workCh, stopCh)
+	p.search(pso, &qs, workCh, stopCh, false)
 
 	// Wait until workers finish their work
 	close(workCh)
@@ -1643,7 +1874,30 @@ func (bhss *blockHeaders) reset() {
 	bhss.bhs = bhs[:0]
 }
 
-func (p *part) searchByTenantIDs(pso *partitionSearchOptions, qs *QueryStats, bhss *blockHeaders, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) {
+func accountDecodedBlockHeaders(qs *QueryStats, bhs []blockHeader) {
+	qs.BlockHeadersDecoded += uint64(len(bhs))
+	qs.BlockHeadersTimeOrKeySkipped += uint64(len(bhs))
+	for i := range bhs {
+		qs.RowsSkippedBeforeScheduling += bhs[i].rowsCount
+	}
+}
+
+func getBlockSearchWorkBatchStats(bswb *blockSearchWorkBatch) (uint64, uint64) {
+	bsws := bswb.bsws
+	var rowsCount uint64
+	for i := range bsws {
+		rowsCount += bsws[i].bh.rowsCount
+	}
+	return uint64(len(bsws)), rowsCount
+}
+
+func accountDispatchedBlockSearchBatch(qs *QueryStats, blocksCount, rowsCount uint64) {
+	qs.BlocksScheduled += blocksCount
+	qs.BlockHeadersTimeOrKeySkipped -= blocksCount
+	qs.RowsSkippedBeforeScheduling -= rowsCount
+}
+
+func (p *part) searchByTenantIDs(pso *partitionSearchOptions, qs *QueryStats, bhss *blockHeaders, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}, collectDetailedStats bool) {
 	// it is assumed that tenantIDs are sorted
 	tenantIDs := pso.tenantIDs
 
@@ -1652,10 +1906,17 @@ func (p *part) searchByTenantIDs(pso *partitionSearchOptions, qs *QueryStats, bh
 		if bswb.appendBlockSearchWork(p, pso, bh) {
 			return true
 		}
+		var blocksCount, rowsCount uint64
+		if collectDetailedStats {
+			blocksCount, rowsCount = getBlockSearchWorkBatchStats(bswb)
+		}
 		select {
 		case <-stopCh:
 			return false
 		case workCh <- bswb:
+			if collectDetailedStats {
+				accountDispatchedBlockSearchBatch(qs, blocksCount, rowsCount)
+			}
 			bswb = getBlockSearchWorkBatch()
 			return true
 		}
@@ -1694,13 +1955,25 @@ func (p *part) searchByTenantIDs(pso *partitionSearchOptions, qs *QueryStats, bh
 		}
 		ibh := &ibhs[n]
 		ibhs = ibhs[n+1:]
+		if collectDetailedStats {
+			considered := uint64(n + 1)
+			qs.IndexBlockHeadersConsidered += considered
+			qs.IndexBlockHeadersTimeOrKeySkipped += considered
+		}
 
 		if pso.minTimestamp > ibh.maxTimestamp || pso.maxTimestamp < ibh.minTimestamp {
 			// Skip the ibh, since it doesn't contain entries on the requested time range
 			continue
 		}
 
+		if collectDetailedStats {
+			qs.IndexBlockHeadersRead++
+			qs.IndexBlockHeadersTimeOrKeySkipped--
+		}
 		bhss.bhs = ibh.mustReadBlockHeaders(bhss.bhs[:0], p, qs)
+		if collectDetailedStats {
+			accountDecodedBlockHeaders(qs, bhss.bhs)
+		}
 
 		bhs := bhss.bhs
 		for len(bhs) > 0 {
@@ -1738,14 +2011,21 @@ func (p *part) searchByTenantIDs(pso *partitionSearchOptions, qs *QueryStats, bh
 		}
 	}
 
-	// Flush the remaining work
+	// Flush the remaining work.
+	var blocksCount, rowsCount uint64
+	if collectDetailedStats {
+		blocksCount, rowsCount = getBlockSearchWorkBatchStats(bswb)
+	}
 	select {
 	case <-stopCh:
 	case workCh <- bswb:
+		if collectDetailedStats {
+			accountDispatchedBlockSearchBatch(qs, blocksCount, rowsCount)
+		}
 	}
 }
 
-func (p *part) searchByStreamIDs(pso *partitionSearchOptions, qs *QueryStats, bhss *blockHeaders, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}) {
+func (p *part) searchByStreamIDs(pso *partitionSearchOptions, qs *QueryStats, bhss *blockHeaders, workCh chan<- *blockSearchWorkBatch, stopCh <-chan struct{}, collectDetailedStats bool) {
 	// it is assumed that streamIDs are sorted
 	streamIDs := pso.streamIDs
 
@@ -1754,10 +2034,17 @@ func (p *part) searchByStreamIDs(pso *partitionSearchOptions, qs *QueryStats, bh
 		if bswb.appendBlockSearchWork(p, pso, bh) {
 			return true
 		}
+		var blocksCount, rowsCount uint64
+		if collectDetailedStats {
+			blocksCount, rowsCount = getBlockSearchWorkBatchStats(bswb)
+		}
 		select {
 		case <-stopCh:
 			return false
 		case workCh <- bswb:
+			if collectDetailedStats {
+				accountDispatchedBlockSearchBatch(qs, blocksCount, rowsCount)
+			}
 			bswb = getBlockSearchWorkBatch()
 			return true
 		}
@@ -1797,13 +2084,25 @@ func (p *part) searchByStreamIDs(pso *partitionSearchOptions, qs *QueryStats, bh
 		}
 		ibh := &ibhs[n]
 		ibhs = ibhs[n+1:]
+		if collectDetailedStats {
+			considered := uint64(n + 1)
+			qs.IndexBlockHeadersConsidered += considered
+			qs.IndexBlockHeadersTimeOrKeySkipped += considered
+		}
 
 		if pso.minTimestamp > ibh.maxTimestamp || pso.maxTimestamp < ibh.minTimestamp {
 			// Skip the ibh, since it doesn't contain entries on the requested time range
 			continue
 		}
 
+		if collectDetailedStats {
+			qs.IndexBlockHeadersRead++
+			qs.IndexBlockHeadersTimeOrKeySkipped--
+		}
 		bhss.bhs = ibh.mustReadBlockHeaders(bhss.bhs[:0], p, qs)
+		if collectDetailedStats {
+			accountDecodedBlockHeaders(qs, bhss.bhs)
+		}
 
 		bhs := bhss.bhs
 		for len(bhs) > 0 {
@@ -1841,10 +2140,17 @@ func (p *part) searchByStreamIDs(pso *partitionSearchOptions, qs *QueryStats, bh
 		}
 	}
 
-	// Flush the remaining work
+	// Flush the remaining work.
+	var blocksCount, rowsCount uint64
+	if collectDetailedStats {
+		blocksCount, rowsCount = getBlockSearchWorkBatchStats(bswb)
+	}
 	select {
 	case <-stopCh:
 	case workCh <- bswb:
+		if collectDetailedStats {
+			accountDispatchedBlockSearchBatch(qs, blocksCount, rowsCount)
+		}
 	}
 }
 

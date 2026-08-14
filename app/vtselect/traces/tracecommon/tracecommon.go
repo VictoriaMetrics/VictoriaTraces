@@ -59,10 +59,23 @@ type CommonParams struct {
 
 	// qs contains execution statistics for the Query.
 	qs logstorage.QueryStats
+
+	// ProfileCollector optionally receives low-level execution profiles.
+	ProfileCollector *logstorage.QueryProfileCollector
 }
 
 func (cp *CommonParams) NewQueryContext(ctx context.Context) *logstorage.QueryContext {
-	return logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query, cp.AllowPartialResponse, cp.HiddenFieldsFilters)
+	return cp.NewQueryContextForStage(ctx, "query")
+}
+
+// NewQueryContextForStage returns a query context attributed to the given application stage.
+func (cp *CommonParams) NewQueryContextForStage(ctx context.Context, stage string) *logstorage.QueryContext {
+	qctx := logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query, cp.AllowPartialResponse, cp.HiddenFieldsFilters)
+	if cp.ProfileCollector != nil {
+		qctx.AttachQueryProfile(cp.ProfileCollector)
+		qctx.SetQueryProfileStage(stage, "local")
+	}
+	return qctx
 }
 
 func (cp *CommonParams) UpdatePerQueryStatsMetrics() {

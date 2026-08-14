@@ -53,21 +53,16 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery
 		return nil, nil, nil
 	}
 
-	// query 2: {resource_attr:service.name!=""} AND (filter_conditions or parent_span_id:="") AND trace_id:in(traceID, traceID, ...)
-	qStr := `{resource_attr:service.name!=""} AND (` + filterQuery.FilterString() + ` OR parent_span_id:="") AND ` + otelpb.TraceIDField + `:in(` + strings.Join(traceIDs, ",") + `)`
-	q, err := logstorage.ParseQueryAtTimestamp(qStr, currentTime.UnixNano())
+	q, err := newTraceSpansQuery(filterQuery, traceIDs, currentTime, startTime, end)
 	if err != nil {
-		return nil, nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
+		return nil, nil, err
 	}
-
-	// adjust start time and end time with max duration window to make sure all spans are included.
-	q.AddTimeFilter(startTime.Add(-*tracecommon.TraceMaxDurationWindow).UnixNano(), end.Add(*tracecommon.TraceMaxDurationWindow).UnixNano())
 
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	cp.Query = q
-	qctx := cp.NewQueryContext(ctxWithCancel)
+	qctx := cp.NewQueryContextForStage(ctxWithCancel, "span_fetch")
 	defer cp.UpdatePerQueryStatsMetrics()
 
 	// search for trace spans and write to `rows []*Row`
@@ -121,20 +116,12 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery
 }
 
 func getTraceIDList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery *traceql.Query, start, end time.Time, limit int) ([]string, time.Time, error) {
-	qStr := `{resource_attr:service.name!=""} AND ` + filterQuery.String() + ` | last 1 by (_time) partition by (` + otelpb.TraceIDField + ") | fields _time, " + otelpb.TraceIDField + " | sort by (_time) desc"
-
-	q, err := logstorage.ParseQueryAtTimestamp(qStr, end.UnixNano())
+	q, adjustedEnd, err := newTraceIDListQuery(filterQuery, end, limit)
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
+		return nil, time.Time{}, err
 	}
-	q.AddPipeOffsetLimit(0, uint64(limit))
+	end = adjustedEnd
 
-	// adjust the max start time, because fresh traces may not be completed.
-	// they should wait for *latencyOffset before being visible. currently hardcoded as 1m.
-	maxStartTime := time.Now().Add(-*tracecommon.LatencyOffset)
-	if end.After(maxStartTime) {
-		end = maxStartTime
-	}
 	traceIDs, maxStartTime, err := findTraceIDsSplitTimeRange(ctx, q, cp, start, end, limit)
 	if err != nil {
 		return nil, time.Time{}, err
@@ -195,7 +182,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 	maxStartTimeStr := endTime.Format(time.RFC3339)
 
 	cp.Query = q
-	qctx := cp.NewQueryContext(ctx)
+	qctx := cp.NewQueryContextForStage(ctx, "trace_id_search")
 	defer cp.UpdatePerQueryStatsMetrics()
 
 	writeBlock := func(_ uint, db *logstorage.DataBlock) {
@@ -454,4 +441,76 @@ func checkTraceIDList(traceIDList []string) []string {
 		}
 	}
 	return result
+}
+
+func newTraceIDListQuery(filterQuery *traceql.Query, end time.Time, limit int) (*logstorage.Query, time.Time, error) {
+	qStr := `{resource_attr:service.name!=""} AND ` + filterQuery.String() + ` | last 1 by (_time) partition by (` + otelpb.TraceIDField + ") | fields _time, " + otelpb.TraceIDField + " | sort by (_time) desc"
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, end.UnixNano())
+	if err != nil {
+		return nil, time.Time{}, fmt.Errorf("cannot parse query [%s]: %w", qStr, err)
+	}
+	q.AddPipeOffsetLimit(0, uint64(limit))
+
+	// Fresh traces may still be incomplete, so keep them hidden until latencyOffset has elapsed.
+	maxEnd := time.Now().Add(-*tracecommon.LatencyOffset)
+	if end.After(maxEnd) {
+		end = maxEnd
+	}
+	return q, end, nil
+}
+
+func newTraceSpansQuery(filterQuery *traceql.Query, traceIDs []string, timestamp, start, end time.Time) (*logstorage.Query, error) {
+	qStr := `{resource_attr:service.name!=""} AND (` + filterQuery.FilterString() + ` OR parent_span_id:="") AND ` + otelpb.TraceIDField + `:in(` + strings.Join(traceIDs, ",") + `)`
+	q, err := logstorage.ParseQueryAtTimestamp(qStr, timestamp.UnixNano())
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse query [%s]: %w", qStr, err)
+	}
+	q.AddTimeFilter(start.Add(-*tracecommon.TraceMaxDurationWindow).UnixNano(), end.Add(*tracecommon.TraceMaxDurationWindow).UnixNano())
+	return q, nil
+}
+
+type traceSearchAnalysis struct {
+	TraceIDsFound int    `json:"trace_ids_found"`
+	SpanRowsFound uint64 `json:"span_rows_found"`
+}
+
+// analyzeTraceSearch executes the same two-stage storage workflow as Tempo trace search,
+// but discards span data after counting it.
+func analyzeTraceSearch(ctx context.Context, cp *tracecommon.CommonParams, filterQuery *traceql.Query, start, end time.Time, limit int) (traceSearchAnalysis, error) {
+	traceIDs, spanSearchStart, err := getTraceIDList(ctx, cp, filterQuery, start, end, limit)
+	if cause := context.Cause(ctx); cause != nil {
+		return traceSearchAnalysis{}, cause
+	}
+	if errors.Is(err, vtstoragecommon.ErrOutOfRetention) {
+		return traceSearchAnalysis{}, nil
+	}
+	if err != nil {
+		return traceSearchAnalysis{}, fmt.Errorf("get trace id error: %w", err)
+	}
+	result := traceSearchAnalysis{TraceIDsFound: len(traceIDs)}
+	if len(traceIDs) == 0 {
+		return result, nil
+	}
+
+	q, err := newTraceSpansQuery(filterQuery, traceIDs, time.Now(), spanSearchStart, end)
+	if err != nil {
+		return result, err
+	}
+	cp.Query = q
+	qctx := cp.NewQueryContextForStage(ctx, "span_fetch")
+	defer cp.UpdatePerQueryStatsMetrics()
+
+	var rowsFound atomic.Uint64
+	writeBlock := func(_ uint, db *logstorage.DataBlock) {
+		rowsFound.Add(uint64(db.RowsCount()))
+	}
+	runErr := vtstorage.RunQuery(qctx, writeBlock)
+	if cause := context.Cause(ctx); cause != nil {
+		return result, cause
+	}
+	if runErr != nil {
+		return result, runErr
+	}
+	result.SpanRowsFound = rowsFound.Load()
+	return result, nil
 }

@@ -34,6 +34,9 @@ var (
 	tempoSearchRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/search"}`)
 	tempoSearchDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/search"}`)
 
+	tempoProfileRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/profile"}`)
+	tempoProfileDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/profile"}`)
+
 	tempoQueryRequests = metrics.NewCounter(`vt_http_requests_total{path="/select/tempo/api/traces/*"}`)
 	tempoQueryDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/traces/*"}`)
 
@@ -65,6 +68,11 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		tempoSearchTagValuesRequests.Inc()
 		processSearchTagValuesRequest(ctx, w, r)
 		tempoSearchTagValuesDuration.UpdateDuration(startTime)
+		return true
+	} else if path == "/select/tempo/api/profile" {
+		tempoProfileRequests.Inc()
+		processProfileRequest(ctx, w, r)
+		tempoProfileDuration.UpdateDuration(startTime)
 		return true
 	} else if path == "/select/tempo/api/search" {
 		tempoSearchRequests.Inc()

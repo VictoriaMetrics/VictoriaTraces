@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): add an experimental `/select/tempo/api/profile` endpoint for inspecting the query plan and the low-level execution stats of TraceQL search queries. It reports the generated [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) queries, per-operator row and block flow, the number of the selected and the skipped partitions, parts, index block headers and data blocks, the number of the read bytes, and per-`vtstorage` node stats. See [these docs](https://docs.victoriametrics.com/victoriatraces/querying/#query-profiling).
+
 * BUGFIX: [cluster version](https://docs.victoriametrics.com/victoriatraces/cluster/): evenly spread rerouted data across available `vtstorage` nodes. Previously, healthy nodes adjacent to unavailable nodes in the `-storageNode` list could receive much more data, resulting in uneven resource usage. See [this issue #228](https://github.com/VictoriaMetrics/VictoriaTraces/issues/228).
 
 ## [v0.10.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.10.0)

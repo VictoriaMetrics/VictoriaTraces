@@ -243,6 +243,7 @@ VictoriaTraces provides the following Tempo HTTP endpoints:
 - `/select/tempo/api/traces/{trace_id}` for fetching a single trace by its ID (v1).
 - `/select/tempo/api/v2/traces/{trace_id}` for fetching a single trace by its ID (v2, similar to v1 but with different data structure).
 - `/select/tempo/api/metrics/query_range` for evaluating a TraceQL metrics query over a time range.
+- `/select/tempo/api/profile` for inspecting the query plan and the execution stats of a TraceQL search query. See [query profiling](#query-profiling).
 
 #### Querying Examples
 
@@ -283,6 +284,55 @@ Here's a response example:
 ```json
 {"series":[{"labels":[{"key":"name","value":{"stringValue":"GET"}}],"samples":[{"timestampMs":"1783567368000","value":346},{"timestampMs":"1783567404000","value":28.166666666666668}],"exemplars":[{"labels":[{"key":"trace:id","value":{"stringValue":"fca92157fc0d84fdaa960f9bc83634f8"}},{"key":"span:id","value":{"stringValue":"38546d070ac097e8"}}],"value":346,"timestampMs":"1783567368000"}]}],"metrics":{"inspectedBytes":"0","inspectedTraces":0,"totalJobs":0,"completedJobs":0},"status":"COMPLETE"}
 ```
+
+#### Query profiling
+
+> Query profiling is **experimental**. The set of the reported fields may change in future releases.
+
+The `/select/tempo/api/profile` endpoint reports how a TraceQL search query at [`/select/tempo/api/search`](#tempo-http-api) is planned and executed.
+It is intended for optimizing both queries and the stored data layout, similar to `EXPLAIN` / `EXPLAIN ANALYZE` in traditional databases.
+
+The endpoint accepts the same `q`, `start`, `end` and `limit` query args as `/select/tempo/api/search`, plus:
+
+- `mode=explain` (default) returns the query plan without reading the stored data.
+- `mode=analyze` executes the query, drops the returned spans and reports the execution stats. It can be also enabled via `analyze=true`.
+
+A TraceQL search request is executed in two stages, which are both reported by this endpoint:
+
+- `trace_id_search` selects `trace_id` values. It starts from the most recent one-minute window and increases the window by 5x
+  until enough traces are found or the requested `start` is reached.
+- `span_fetch` reads all the spans for the selected `trace_id` values. Its time range is extended by `-search.traceMaxDurationWindow`.
+
+Every stage contains the generated [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/) query, together with the queries
+executed at `vtstorage` nodes and the pipes executed at `vtselect` in [cluster version](https://docs.victoriametrics.com/victoriatraces/cluster/).
+
+`mode=analyze` additionally reports for every executed query:
+
+- the number of the processed and the returned rows, blocks and bytes per every pipeline operator;
+- the number of the selected and the skipped partitions, parts, index block headers and data blocks. These stats show how efficiently
+  the query time range and [stream fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields) prune the stored data;
+- the number of the scheduled, the processed and the canceled data blocks;
+- the number of the read bytes per column headers, bloom filters, values and timestamps;
+- the execution stats per every `vtstorage` node in [cluster version](https://docs.victoriametrics.com/victoriatraces/cluster/).
+
+The reported durations are the summed wall-clock time across all the worker goroutines. They are neither CPU time nor query duration.
+
+For example, the following command returns the query plan without reading the stored data:
+
+```sh
+curl -G http://<victoria-traces>:10428/select/tempo/api/profile \
+  --data-urlencode 'q={ resource.service.name = "frontend" && status = error }'
+```
+
+while the following command also executes the query and returns its execution stats:
+
+```sh
+curl -G http://<victoria-traces>:10428/select/tempo/api/profile \
+  --data-urlencode 'q={ resource.service.name = "frontend" && status = error }' \
+  --data-urlencode 'mode=analyze'
+```
+
+Note that `mode=analyze` reads the stored data in the same way as the regular search query does, so it consumes the same amount of resources.
 
 ## Hidden fields
 

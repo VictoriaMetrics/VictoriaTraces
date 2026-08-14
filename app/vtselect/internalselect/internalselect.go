@@ -106,6 +106,7 @@ func parseRequest(r *http.Request) error {
 
 var requestHandlers = map[string]func(ctx context.Context, w http.ResponseWriter, r *http.Request) error{
 	"/internal/select/query":               processQueryRequest,
+	"/internal/select/query_profile":       processQueryProfileRequest,
 	"/internal/select/field_names":         processFieldNamesRequest,
 	"/internal/select/field_values":        processFieldValuesRequest,
 	"/internal/select/stream_field_names":  processStreamFieldNamesRequest,
@@ -120,7 +121,19 @@ var requestHandlers = map[string]func(ctx context.Context, w http.ResponseWriter
 }
 
 func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	cp, err := getCommonParams(r, netselect.QueryProtocolVersion)
+	return processQueryRequestExt(ctx, w, r, false)
+}
+
+func processQueryProfileRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	return processQueryRequestExt(ctx, w, r, true)
+}
+
+func processQueryRequestExt(ctx context.Context, w http.ResponseWriter, r *http.Request, profileEnabled bool) error {
+	protocolVersion := netselect.QueryProtocolVersion
+	if profileEnabled {
+		protocolVersion = netselect.QueryProfileProtocolVersion
+	}
+	cp, err := getCommonParams(r, protocolVersion)
 	if err != nil {
 		return err
 	}
@@ -185,23 +198,42 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	}
 
 	qctx := cp.NewQueryContext(ctx)
+	var profileCollector *logstorage.QueryProfileCollector
+	if profileEnabled {
+		profileCollector = logstorage.NewQueryProfileCollector()
+		qctx.AttachQueryProfile(profileCollector)
+		qctx.SetQueryProfileStage(r.FormValue("profile_stage"), "remote")
+	}
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	if err := vtstorage.RunQuery(qctx, writeBlock); err != nil {
-		if errors.Is(err, vtstoragecommon.ErrOutOfRetention) {
+	runErr := vtstorage.RunQuery(qctx, writeBlock)
+	if errors.Is(runErr, vtstoragecommon.ErrOutOfRetention) {
+		if !profileEnabled {
 			w.Header().Set(vtstoragecommon.OutOfRetentionHeaderName, "true")
 			return nil
 		}
-		return err
+		// Out-of-retention is an expected empty result for trace-ID discovery.
+		// Profile requests still need terminal stats and profile frames.
+		runErr = nil
+	}
+	if runErr != nil && !profileEnabled {
+		return runErr
 	}
 	if errP := errGlobal.Load(); errP != nil {
 		return *errP
 	}
 
-	// Send the remaining data
-	for _, bb := range bufs.All() {
-		if err := sendBuf(bb); err != nil {
-			return err
+	if runErr == nil {
+		// Send the remaining data.
+		for _, bb := range bufs.All() {
+			if err := sendBuf(bb); err != nil {
+				return err
+			}
+		}
+	} else {
+		// Match the normal query endpoint by dropping buffered data after an execution error.
+		for _, bb := range bufs.All() {
+			bb.Reset()
 		}
 	}
 
@@ -209,8 +241,25 @@ func processQueryRequest(ctx context.Context, w http.ResponseWriter, r *http.Req
 	bb := bufs.Get(0)
 	// Write the marker of query stats block.
 	bb.B = append(bb.B, 1)
-	// Marshal the block itself
-	bb.B = marshalQueryStatsBlock(bb.B, qctx)
+	// Marshal the block itself. Keep the normal v5 query stats block byte-compatible.
+	if profileEnabled {
+		bb.B = marshalQueryStatsBlockWithSelectionCounters(bb.B, qctx)
+	} else {
+		bb.B = marshalQueryStatsBlock(bb.B, qctx)
+	}
+	if profileEnabled {
+		// Write the marker and block for the query profile after query stats.
+		bb.B = append(bb.B, 2)
+		snapshot := profileCollector.Snapshot()
+		if runErr != nil {
+			snapshot.Error = runErr.Error()
+		}
+		profileBlock, err := snapshot.CreateDataBlock()
+		if err != nil {
+			return err
+		}
+		bb.B = profileBlock.Marshal(bb.B)
+	}
 	return sendBuf(bb)
 }
 
@@ -550,6 +599,13 @@ func writeValuesWithHits(w http.ResponseWriter, qctx *logstorage.QueryContext, v
 }
 
 func marshalQueryStatsBlock(dst []byte, qctx *logstorage.QueryContext) []byte {
+	queryDurationNsecs := qctx.QueryDurationNsecs()
+	db := qctx.QueryStats.CreateLegacyDataBlock(queryDurationNsecs)
+	dst = db.Marshal(dst)
+	return dst
+}
+
+func marshalQueryStatsBlockWithSelectionCounters(dst []byte, qctx *logstorage.QueryContext) []byte {
 	queryDurationNsecs := qctx.QueryDurationNsecs()
 	db := qctx.QueryStats.CreateDataBlock(queryDurationNsecs)
 	dst = db.Marshal(dst)
