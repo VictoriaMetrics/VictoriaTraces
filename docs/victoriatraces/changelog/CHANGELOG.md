@@ -14,8 +14,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 * BUGFIX: [cluster version](https://docs.victoriametrics.com/victoriatraces/cluster/): evenly spread rerouted data across available `vtstorage` nodes. Previously, healthy nodes adjacent to unavailable nodes in the `-storageNode` list could receive much more data, resulting in uneven resource usage. See [this issue #228](https://github.com/VictoriaMetrics/VictoriaTraces/issues/228).
 
-* FEATURE: [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): introduce basic vtagent which accepts OTLP ingestion, and writes the formatted spans to `/nativeinsert` API. Check [vtagent doc](https://docs.victoriametrics.com/victoriatraces/vtagent/) for details.
-
+* FEATURE: [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): introduce basic vtagent which accepts OTLP ingestion, and writes the formatted spans to `/insert/native` API. Check [vtagent doc](https://docs.victoriametrics.com/victoriatraces/vtagent/) for details.
 
 ## [v0.10.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.10.0)
 
