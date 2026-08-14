@@ -18,7 +18,7 @@ aliases:
 
 ## Features
 
-The main role of `vtagent` is to replicate collected trace spans among multiple VictoriaTraces instance, without 3rd party collectors. 
+The main role of `vtagent` is to replicate collected trace spans among multiple VictoriaTraces instances, without 3rd party collectors.
 
 It also works smoothly in environments with unstable connections to VictoriaTraces instances. If the remote storage is unavailable, the collected trace spans
 are buffered at the directory specified via `-remoteWrite.tmpDataPath` command-line flag. The buffered spans are sent to remote storage as soon as the connection
@@ -42,7 +42,7 @@ Please download and unpack the `vtutils` archive from [releases page](https://gi
 `vtagent` is also available as Docker images on [Docker Hub](https://hub.docker.com/r/victoriametrics/vtagent/tags)
 and [Quay](https://quay.io/repository/victoriametrics/vtagent?tab=tags)), then pass the following command-line flags to the `vtagent-prod` binary:
 
-- `-remoteWrite.url` - the VictoriaTraces endpoint for sending the accepted logs to. It must end with `/insert/native`.
+- `-remoteWrite.url` - the VictoriaTraces endpoint for sending the accepted trace spans to. It must end with `/insert/native`.
   The `-remoteWrite.url` may refer to [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) address.
   See [these docs](https://docs.victoriametrics.com/victoriatraces/vtagent/#srv-urls) for details.
 
