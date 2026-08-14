@@ -106,7 +106,7 @@ docs-update-vtagent-flags:
 	sed -i.bak '/The maximum number of concurrent insert requests/ s/(default [0-9]\+)/(default 2x CPU cores)/' docs/victoriatraces/vtagent_common_flags.md
 	sed -i.bak '/The number of concurrent queues to each -remoteWrite.url/ s/(default [0-9]\+)/(default 2x CPU cores)/' docs/victoriatraces/vtagent_common_flags.md
 	sed -i.bak '/The maximum number of concurrent goroutines to work with files;/ s/(default [0-9]\+)/(default 16x CPU cores, default capped at 256)/' docs/victoriatraces/vtagent_common_flags.md
-	#rm -f docs/victoriatraces/vtagent_common_flags.md.bak
+	rm -f docs/victoriatraces/vtagent_common_flags.md.bak
 	#rm -f docs/victoriatraces/vtagent_enterprise_flags.md.bak
 
 # docs-update-flags updates flags in the documentation using the actual binaries compiled
