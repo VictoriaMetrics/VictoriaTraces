@@ -1,6 +1,7 @@
 ---
 weight: 6
 title: Alerting with traces
+description: "Configure vmalert on VictoriaTraces trace stats queries."
 menu:
   docs:
     parent: "victoriatraces"

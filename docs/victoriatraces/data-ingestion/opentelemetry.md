@@ -1,6 +1,7 @@
 ---
 weight: 4
 title: OpenTelemetry setup
+description: "Configure the OTel SDK or Collector to send traces to VictoriaTraces."
 disableToc: true
 menu:
   docs:

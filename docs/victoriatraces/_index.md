@@ -1,5 +1,6 @@
 ---
 title: VictoriaTraces
+description: "Documentation for VictoriaTraces, a database for storing and querying distributed traces."
 weight: 0
 menu:
   docs:

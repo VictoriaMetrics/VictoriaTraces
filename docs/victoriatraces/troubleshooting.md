@@ -1,6 +1,7 @@
 ---
 weight: 20
 title: Troubleshooting
+description: "Common issues and solutions for VictoriaTraces"
 menu:
   docs:
     identifier: vt-troubleshooting
