@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): apply the `extra_filters` and `extra_stream_filters` query args to the Jaeger and Tempo APIs. Previously only the native LogsQL endpoints applied them, so a user restricted to its own data via [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) could see the traces of others through the Jaeger and Tempo APIs. See [this issue #178](https://github.com/VictoriaMetrics/VictoriaTraces/issues/178).
+
 * BUGFIX: [cluster version](https://docs.victoriametrics.com/victoriatraces/cluster/): evenly spread rerouted data across available `vtstorage` nodes. Previously, healthy nodes adjacent to unavailable nodes in the `-storageNode` list could receive much more data, resulting in uneven resource usage. See [this issue #228](https://github.com/VictoriaMetrics/VictoriaTraces/issues/228).
 
 ## [v0.10.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.10.0)

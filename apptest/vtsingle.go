@@ -32,6 +32,8 @@ type Vtsingle struct {
 	jaegerAPITraceURL        string
 	jaegerAPIDependenciesURL string
 
+	tempoAPITagValuesURL string
+
 	logsQLQueryURL string
 
 	otlpTracesURL     string
@@ -73,8 +75,10 @@ func StartVtsingle(instance string, flags []string, cli *Client) (*Vtsingle, err
 		forceFlushURL: fmt.Sprintf("http://%s/internal/force_flush", stderrExtracts[1]),
 		forceMergeURL: fmt.Sprintf("http://%s/internal/force_merge", stderrExtracts[1]),
 
-		jaegerAPIServicesURL:     fmt.Sprintf("http://%s/select/jaeger/api/services", stderrExtracts[1]),
-		jaegerAPIOperationsURL:   fmt.Sprintf("http://%s/select/jaeger/api/services/%%s/operations", stderrExtracts[1]),
+		jaegerAPIServicesURL:   fmt.Sprintf("http://%s/select/jaeger/api/services", stderrExtracts[1]),
+		jaegerAPIOperationsURL: fmt.Sprintf("http://%s/select/jaeger/api/services/%%s/operations", stderrExtracts[1]),
+
+		tempoAPITagValuesURL:     fmt.Sprintf("http://%s/select/tempo/api/v2/search/tag/%%s/values", stderrExtracts[1]),
 		jaegerAPITracesURL:       fmt.Sprintf("http://%s/select/jaeger/api/traces", stderrExtracts[1]),
 		jaegerAPITraceURL:        fmt.Sprintf("http://%s/select/jaeger/api/traces/%%s", stderrExtracts[1]),
 		jaegerAPIDependenciesURL: fmt.Sprintf("http://%s/select/jaeger/api/dependencies", stderrExtracts[1]),
@@ -115,6 +119,17 @@ func (app *Vtsingle) JaegerAPIServices(t *testing.T, opts QueryOpts) *JaegerAPIS
 
 	res, _ := app.cli.Get(t, app.jaegerAPIServicesURL+"?"+opts.asURLValues().Encode())
 	return NewJaegerAPIServicesResponse(t, res)
+}
+
+// TempoAPITagValues is a test helper function that queries for the values of the given tag
+// by sending an HTTP GET request to /select/tempo/api/v2/search/tag/<tag>/values
+// Vtsingle endpoint. It returns the raw response body.
+func (app *Vtsingle) TempoAPITagValues(t *testing.T, tagName string, opts QueryOpts) string {
+	t.Helper()
+
+	url := fmt.Sprintf(app.tempoAPITagValuesURL, tagName) + "?" + opts.asURLValues().Encode()
+	res, _ := app.cli.Get(t, url)
+	return res
 }
 
 // JaegerAPIOperations is a test helper function that queries for operation list of a service

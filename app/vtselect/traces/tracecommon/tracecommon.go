@@ -12,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/extrafilters"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 )
 
@@ -57,11 +58,21 @@ type CommonParams struct {
 	// Optional list of log fields or log field prefixes ending with *, which must be hidden during query execution.
 	HiddenFieldsFilters []string
 
+	// Optional filters from the extra_filters and extra_stream_filters query args.
+	// They are applied to Query in NewQueryContext, so every traces API respects them.
+	ExtraFilters []*logstorage.Filter
+
 	// qs contains execution statistics for the Query.
 	qs logstorage.QueryStats
 }
 
 func (cp *CommonParams) NewQueryContext(ctx context.Context) *logstorage.QueryContext {
+	// Every traces API builds its own Query and then calls this, so applying the extra filters
+	// here covers all of them. AddExtraFilters ANDs the filters in, so a repeated call is harmless.
+	for _, f := range cp.ExtraFilters {
+		cp.Query.AddExtraFilters(f)
+	}
+
 	return logstorage.NewQueryContext(ctx, &cp.qs, cp.TenantIDs, cp.Query, cp.AllowPartialResponse, cp.HiddenFieldsFilters)
 }
 
@@ -82,12 +93,54 @@ func GetCommonParams(r *http.Request) (*CommonParams, error) {
 		return nil, err
 	}
 
+	extraFilters, err := getExtraFilters(r)
+	if err != nil {
+		return nil, err
+	}
+
 	cp := &CommonParams{
 		TenantIDs:           tenantIDs,
 		HiddenFieldsFilters: hiddenFieldsFilters,
+		ExtraFilters:        extraFilters,
 	}
 
 	return cp, nil
+}
+
+// getExtraFilters parses the extra_filters and extra_stream_filters query args.
+//
+// vmauth injects these args in order to restrict a user to its own data,
+// so dropping them would show that user the data of others.
+// See https://github.com/VictoriaMetrics/VictoriaTraces/issues/178
+func getExtraFilters(r *http.Request) ([]*logstorage.Filter, error) {
+	// The args may repeat, so they are read from r.Form rather than via r.FormValue.
+	// r.Form stays nil until the form is parsed.
+	if err := r.ParseForm(); err != nil {
+		return nil, fmt.Errorf("cannot parse request args: %w", err)
+	}
+
+	var fs []*logstorage.Filter
+
+	for _, s := range r.Form["extra_filters"] {
+		f, err := extrafilters.ParseExtraFilters(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse extra_filters=%q: %w", s, err)
+		}
+		if f != nil {
+			fs = append(fs, f)
+		}
+	}
+	for _, s := range r.Form["extra_stream_filters"] {
+		f, err := extrafilters.ParseExtraStreamFilters(s)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse extra_stream_filters=%q: %w", s, err)
+		}
+		if f != nil {
+			fs = append(fs, f)
+		}
+	}
+
+	return fs, nil
 }
 
 func getStringSliceFromRequest(r *http.Request, argName string) ([]string, error) {

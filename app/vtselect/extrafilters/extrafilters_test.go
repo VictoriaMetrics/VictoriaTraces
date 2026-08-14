@@ -1,4 +1,4 @@
-package logsql
+package extrafilters
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ func TestParseExtraFilters_Success(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
 
-		f, err := parseExtraFilters(s)
+		f, err := ParseExtraFilters(s)
 		if err != nil {
 			t.Fatalf("unexpected error in parseExtraFilters: %s", err)
 		}
@@ -35,7 +35,7 @@ func TestParseExtraFilters_Failure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 
-		_, err := parseExtraFilters(s)
+		_, err := ParseExtraFilters(s)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -57,7 +57,7 @@ func TestParseExtraStreamFilters_Success(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
 
-		f, err := parseExtraStreamFilters(s)
+		f, err := ParseExtraStreamFilters(s)
 		if err != nil {
 			t.Fatalf("unexpected error in parseExtraStreamFilters: %s", err)
 		}
@@ -84,7 +84,7 @@ func TestParseExtraStreamFilters_Failure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 
-		_, err := parseExtraStreamFilters(s)
+		_, err := ParseExtraStreamFilters(s)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
