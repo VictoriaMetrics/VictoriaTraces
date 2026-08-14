@@ -42,7 +42,7 @@ type Vtsingle struct {
 // sets the default flags and populates the app instance state with runtime
 // values extracted from the application log (such as httpListenAddr).
 func StartVtsingle(instance string, flags []string, cli *Client) (*Vtsingle, error) {
-	app, stderrExtracts, err := startApp(instance, "../../bin/victoria-traces", flags, &appOptions{
+	app, stderrExtracts, err := startApp(instance, "../../bin/victoria-traces-race", flags, &appOptions{
 		defaultFlags: map[string]string{
 			"-storageDataPath":           fmt.Sprintf("%s/%s-%d", os.TempDir(), instance, time.Now().UnixNano()),
 			"-httpListenAddr":            "127.0.0.1:0",

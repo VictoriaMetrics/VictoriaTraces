@@ -32,11 +32,13 @@ github.com/VictoriaMetrics/VictoriaMetrics/lib/logger
 github.com/VictoriaMetrics/VictoriaMetrics/lib/memory
 github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset
 github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil
+github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue
 github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth
 github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb
 github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/protoparserutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics
+github.com/VictoriaMetrics/VictoriaMetrics/lib/ratelimiter
 github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil
 github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot/snapshotutil

@@ -1,0 +1,100 @@
+# File contains default list of alerts for vtagent service.
+# The alerts below are just recommendations and may require some updates
+# and threshold calibration according to every specific setup.
+groups:
+  - name: vtagent
+    rules:
+      - alert: PersistentQueueIsDroppingData
+        expr: sum(increase(vm_persistentqueue_bytes_dropped_total{job=~".*(victoriatraces|vtstorage|vtselect|vtinsert|vtagent).*"}[5m])) without (path) > 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: |-
+            Instance {{ $labels.instance }} is dropping data from persistent queue
+          description: |-
+            vtagent dropped {{ $value | humanize1024 }} from persistent queue on instance {{ $labels.instance }} for the last 10m.
+      - alert: RejectedRemoteWriteDataBlocksAreDropped
+        expr: sum(increase(vtagent_remotewrite_packets_dropped_total[5m])) without (url) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: |-
+            vtagent is dropping data blocks that are rejected by remote storage
+          description: |-
+            Job "{{ $labels.job }}" on instance {{ $labels.instance }} drops the rejected by remote-write server data blocks. Check the logs to find the reason for rejects.
+      - alert: TooManyRemoteWriteErrors
+        expr: rate(vtagent_remotewrite_retries_count_total[5m]) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: |-
+            Job "{{ $labels.job }}" on instance {{ $labels.instance }} fails to push to remote storage
+          description: |-
+            vtagent fails to push data via remote write protocol to destination "{{ $labels.url }}"
+            Ensure that destination is up and reachable.
+      - alert: RemoteWriteConnectionIsSaturated
+        expr: rate(vtagent_remotewrite_send_duration_seconds_total[5m]) / vtagent_remotewrite_queues > 0.9
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: |-
+            Remote write connection from "{{ $labels.job }}" (instance {{ $labels.instance }}) to {{ $labels.url }} is saturated
+          description: |-
+            The remote write connection between vtagent "{{ $labels.job }}" (instance {{ $labels.instance }}) and destination "{{ $labels.url }}" is saturated by more than 90% and vtagent won't be able to keep up.
+            There could be the following reasons for this:
+            * vtagent can't send data fast enough through the existing network connections. Increase `-remoteWrite.queues` cmd-line flag value to establish more connections per destination.
+            * remote destination can't accept data fast enough. Check if remote destination has enough resources for processing.
+      - alert: PersistentQueueForWritesIsSaturated
+        expr: rate(vm_persistentqueue_write_duration_seconds_total{job=~".*(victoriatraces|vtstorage|vtselect|vtinsert|vtagent).*"}[5m]) > 0.9
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: |-
+            Persistent queue writes for instance {{ $labels.instance }} are saturated
+          description: |-
+            Persistent queue writes for vtagent "{{ $labels.job }}" (instance {{ $labels.instance }}) are saturated by more than 90% and vtagent won't be able to keep up with flushing data on disk. In this case, consider to decrease load on the vtagent or improve the disk throughput.
+      - alert: PersistentQueueForReadsIsSaturated
+        expr: rate(vm_persistentqueue_read_duration_seconds_total{job=~".*(victoriatraces|vtstorage|vtselect|vtinsert|vtagent).*"}[5m]) > 0.9
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: |-
+            Persistent queue reads for instance {{ $labels.instance }} are saturated
+          description: |-
+            Persistent queue reads for vtagent "{{ $labels.job }}" (instance {{ $labels.instance }}) are saturated by more than 90% and vtagent won't be able to keep up with reading data from the disk. In this case, consider to decrease load on the vtagent or improve the disk throughput.
+      - alert: PersistentQueueRunsOutOfSpaceIn12Hours
+        expr: |-
+          (
+            (sum(vm_persistentqueue_free_disk_space_bytes{job=~".*(victoriatraces|vtstorage|vtselect|vtinsert|vtagent).*"}) by (job, instance, path)) /
+            (sum(deriv(vm_persistentqueue_bytes_pending{job=~".*(victoriatraces|vtstorage|vtselect|vtinsert|vtagent).*"}[1m])) by (job, instance, path) > 0)
+          ) * on(job, instance, path) group_left(url)
+          (vtagent_remotewrite_pending_data_bytes * 0 + 1) < 12 * 3600 >0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: |-
+            Persistent Queue (url {{ $labels.url }}) of {{ $labels.instance }} (job:{{ $labels.job }}) will run out of space in 12 hours.
+          description: |-
+            RemoteWrite destination ({{ $labels.url }}) is unavailable or unable to receive data in a timely manner, so the persistent queue size is growing. Once the available space is exhausted, some samples will be discarded and cause incident. Please check the health of remoteWrite destination ({{ $labels.url }}).
+      - alert: PersistentQueueRunsOutOfSpaceIn4Hours
+        expr: |-
+          (
+            (sum(vm_persistentqueue_free_disk_space_bytes{job=~".*(victoriatraces|vtstorage|vtselect|vtinsert|vtagent).*"}) by (job, instance, path)) /
+            (sum(deriv(vm_persistentqueue_bytes_pending{job=~".*(victoriatraces|vtstorage|vtselect|vtinsert|vtagent).*"}[1m])) by (job, instance, path) > 0)
+          ) * on(job, instance, path) group_left(url)
+          (vtagent_remotewrite_pending_data_bytes * 0 + 1) < 4 * 3600 >0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: |-
+            Persistent Queue (url {{ $labels.url }}) of {{ $labels.instance }} (job:{{ $labels.job }}) will run out of space in 4 hours.
+          description: |-
+            RemoteWrite destination ({{ $labels.url }}) is unavailable or unable to receive data in a timely manner, so the persistent queue size is growing. Once the available space is exhausted, some samples will be discarded and cause incident. Please check the health of remoteWrite destination ({{ $labels.url }}).

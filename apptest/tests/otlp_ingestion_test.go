@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/query"
 	at "github.com/VictoriaMetrics/VictoriaTraces/apptest"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
@@ -17,7 +18,7 @@ import (
 // TestSingleOTLPIngestionJaegerQuery test data ingestion of `/insert/opentelemetry/v1/traces` API
 // and queries of various `/select/jaeger/api/*` APIs for vt-single.
 func TestSingleOTLPIngestionJaegerQuery(t *testing.T) {
-	os.RemoveAll(t.Name())
+	fs.MustRemoveDir(t.Name())
 
 	tc := at.NewTestCase(t)
 	defer tc.Stop()

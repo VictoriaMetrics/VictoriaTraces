@@ -1,0 +1,354 @@
+package persistentqueue
+
+import (
+	"fmt"
+	"path/filepath"
+	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
+)
+
+// FastQueue is fast persistent queue, which prefers sending data via memory.
+//
+// It falls back to sending data via file when readers don't catch up with writers.
+type FastQueue struct {
+	// mu protects the state of FastQueue.
+	mu sync.Mutex
+
+	// cond is used for notifying blocked readers when new data has been added
+	// or when MustClose is called.
+	cond sync.Cond
+
+	// isPQDisabled is set to true when pq is disabled.
+	isPQDisabled bool
+
+	prioritizeInMemoryData bool
+
+	// pq is file-based queue
+	pq *queue
+
+	// ch is in-memory queue
+	ch chan *bytesutil.ByteBuffer
+
+	pendingInmemoryBytes uint64
+
+	lastInmemoryBlockReadTime uint64
+
+	stopDeadline uint64
+}
+
+// OpenFastQueueOpts defines options for FastQueue
+type OpenFastQueueOpts struct {
+	// MaxInmemoryBlocks defines amount of blocks to hold in memory before falling back to file-based persistence.
+	MaxInmemoryBlocks int
+	// MaxPendingBytes limits file-based size of the queue.
+	// If MaxPendingBytes is 0, then the queue size is unlimited.
+	// The oldest data is dropped when the queue
+	// reaches MaxPendingSize.
+	MaxPendingBytes int64
+	// IsPQDisabled defines whether file-based queue could be used.
+	// If it is set to true, then write requests that exceed in-memory buffer capacity are rejected.
+	// in-memory queue part can be stored on disk during graceful shutdown.
+	IsPQDisabled bool
+	// PrioritizeInMemoryData instructs FastQueue to write data into the in-memory queue
+	// even if the file-based queue is not empty.
+	// This is useful when data order doesn't matter and getting the most recent data
+	// as fast as possible is more important.
+	PrioritizeInmemoryData bool
+}
+
+// MustOpenFastQueueWithOpts opens persistent queue at the given path with given opts
+func MustOpenFastQueueWithOpts(path, name string, opts OpenFastQueueOpts) *FastQueue {
+	return mustOpenFastQueue(path, name, opts)
+}
+
+// MustOpenFastQueue opens persistent queue at the given path.
+//
+// It holds up to maxInmemoryBlocks in memory before falling back to file-based persistence.
+//
+// if maxPendingBytes is 0, then the queue size is unlimited.
+// Otherwise its size is limited by maxPendingBytes. The oldest data is dropped when the queue
+// reaches maxPendingSize.
+// if isPQDisabled is set to true, then write requests that exceed in-memory buffer capacity are rejected.
+// in-memory queue part can be stored on disk during graceful shutdown.
+func MustOpenFastQueue(path, name string, maxInmemoryBlocks int, maxPendingBytes int64, isPQDisabled bool) *FastQueue {
+	opts := OpenFastQueueOpts{
+		MaxInmemoryBlocks: maxInmemoryBlocks,
+		MaxPendingBytes:   maxPendingBytes,
+		IsPQDisabled:      isPQDisabled,
+	}
+	return mustOpenFastQueue(path, name, opts)
+}
+func mustOpenFastQueue(path, name string, opts OpenFastQueueOpts) *FastQueue {
+	maxPendingBytes := opts.MaxPendingBytes
+	isPQDisabled := opts.IsPQDisabled
+	pq := mustOpen(path, name, maxPendingBytes)
+	fq := &FastQueue{
+		pq:                     pq,
+		isPQDisabled:           isPQDisabled,
+		prioritizeInMemoryData: opts.PrioritizeInmemoryData,
+		ch:                     make(chan *bytesutil.ByteBuffer, opts.MaxInmemoryBlocks),
+	}
+	fq.cond.L = &fq.mu
+	fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_persistentqueue_bytes_pending{path=%q}`, path), func() float64 {
+		fq.mu.Lock()
+		n := fq.pq.GetPendingBytes()
+		fq.mu.Unlock()
+		return float64(n)
+	})
+
+	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vm_persistentqueue_free_disk_space_bytes{path=%q}`, path), func() float64 {
+		freeSpaceBytes := fs.MustGetFreeSpace(path)
+		// Limited by disk space if remoteWrite.maxDiskUsagePerURL wasn't set
+		if maxPendingBytes == 0 {
+			return float64(freeSpaceBytes)
+		}
+		fq.mu.Lock()
+		curPendingBytes := fq.pq.GetPendingBytes()
+		fq.mu.Unlock()
+		return min(float64(maxPendingBytes)-float64(curPendingBytes), float64(freeSpaceBytes))
+	})
+
+	pendingBytes := fq.GetPendingBytes()
+	persistenceStatus := "enabled"
+	if isPQDisabled {
+		persistenceStatus = "disabled"
+	}
+	logger.Infof("opened fast queue at %q with maxInmemoryBlocks=%d, it contains %d pending bytes, persistence is %s", path, opts.MaxInmemoryBlocks, pendingBytes, persistenceStatus)
+	return fq
+}
+
+// IsPersistentQueueDisabled returns true if persistent queue at fq is disabled.
+func (fq *FastQueue) IsPersistentQueueDisabled() bool {
+	return fq.isPQDisabled
+}
+
+// IsWriteBlocked checks if data can be pushed into fq
+func (fq *FastQueue) IsWriteBlocked() bool {
+	if !fq.isPQDisabled {
+		return false
+	}
+	fq.mu.Lock()
+	defer fq.mu.Unlock()
+	return len(fq.ch) == cap(fq.ch) || (fq.pq.GetPendingBytes() > 0 && !fq.prioritizeInMemoryData)
+}
+
+// UnblockAllReaders unblocks all the readers.
+func (fq *FastQueue) UnblockAllReaders() {
+	fq.mu.Lock()
+	defer fq.mu.Unlock()
+
+	// Unblock blocked readers
+	// Allow for up to 5 seconds for sending Prometheus stale markers.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1526
+	fq.stopDeadline = fasttime.UnixTimestamp() + 5
+	fq.cond.Broadcast()
+}
+
+// MustClose unblocks all the readers.
+//
+// It is expected no new writers during and after the call.
+func (fq *FastQueue) MustClose() {
+	fq.UnblockAllReaders()
+
+	fq.mu.Lock()
+	defer fq.mu.Unlock()
+
+	// flush blocks from fq.ch to fq.pq, so they can be persisted
+	fq.flushInmemoryBlocksToFileLocked()
+
+	// Close fq.pq
+	fq.pq.MustClose()
+
+	logger.Infof("closed fast persistent queue at %q", fq.pq.dir)
+}
+
+func (fq *FastQueue) flushInmemoryBlocksToFileIfNeededLocked() {
+	if len(fq.ch) == 0 || fq.isPQDisabled {
+		return
+	}
+	if fasttime.UnixTimestamp() < fq.lastInmemoryBlockReadTime+5 {
+		return
+	}
+	fq.flushInmemoryBlocksToFileLocked()
+}
+
+func (fq *FastQueue) flushInmemoryBlocksToFileLocked() {
+	// fq.mu must be locked by the caller.
+	for len(fq.ch) > 0 {
+		bb := <-fq.ch
+		fq.pq.MustWriteBlock(bb.B)
+		fq.pendingInmemoryBytes -= uint64(len(bb.B))
+		fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
+		blockBufPool.Put(bb)
+	}
+	// Unblock all the potentially blocked readers, so they could proceed with reading file-based queue.
+	fq.cond.Broadcast()
+}
+
+// GetPendingBytes returns the number of pending bytes in the fq.
+func (fq *FastQueue) GetPendingBytes() uint64 {
+	fq.mu.Lock()
+	defer fq.mu.Unlock()
+	n := fq.pendingInmemoryBytes
+	n += fq.pq.GetPendingBytes()
+	return n
+}
+
+// GetInmemoryQueueLen returns the length of inmemory queue.
+func (fq *FastQueue) GetInmemoryQueueLen() int {
+	fq.mu.Lock()
+	defer fq.mu.Unlock()
+
+	return len(fq.ch)
+}
+
+// MustWriteBlockIgnoreDisabledPQ unconditionally writes block to fq.
+//
+// This method allows persisting in-memory blocks during graceful shutdown, even if persistence is disabled.
+func (fq *FastQueue) MustWriteBlockIgnoreDisabledPQ(block []byte) {
+	if !fq.tryWriteBlock(block, true) {
+		logger.Panicf("BUG: tryWriteBlock must always write data even if persistence is disabled")
+	}
+}
+
+// TryWriteBlock tries writing block to fq.
+//
+// false is returned if the block couldn't be written to fq when the in-memory queue is full
+// and the persistent queue is disabled.
+func (fq *FastQueue) TryWriteBlock(block []byte) bool {
+	return fq.tryWriteBlock(block, false)
+}
+
+// WriteBlock writes block to fq.
+func (fq *FastQueue) tryWriteBlock(block []byte, ignoreDisabledPQ bool) bool {
+	fq.mu.Lock()
+	defer fq.mu.Unlock()
+
+	isPQWriteAllowed := !fq.isPQDisabled || ignoreDisabledPQ
+	if !isPQWriteAllowed && fq.pq.GetPendingBytes() > 0 {
+		// fast path: there is pending data at file-based queue,
+		// it must be drained before in-memory queue could be used.
+		// File-based queue could be non-empty after vmagent restart
+		// and vmagent couldn't flush in-memory queue during shutdown.
+		return false
+	}
+	if !fq.prioritizeInMemoryData {
+		fq.flushInmemoryBlocksToFileIfNeededLocked()
+		if n := fq.pq.GetPendingBytes(); n > 0 {
+			// The file-based queue isn't drained yet. This means that in-memory queue cannot be used yet.
+			// So put the block to file-based queue.
+			if len(fq.ch) > 0 {
+				logger.Panicf("BUG: the in-memory queue must be empty when the file-based queue is non-empty; it contains %d pending bytes", n)
+			}
+			fq.pq.MustWriteBlock(block)
+			return true
+		}
+	}
+	if len(fq.ch) == cap(fq.ch) {
+		// There is no space left in the in-memory queue. Put the data to file-based queue.
+		if !isPQWriteAllowed {
+			return false
+		}
+		fq.flushInmemoryBlocksToFileLocked()
+		fq.pq.MustWriteBlock(block)
+		return true
+	}
+
+	bb := blockBufPool.Get()
+	bb.B = append(bb.B[:0], block...)
+	fq.ch <- bb
+	fq.pendingInmemoryBytes += uint64(len(block))
+
+	// Notify potentially blocked reader.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/484 for the context.
+	fq.cond.Signal()
+	return true
+}
+
+// MustReadBlock reads the next block from fq into dst and returns it.
+// It first reads from the file-based queue, then checks in-memory queue.
+// It blocks until a block is available or the stop deadline is exceeded, in which case it returns (dst, false).
+func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
+	fq.mu.Lock()
+	defer fq.mu.Unlock()
+
+	for {
+		if fq.stopDeadline > 0 && fasttime.UnixTimestamp() > fq.stopDeadline {
+			return dst, false
+		}
+		if n := fq.pq.GetPendingBytes(); n > 0 {
+			data, ok := fq.pq.MustReadBlockNonblocking(dst)
+			if ok {
+				return data, true
+			}
+			dst = data
+		}
+		if len(fq.ch) > 0 {
+			return fq.mustReadInMemoryBlockLocked(dst), true
+		}
+		if fq.stopDeadline > 0 {
+			return dst, false
+		}
+		// There are no blocks. Wait for new block.
+		fq.pq.ResetIfEmpty()
+		fq.cond.Wait()
+	}
+}
+
+// MustReadInMemoryBlockBlocking reads the next block from the in-memory queue into dst and returns it.
+// It blocks until a block is available or the stop deadline is exceeded, in which case it returns (dst, false).
+func (fq *FastQueue) MustReadInMemoryBlockBlocking(dst []byte) ([]byte, bool) {
+	fq.mu.Lock()
+	defer fq.mu.Unlock()
+
+	for {
+		if fq.stopDeadline > 0 && fasttime.UnixTimestamp() > fq.stopDeadline {
+			return dst, false
+		}
+		if len(fq.ch) > 0 {
+			return fq.mustReadInMemoryBlockLocked(dst), true
+		}
+		if fq.stopDeadline > 0 {
+			return dst, false
+		}
+		// There are no blocks. Wait for new block.
+		fq.cond.Wait()
+	}
+}
+
+// MustReadInMemoryBlock reads the next block from the in-memory queue into dst and returns it.
+// It returns (dst, true) if a block was available, or (nil, false) if the in-memory queue is empty.
+// It does not block waiting for new blocks.
+func (fq *FastQueue) MustReadInMemoryBlock(dst []byte) ([]byte, bool) {
+	fq.mu.Lock()
+	defer fq.mu.Unlock()
+
+	if len(fq.ch) > 0 {
+		return fq.mustReadInMemoryBlockLocked(dst), true
+	}
+
+	return nil, false
+}
+
+func (fq *FastQueue) mustReadInMemoryBlockLocked(dst []byte) []byte {
+	if len(fq.ch) == 0 {
+		logger.Panicf("BUG: the function must not be called when in-memory queue is empty. Caller should verify the queue len upfront")
+	}
+	bb := <-fq.ch
+	fq.pendingInmemoryBytes -= uint64(len(bb.B))
+	fq.lastInmemoryBlockReadTime = fasttime.UnixTimestamp()
+	dst = append(dst, bb.B...)
+	blockBufPool.Put(bb)
+	return dst
+}
+
+// Dirname returns the directory name for persistent queue.
+func (fq *FastQueue) Dirname() string {
+	return filepath.Base(fq.pq.dir)
+}
