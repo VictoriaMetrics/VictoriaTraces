@@ -162,6 +162,10 @@ func processSearchTagValuesRequest(ctx context.Context, w http.ResponseWriter, r
 		} else if strings.HasPrefix(tagName, "span.") {
 			mappedTagName = otelpb.SpanAttrPrefixField + tagName[len("span."):]
 		} else if strings.HasPrefix(tagName, "event.") {
+			// Unlike traceql.TraceQLFieldToVTField, this must not append the ":*" event
+			// index wildcard. searchTagValues below feeds the name to the field_values
+			// pipe, which reads a single named field. Neither form works today: listing
+			// event attribute values needs LogsQL to collect values across fields first.
 			mappedTagName = otelpb.EventPrefix + otelpb.EventAttrPrefix + tagName[len("event."):]
 		} else {
 			mappedTagName = tagName
