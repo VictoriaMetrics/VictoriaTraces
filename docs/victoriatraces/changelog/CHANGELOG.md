@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): match spans by their events and links in the Tempo search API, for example `{event:name = "exception"}`, `{event.exception.type = "OutOfMemoryError"}` and `{link:traceID = "..."}`. Previously these queries were accepted but never matched a span, because every event and link is stored under its own numbered field. `histogram_over_time` now rejects the event and link scopes, since it reads a single named field. The `event:timeSinceStart` intrinsic is not supported. See [this issue #118](https://github.com/VictoriaMetrics/VictoriaTraces/issues/118).
+
 ## [v0.11.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.11.0)
 
 Released at 2026-08-14
