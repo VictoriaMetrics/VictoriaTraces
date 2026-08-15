@@ -107,6 +107,24 @@ func TestParseQuery(t *testing.T) {
 
 	// Regex match operator `=~` must become LogsQL `~` (not `=~`).
 	f(`{resource.host.name =~ "kimi-k2-a.*"}`, `"resource_attr:host.name":~"kimi-k2-a.*"`)
+
+	// Span events and links are stored one numbered field per event, so every
+	// event and link field carries the ":*" index wildcard.
+	f(`{event.exception.type = "OOM"}`, `"event:event_attr:exception.type:*":=OOM`)
+	f(`{event.exception.type =~ "OOM.*"}`, `"event:event_attr:exception.type:*":~"OOM.*"`)
+	f(`{event:name = "exception"}`, `"event:event_name:*":=exception`)
+	f(`{link.foo = "bar"}`, `"link:link_attr:foo:*":=bar`)
+	f(`{link:spanID = "0102030405060708"}`, `"link:link_span_id:*":=0102030405060708`)
+	f(`{link:traceID = "0102030405060708090a0b0c0d0e0f10"}`, `"link:link_trace_id:*":=0102030405060708090a0b0c0d0e0f10`)
+
+	// `= nil` on a wildcard field cannot use the empty-value filter, because that
+	// filter only visits the fields a span really has. It becomes a negated
+	// any-value filter instead. `span.` keeps the empty-value form.
+	f(`{event.exception.type = nil}`, `!"event:event_attr:exception.type:*":*`)
+	f(`{link.foo = nil}`, `!"link:link_attr:foo:*":*`)
+	f(`{event:name = nil}`, `!"event:event_name:*":*`)
+	f(`{span.http.status_code = nil}`, `"span_attr:http.status_code":""`)
+	f(`{event.exception.type != nil}`, `"event:event_attr:exception.type:*":*`)
 }
 
 // TestParseQueryInvalid asserts that malformed inputs return an error
