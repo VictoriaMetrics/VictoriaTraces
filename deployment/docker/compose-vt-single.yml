@@ -34,7 +34,7 @@ services:
   #  VictoriaTraces instance, a single process responsible for
   #  storing trace span and serving read queries.
   victoriatraces:
-    image: victoriametrics/victoria-traces:v0.10.0
+    image: victoriametrics/victoria-traces:v0.11.0
     ports:
       - "10428:10428"
     command:
