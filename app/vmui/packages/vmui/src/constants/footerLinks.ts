@@ -6,7 +6,7 @@ const issueLink = {
   title: "Create an issue",
 };
 
-export const footerLinksToLogs = [
+export const footerLinksToTraces = [
   {
     href: "https://docs.victoriametrics.com/victorialogs/logsql/",
     Icon: CodeIcon,

@@ -1,0 +1,25 @@
+@use "src/styles/variables" as *;
+
+.vm-api-error-alert-details {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $font-size-small;
+}
+
+.vm-api-error-alert-details tr:nth-child(2n) {
+  background-color: var(--surface-tertiary);
+}
+
+.vm-api-error-alert-details__attr {
+  color: var(--text-muted);
+  padding: 0.5em;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.vm-api-error-alert-details__value {
+  font-family: monospace;
+  padding: 0.5em;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

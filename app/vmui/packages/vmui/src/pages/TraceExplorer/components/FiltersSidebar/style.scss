@@ -1,0 +1,234 @@
+@use "src/styles/variables" as *;
+
+.vm-filters-sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  flex: 0 0 auto;
+  width: clamp(220px, 20vw, 320px);
+  max-width: 400px;
+  min-width: 220px;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  border-radius: $border-radius-medium;
+  overflow: hidden;
+  background: $color-background-block;
+  box-shadow: $box-shadow;
+  font-size: $font-size-small;
+
+  &_mobile {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    border-radius: 0;
+    z-index: 150;
+  }
+
+  &-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $padding-medium $padding-global $padding-small;
+    background-color: $color-background-block;
+    box-shadow: inset 0 0 0 999px $color-hover-black;
+
+    &__title {
+      font-size: $font-size-small;
+      font-weight: bold;
+    }
+
+    &__actions {
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  &-content {
+    flex: 1 1 auto;
+    // Flex items default to min-height: auto, which refuses to shrink below the content's
+    // intrinsic height even inside overflow: auto — without this, a tall filter list grows
+    // the sidebar itself past its 100dvh cap instead of scrolling internally, coupling its
+    // scroll position to the page/vm-trace-explorer-content's own scroll.
+    min-height: 0;
+    overflow: auto;
+    padding: $padding-small;
+  }
+
+  &-section {
+    &:not(:last-child) {
+      margin-bottom: 2px;
+    }
+
+    &__title {
+      display: flex;
+      align-items: center;
+      gap: $padding-small;
+      font-weight: 600;
+    }
+
+    &__badge {
+      color: $color-text-secondary;
+      font-size: $font-size-small;
+      font-weight: normal;
+    }
+
+    &__spinner {
+      display: flex;
+      align-items: center;
+      color: $color-text-secondary;
+
+      svg {
+        width: 1em;
+      }
+    }
+  }
+
+  &-duration {
+    display: flex;
+    align-items: flex-start;
+    gap: $padding-small;
+    padding-top: $padding-small;
+
+    > * {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    &__separator {
+      flex: 0 0 auto;
+      padding: 18px 0;
+      color: $color-text-secondary;
+    }
+  }
+
+  &-tags {
+    display: flex;
+    flex-direction: column;
+    gap: $padding-small;
+    padding-top: $padding-small;
+
+    &-selects {
+      display: flex;
+      flex-direction: column;
+      gap: $padding-small;
+    }
+
+    &-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: $padding-small;
+    }
+
+    &-badge {
+      display: flex;
+      align-items: center;
+      gap: $padding-small;
+      padding: 2px $padding-small;
+      border-radius: $border-radius-small;
+      background-color: $color-hover-black;
+      max-width: 100%;
+
+      &__label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      &__remove {
+        display: flex;
+        flex: 0 0 auto;
+        cursor: pointer;
+        color: $color-text-secondary;
+
+        svg {
+          width: 10px;
+        }
+
+        &:hover {
+          color: $color-text;
+        }
+      }
+    }
+  }
+
+  .vm-accordion-header {
+    padding: $padding-small;
+    border-radius: $border-radius-medium;
+    transition: background-color 200ms ease-in;
+
+    &:hover {
+      background-color: $color-hover-black;
+    }
+
+    &_open {
+      background-color: $color-hover-black;
+      border-radius: $border-radius-medium $border-radius-medium 0 0;
+    }
+  }
+
+  .vm-accordion-section {
+    padding-inline: $padding-small;
+  }
+}
+
+.vm-filters-checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: $padding-small;
+
+  &__status {
+    font-size: $font-size-small;
+    color: $color-text-secondary;
+    padding: $padding-small;
+
+    &_loading {
+      display: flex;
+
+      svg {
+        width: 1em;
+      }
+    }
+  }
+
+  &__items {
+    display: flex;
+    flex-direction: column;
+    max-height: 240px;
+    overflow: auto;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: $padding-small;
+    padding: $padding-small;
+    border-radius: $border-radius-medium;
+    cursor: pointer;
+    transition: background-color 200ms ease-in;
+
+    &:hover {
+      background-color: $color-hover-black;
+    }
+
+    &-label {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &-dot {
+      flex: none;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+  }
+}

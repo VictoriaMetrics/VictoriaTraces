@@ -1,5 +1,5 @@
 import useEventListener from "./useEventListener";
-import { useCallback, RefObject } from "react";
+import { useCallback, RefObject } from "preact/compat";
 
 type Event = MouseEvent | TouchEvent;
 
@@ -17,7 +17,7 @@ const useClickOutside = <T extends HTMLElement = HTMLElement>(
     }
 
     handler(event); // Call the handler only if the click is outside of the element passed.
-  }, [ref, handler]);
+  }, [ref, handler, preventRef]);
 
   useEventListener("mouseup", listener);
   useEventListener("touchstart", listener);

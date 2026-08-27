@@ -1,5 +1,5 @@
-import { getNanoTimestamp } from "../../utils/time";
-import { Order } from "../../types";
+import { vmDate } from "../../utils/time";
+import { OrderDir } from "../../types";
 
 const dateColumns = ["date", "timestamp", "time"];
 
@@ -18,8 +18,8 @@ export function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   // Dates
   const isDate = dateColumns.includes(String(orderBy));
   if (isDate) {
-    const timeA = getNanoTimestamp(strA);
-    const timeB = getNanoTimestamp(strB);
+    const timeA = vmDate(strA).nano().timestamp();
+    const timeB = vmDate(strB).nano().timestamp();
 
     if (timeB < timeA) return -1;
     if (timeB > timeA) return 1;
@@ -41,13 +41,7 @@ export function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
   return 0;
 }
 
-export function getComparator<Key extends (string | number | symbol)>(
-  order: Order,
-  orderBy: Key,
-): (
-  a: { [key in Key]: number | string },
-  b: { [key in Key]: number | string },
-) => number {
+export function getComparator<T, K extends keyof T>(order: OrderDir, orderBy: K): (a: T, b: T) => number {
   return order === "desc"
     ? (a, b) => descendingComparator(a, b, orderBy)
     : (a, b) => -descendingComparator(a, b, orderBy);

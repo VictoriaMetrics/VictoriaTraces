@@ -1,12 +1,11 @@
 @use "src/styles/variables" as *;
-@use "src/components/Main/Button/style" as *;
 
 .vm-execution-controls {
 
   &-buttons {
     display: flex;
     justify-content: space-between;
-    border-radius: calc($button-radius + 1px);
+    border-radius: calc($border-radius-button + 1px);
     min-width: 107px;
 
     &_mobile {
@@ -29,10 +28,9 @@
   }
 
   &-list {
-    width: 124px;
+    width: 104px;
     max-height: 208px;
     overflow: auto;
-    padding: $padding-small 0;
     font-size: $font-size;
 
     &_mobile {

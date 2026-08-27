@@ -1,11 +1,11 @@
 import { processNavigationItems } from "./utils";
 import { getTracesNavigation } from "./navigation";
 
-const useNavigationMenu = () => {
+const getNavigationMenu = () => {
   const menu = getTracesNavigation();
   return processNavigationItems(menu);
 };
 
-export default useNavigationMenu;
+export default getNavigationMenu;
 
 

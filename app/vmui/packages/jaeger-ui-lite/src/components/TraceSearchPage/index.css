@@ -1,6 +1,0 @@
-.Tracepage--headerSection {
-  background: var(--surface-primary);
-  position: relative !important;
-  width: 100%;
-  z-index: 3;
-}

@@ -1,5 +1,5 @@
 import { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
-import Autocomplete, { AutocompleteOptions } from "../../../Main/Autocomplete/Autocomplete";
+import Autocomplete, { AutocompleteOptions } from "../../../Main/Autocomplete";
 import { AUTOCOMPLETE_LIMITS } from "../../../../constants/queryAutocomplete";
 import { QueryEditorAutocompleteProps } from "../QueryEditor";
 import { getContextData, splitLogicalParts } from "./parser";
@@ -70,19 +70,6 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     }, "").trim();
   };
 
-  const getModifyInsert = (insert: string, contextType: ContextType, value = "", insertType?: string) => {
-    let modifiedInsert = insert;
-
-    if (insertType === ContextType.FilterName) {
-      modifiedInsert += ":";
-    } else if (contextType === ContextType.FilterValue) {
-      const insertWithQuotes = value.startsWith("_stream:") ? modifiedInsert : `${JSON.stringify(modifiedInsert)}`;
-      modifiedInsert = `${contextData?.filterName || ""}${contextData?.operator || ":"}${insertWithQuotes}`;
-    }
-
-    return modifiedInsert;
-  };
-
   const handleSelect = useCallback((insert: string, item: AutocompleteOptions) => {
     const {
       id,
@@ -91,7 +78,14 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
       position = [0, 0]
     } = contextData || {};
 
-    const insertValue = getModifyInsert(insert, contextType, value, item.type);
+    let insertValue = insert;
+    if (item.type === ContextType.FilterName) {
+      insertValue += ":";
+    } else if (contextType === ContextType.FilterValue) {
+      const insertWithQuotes = value.startsWith("_stream:") ? insertValue : `${JSON.stringify(insertValue)}`;
+      insertValue = `${contextData?.filterName || ""}${contextData?.operator || ":"}${insertWithQuotes}`;
+    }
+
     const newValue = getUpdatedValue(insertValue, logicalParts, id);
     const logicalPart = logicalParts.find(p => p.id === id);
     const getPositionCorrection = () => {
@@ -102,11 +96,12 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
     const updatedPosition = (position[0] || 1) + insertValue.length + getPositionCorrection();
 
     onSelect(newValue, updatedPosition);
-  }, [contextData, logicalParts]);
+  }, [contextData, logicalParts, onSelect]);
 
 
   useEffect(() => {
     if (!anchorEl.current) {
+      // eslint-disable-next-line @eslint-react/set-state-in-effect -- offset can only be computed after the anchor element is in the DOM
       setOffsetPos({ top: 0, left: 0 });
       return;
     }
@@ -137,6 +132,7 @@ const LogsQueryEditorAutocomplete: FC<QueryEditorAutocompleteProps> = ({
 
     const leftOffset = markerRect.left - spanRect.left;
     const topOffset = markerRect.bottom - spanRect.bottom - (hasHelperText ? lineHeight : 0);
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- offset is derived from getBoundingClientRect measurements of a scratch DOM node, only available post-render
     setOffsetPos({ top: topOffset, left: leftOffset });
 
     span.remove();

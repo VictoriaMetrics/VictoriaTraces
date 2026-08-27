@@ -1,58 +1,34 @@
 @use "src/styles/variables" as *;
 
-.vm-trace-container {
+.vm-container {
+  color-scheme: light;
   display: flex;
   flex-direction: column;
+  min-height: calc(($vh * 100) - var(--scrollbar-height));
 
-  // 关键：不要用 min-height 来承载布局，改成 height 锁住容器高度
-  // height: calc(($vh * 100) - var(--scrollbar-height));
-  height: 100vh;
-  min-height: 0;
+  &_dark {
+    color-scheme: dark;
+  }
 
-  // 可选但强烈建议：把页面滚动锁住，让滚动只发生在 body 区域
-  overflow: hidden;
-
-  // &-body {
-  //   flex: 1 1 auto;
-
-  //   // 关键：允许在 flex 布局里变小，否则会被内容撑开，滚动跑到外层
-  //   min-height: 0;
-
-  //   // 关键：滚动发生在这里
-  //   overflow: auto;
-
-  //   padding: $padding-medium;
-  //   background-color: $color-background-body;
-
-  //   &_mobile {
-  //     padding: $padding-small 0 0;
-  //   }
-
-  //   @media (max-width: 768px) {
-  //     padding: $padding-small 0 0;
-  //   }
-
-  //   &_app {
-  //     padding: $padding-small 0;
-  //     background-color: transparent;
-  //   }
-  // }
   &-body {
-    flex: 1 1 auto;
-    min-height: 0;
+    display: grid;
+    align-items: flex-start;
+    flex-grow: 1;
+    min-height: 100%;
+    padding: $padding-medium;
+    background-color: $color-background-body;
 
-    /* 不滚它，改为滚 main */
-    overflow: hidden;
-
-    >div {
-      height: 100%;
-      min-height: 0;
+    &_mobile {
+      padding: $padding-small 0 0;
     }
 
-    >div>main {
-      height: 100%;
-      min-height: 0;
-      overflow: auto;
+    @media (max-width: 768px) {
+      padding: $padding-small 0 0;
+    }
+
+    &_app {
+      padding: $padding-small 0;
+      background-color: transparent;
     }
   }
 }

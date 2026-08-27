@@ -1,65 +1,40 @@
 import { getFromStorage, saveToStorage } from "../../utils/storage";
-import { getQueryArray } from "../../utils/query-string";
-import { HistoryKey, setQueriesToStorage } from "../../components/QueryHistory/utils";
-import {
-  QueryAutocompleteCache,
-  QueryAutocompleteCacheItem
-} from "../../components/Configurators/QueryEditor/QueryAutocompleteCache";
-import { AutocompleteOptions } from "../../components/Main/Autocomplete/Autocomplete";
-
-export interface QueryHistoryType {
-  index: number;
-  values: string[];
-}
+import { getOverrideValue } from "../../components/Configurators/GlobalSettings/QueryTimeOverride";
 
 export interface QueryState {
-  query: string[];
-  queryHistory: QueryHistoryType[];
+  queryHasTimeFilter: boolean;
+  executeQueryTrigger: number;
   autocomplete: boolean;
   autocompleteQuick: boolean;
-  autocompleteCache: QueryAutocompleteCache;
-  metricsQLFunctions: AutocompleteOptions[];
 }
 
 export type QueryAction =
-  | { type: "SET_QUERY", payload: string[] }
-  | { type: "SET_QUERY_HISTORY_BY_INDEX", payload: { value: QueryHistoryType, queryNumber: number } }
-  | { type: "SET_QUERY_HISTORY", payload: { key: HistoryKey, history: QueryHistoryType[] } }
+  | { type: "SET_QUERY_HAS_TIME_FILTER", payload: boolean }
+  | { type: "RUN_QUERY"}
   | { type: "TOGGLE_AUTOCOMPLETE" }
   | { type: "SET_AUTOCOMPLETE_QUICK", payload: boolean }
-  | { type: "SET_AUTOCOMPLETE_CACHE", payload: { key: QueryAutocompleteCacheItem, value: string[] } }
 
-const query = getQueryArray();
 export const initialQueryState: QueryState = {
-  query,
-  queryHistory: query.map(q => ({ index: 0, values: [q] })),
+  queryHasTimeFilter: false,
+  executeQueryTrigger: 0,
   autocomplete: getFromStorage("AUTOCOMPLETE") as boolean || false,
   autocompleteQuick: false,
-  autocompleteCache: new QueryAutocompleteCache(),
-  metricsQLFunctions: [],
 };
 
 export function reducer(state: QueryState, action: QueryAction): QueryState {
   switch (action.type) {
-    case "SET_QUERY":
+    case "SET_QUERY_HAS_TIME_FILTER":
       return {
         ...state,
-        query: action.payload.map(q => q)
+        queryHasTimeFilter: getOverrideValue() ? action.payload : false
       };
-    case "SET_QUERY_HISTORY":
-      // setQueriesToStorage(action.payload.key, action.payload.history);
+    case "RUN_QUERY":
       return {
         ...state,
-        queryHistory: action.payload.history
-      };
-    case "SET_QUERY_HISTORY_BY_INDEX":
-      state.queryHistory.splice(action.payload.queryNumber, 1, action.payload.value);
-      return {
-        ...state,
-        queryHistory: state.queryHistory
+        executeQueryTrigger: state.executeQueryTrigger + 1
       };
     case "TOGGLE_AUTOCOMPLETE":
-      // saveToStorage("AUTOCOMPLETE", !state.autocomplete);
+      saveToStorage("AUTOCOMPLETE", !state.autocomplete);
       return {
         ...state,
         autocomplete: !state.autocomplete
@@ -69,12 +44,6 @@ export function reducer(state: QueryState, action: QueryAction): QueryState {
         ...state,
         autocompleteQuick: action.payload
       };
-    case "SET_AUTOCOMPLETE_CACHE": {
-      state.autocompleteCache.put(action.payload.key, action.payload.value);
-      return {
-        ...state
-      };
-    }
     default:
       throw new Error();
   }

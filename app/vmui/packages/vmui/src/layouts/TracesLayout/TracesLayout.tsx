@@ -1,51 +1,67 @@
-import { FC, useEffect } from "react";
-import Header from "../Header/Header";
-import { useLocation } from "react-router";
+import { FC, useEffect } from "preact/compat";
+import Header from "../Header";
+import { matchPath, Outlet, useLocation } from "react-router-dom";
 import "./style.scss";
 import { getAppModeEnable } from "../../utils/app-mode";
 import classNames from "classnames";
-import Footer from "../Footer/Footer";
-import router, { routerOptions } from "../../router";
+import Footer from "../Footer";
+import { RouterOptions, routerOptions } from "../../router";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
-import ControlsTracesLayout from "./ControlsTracesLayout";
-import { footerLinksToLogs } from "../../constants/footerLinks";
-import { TracesSearchSettingsProvider } from "./TracesSearchSettingsContext";
+import { footerLinksToTraces } from "../../constants/footerLinks";
+import WebStorageCheck from "../../components/WebStorageCheck";
+import { migrateStorageToPrefixedKeys } from "../../utils/storage";
+import { useAppState } from "../../state/common/StateContext";
+import {
+  useBrowserTabSync
+} from "../../components/Configurators/GlobalSettings/BrowserTabController/hooks/useBrowserTabSync";
 
-const LogsLayout: FC<{ children?: any }> = ({ children }) => {
+const TracesLayout: FC = () => {
   const appModeEnable = getAppModeEnable();
   const { isMobile } = useDeviceDetect();
   const { pathname } = useLocation();
+  const { isDarkTheme } = useAppState();
+  useBrowserTabSync();
 
   const setDocumentTitle = () => {
-    const defaultTitle = "UI for VictoriaTraces";
-    const routeTitle = routerOptions[router.home]?.title;
+    const matchedEntry = Object.entries(routerOptions).find(([path]) => {
+      return matchPath(path, pathname);
+    });
 
-    document.title = routeTitle
-      ? `${routeTitle} - ${defaultTitle}`
-      : defaultTitle;
+    const routeTitle =  (matchedEntry?.[1] as RouterOptions)?.title;
+    const defaultTitle = "UI for VictoriaTraces";
+    document.title = routeTitle ? `${routeTitle} - ${defaultTitle}` : defaultTitle;
   };
 
   useEffect(setDocumentTitle, [pathname]);
 
-  return (
-    <TracesSearchSettingsProvider>
-      <section className="vm-trace-container">
-        <Header controlsComponent={ControlsTracesLayout} />
+  useEffect(() => {
+    const migrateStorage = migrateStorageToPrefixedKeys();
+    if (migrateStorage.removed.length || migrateStorage.migrated.length) {
+      console.info(migrateStorage);
+    }
+  }, []);
 
-        <div
-          className={classNames({
-            "vm-trace-container-body": true,
-            "vm-trace-container-body_mobile": isMobile,
-            "vm-trace-container-body_app": appModeEnable,
-          })}
-        >
-          {children}
-        </div>
+  return <section
+    className={classNames({
+      "vm-container": true,
+      "vm-container_dark": isDarkTheme
+    })}
+  >
+    <Header/>
+    <div
+      id="vm-body"
+      className={classNames({
+        "vm-container-body": true,
+        "vm-container-body_mobile": isMobile,
+        "vm-container-body_app": appModeEnable
+      })}
+    >
+      <Outlet/>
+    </div>
+    {!appModeEnable && <Footer links={footerLinksToTraces}/>}
 
-        {!appModeEnable && <Footer links={footerLinksToLogs} />}
-      </section>
-    </TracesSearchSettingsProvider>
-  );
+    <WebStorageCheck/>
+  </section>;
 };
 
-export default LogsLayout;
+export default TracesLayout;

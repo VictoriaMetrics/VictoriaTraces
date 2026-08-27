@@ -1,4 +1,4 @@
-import { FC, ReactNode } from "react";
+import { FC, ReactNode } from "preact/compat";
 import classNames from "classnames";
 
 interface Hyperlink {

@@ -1,20 +1,16 @@
-import { FC, useEffect, useRef, useState, RefObject, ChangeEvent, KeyboardEvent } from "react";
+import { FC, useEffect, useRef, useState, RefObject, useMemo } from "preact/compat";
 import { CalendarIcon } from "../../Icons";
 import DatePicker from "../DatePicker";
-import Button from "../../Button/Button";
-import { DATE_TIME_FORMAT } from "../../../../constants/date";
+import Button from "../../Button";
 import InputMask from "react-input-mask";
-import { IMaskInput } from "react-imask";
-import dayjs from "dayjs";
 import classNames from "classnames";
 import "./style.scss";
-
-const formatStringDate = (val: string) => {
-  return dayjs(val).isValid() ? dayjs.tz(val).format(DATE_TIME_FORMAT) : val;
-};
+import { vmDate } from "../../../../utils/time";
+import { parseDateTimeInputValue } from "./utils";
+import { TargetedEvent } from "preact";
 
 interface DateTimeInputProps {
-  value?: string;
+  value?:  string;
   label: string;
   pickerLabel: string;
   pickerRef: RefObject<HTMLDivElement>;
@@ -33,50 +29,33 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [inputRef, setInputRef] = useState<HTMLInputElement | null>(null);
 
-  const [maskedValue, setMaskedValue] = useState(formatStringDate(value));
+  const isValidDate = useMemo(() => !!parseDateTimeInputValue(value), [value]);
+  const datePickerValue = useMemo(() => isValidDate ? vmDate.tz(value) : vmDate().tz(), [value, isValidDate]);
+
   const [focusToTime, setFocusToTime] = useState(false);
-  const [awaitChangeForEnter, setAwaitChangeForEnter] = useState(false);
-  const error = dayjs(maskedValue).isValid() ? "" : "Invalid date format";
+  const error = isValidDate ? "" : "Invalid date format";
 
-  const handleMaskedChangeValue = (value: string) => {
-    setMaskedValue(value);
+  const handleMaskedChange = (e: TargetedEvent<HTMLInputElement, Event>) => {
+    onChange(e.currentTarget.value);
   };
 
-  const handleBlur = () => {
-    onChange(maskedValue);
-  };
-
-  const handleKeyUp = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      onChange(maskedValue);
-      setAwaitChangeForEnter(true);
-    }
+  const handleKeyUp = (e: KeyboardEvent) => {
+    if (e.key === "Enter" && isValidDate) onEnter();
   };
 
   const handleChangeDate = (val: string) => {
-    setMaskedValue(val);
+    onChange(val);
     setFocusToTime(true);
   };
-
-  useEffect(() => {
-    const newValue = formatStringDate(value);
-    if (newValue !== maskedValue) {
-      setMaskedValue(newValue);
-    }
-
-    if (awaitChangeForEnter) {
-      onEnter();
-      setAwaitChangeForEnter(false);
-    }
-  }, [value]);
 
   useEffect(() => {
     if (focusToTime && inputRef) {
       inputRef.focus();
       inputRef.setSelectionRange(11, 11);
+      // eslint-disable-next-line @eslint-react/set-state-in-effect -- resets the one-shot focus trigger after performing the imperative DOM focus above
       setFocusToTime(false);
     }
-  }, [focusToTime]);
+  }, [focusToTime, inputRef]);
 
   return (
     <div
@@ -86,33 +65,16 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
       })}
     >
       <label>{label}</label>
-      <IMaskInput
-        // 你原来的 mask 等价写法：0 表示数字
-        mask={"0000-00-00 00:00:00"}
-        // 想要“maskChar={null}”那种体验（不显示占位符），用 lazy
-        lazy={true}
-        // placeholder 仍然可以保留
-        placeholder="YYYY-MM-DD HH:mm:ss"
-
-        // 受控值：用 unmasked 或 value 都行；这里用 value（带分隔符）
-        value={maskedValue}
-
-        // 你的 inputRef：react-imask 用 inputRef
-        inputRef={setInputRef}
-
+      <InputMask
         tabIndex={1}
-        autoCapitalize="none"
-        inputMode="numeric"
-
-        // react-imask 推荐用 onAccept（值变化时触发）
-        onAccept={(value) => {
-          // value 是格式化后的字符串：YYYY-MM-DD HH:mm:ss
-          // 你原来的 handleMaskedChange 如果吃 event，就改成吃 string
-          handleMaskedChangeValue(String(value));
-        }}
-
-        // 这些原生事件可以直接挂
-        onBlur={handleBlur}
+        inputRef={setInputRef}
+        mask="9999-99-99 99:99:99.999999999"
+        placeholder="YYYY-MM-DD HH:mm:ss.SSSSSSSSS"
+        value={value}
+        autoCapitalize={"none"}
+        inputMode={"numeric"}
+        maskChar={null}
+        onChange={handleMaskedChange}
         onKeyUp={handleKeyUp}
       />
       {error && (
@@ -126,14 +88,14 @@ const DateTimeInput: FC<DateTimeInputProps> = ({
           variant="text"
           color="gray"
           size="small"
-          startIcon={<CalendarIcon />}
-          ariaLabel="calendar"
+          startIcon={<CalendarIcon/>}
+          aria-label="calendar"
         />
       </div>
       <DatePicker
         label={pickerLabel}
         ref={pickerRef}
-        date={maskedValue}
+        date={datePickerValue}
         onChange={handleChangeDate}
         targetRef={wrapperRef}
       />

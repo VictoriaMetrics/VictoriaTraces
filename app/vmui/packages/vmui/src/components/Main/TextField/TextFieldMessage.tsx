@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo, useRef, useState } from "react";
+import { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import useEventListener from "../../../hooks/useEventListener";
 import classNames from "classnames";
 import "./style.scss";
@@ -41,6 +41,7 @@ const TextFieldMessage: FC<TextFieldErrorProps> = ({ error, warning, info }) => 
   };
 
   useEffect(() => {
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- collapses the expanded message before re-measuring truncation via DOM layout below, which must run post-render
     setShowFull(false);
     checkIfTextTruncated();
   }, [messageRef, message]);

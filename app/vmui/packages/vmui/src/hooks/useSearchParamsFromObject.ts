@@ -1,6 +1,5 @@
-import { useNavigate, useSearchParams } from "react-router";
-import { useCallback } from "react";
-
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useCallback } from "preact/compat";
 
 
 const useSearchParamsFromObject = () => {
@@ -25,7 +24,7 @@ const useSearchParamsFromObject = () => {
     } else {
       navigate(`?${searchParams.toString()}`, { replace: true });
     }
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, setSearchParams]);
 
   return {
     setSearchParamsFromKeys
