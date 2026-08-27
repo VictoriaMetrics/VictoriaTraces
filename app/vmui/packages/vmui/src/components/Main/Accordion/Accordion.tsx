@@ -1,4 +1,4 @@
-import { FC, useState, useEffect, ReactNode } from "react";
+import { FC, useState, useEffect, ReactNode } from "preact/compat";
 import { ArrowDownIcon } from "../Icons";
 import "./style.scss";
 
@@ -31,6 +31,7 @@ const Accordion: FC<AccordionProps> = ({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- resets local open state when the caller changes defaultExpanded (controlled reset, not derived every render)
     setIsOpen(defaultExpanded);
   }, [defaultExpanded]);
 

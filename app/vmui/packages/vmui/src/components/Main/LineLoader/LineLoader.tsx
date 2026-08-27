@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC } from "preact/compat";
 import "./style.scss";
 
 const LineLoader: FC = () => {

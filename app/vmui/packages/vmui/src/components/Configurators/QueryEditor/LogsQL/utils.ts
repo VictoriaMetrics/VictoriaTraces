@@ -46,7 +46,7 @@ const getDateQuery = (contextData: ContextData) => {
  * @returns {string} The generated query string.
  */
 export const generateQuery = (contextData: ContextData): string => {
-  let fieldQuery = "";
+  let fieldQuery: string;
   if (!contextData.filterName || !contextData.query || ["_msg", "_stream_id"].includes(contextData.filterName)) {
     fieldQuery = "*";
   } else if ("_stream" === contextData.filterName) {

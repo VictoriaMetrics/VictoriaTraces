@@ -1,17 +1,17 @@
-import { FC, useEffect, useState } from "react";
-import dayjs, { Dayjs } from "dayjs";
-import CalendarHeader from "./CalendarHeader/CalendarHeader";
-import CalendarBody from "./CalendarBody/CalendarBody";
-import YearsList from "./YearsList/YearsList";
+import { FC, useEffect, useState } from "preact/compat";
+import CalendarHeader from "./CalendarHeader";
+import CalendarBody from "./CalendarBody";
+import YearsList from "./YearsList";
 import { DATE_FORMAT, DATE_TIME_FORMAT } from "../../../../constants/date";
 import "./style.scss";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import classNames from "classnames";
-import MonthsList from "./MonthsList/MonthsList";
-import Button from "../../Button/Button";
+import MonthsList from "./MonthsList";
+import Button from "../../Button";
+import { getNowInTimezone, type VmDate } from "../../../../utils/time";
 
 interface DatePickerProps {
-  date: Date | Dayjs
+  date: VmDate
   format?: string
   onChange: (date: string) => void
 }
@@ -27,24 +27,25 @@ const Calendar: FC<DatePickerProps> = ({
   format = DATE_TIME_FORMAT,
   onChange,
 }) => {
-  const [viewType, setViewType] = useState<CalendarTypeView>(CalendarTypeView.days);
-  const [viewDate, setViewDate] = useState(dayjs.tz(date));
-  const [selectDate, setSelectDate] = useState(dayjs.tz(date));
-
-  const today = dayjs.tz();
-  const viewDateIsToday = today.format(DATE_FORMAT) === viewDate.format(DATE_FORMAT);
   const { isMobile } = useDeviceDetect();
+
+  const [viewType, setViewType] = useState<CalendarTypeView>(CalendarTypeView.days);
+  const [viewDate, setViewDate] = useState(date);
+  const [selectDate, setSelectDate] = useState(date);
+
+  const today = getNowInTimezone();
+  const viewDateIsToday = today.format(DATE_FORMAT) === viewDate.format(DATE_FORMAT);
 
   const toggleDisplayYears = () => {
     setViewType(prev => prev === CalendarTypeView.years ? CalendarTypeView.days : CalendarTypeView.years);
   };
 
-  const handleChangeViewDate = (date: Dayjs) => {
+  const handleChangeViewDate = (date: VmDate) => {
     setViewDate(date);
     setViewType(prev => prev === CalendarTypeView.years ? CalendarTypeView.months : CalendarTypeView.days);
   };
 
-  const handleChangeSelectDate = (date: Dayjs) => {
+  const handleChangeSelectDate = (date: VmDate) => {
     setSelectDate(date);
   };
 
@@ -53,14 +54,16 @@ const Calendar: FC<DatePickerProps> = ({
   };
 
   useEffect(() => {
-    if (selectDate.format() === dayjs.tz(date).format()) return;
+    if (selectDate.format() === date.format()) return;
     onChange(selectDate.format(format));
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- must only fire on user-driven selectDate changes; including date/format/onChange would re-fire onChange with the stale selectDate when the date prop changes externally (the effect below resets selectDate then), and on every parent re-render that passes a new onChange reference
   }, [selectDate]);
 
   useEffect(() => {
-    const value = dayjs.tz(date);
-    setViewDate(value);
-    setSelectDate(value);
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- resets internal view/select state to match the externally controlled date prop
+    setViewDate(date);
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- resets internal view/select state to match the externally controlled date prop
+    setSelectDate(date);
   }, [date]);
 
   return (
@@ -103,7 +106,7 @@ const Calendar: FC<DatePickerProps> = ({
             size="small"
             onClick={handleToday}
           >
-              show today
+            Show today
           </Button>
         </div>
       )}

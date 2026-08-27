@@ -1,5 +1,5 @@
-import { createContext, FC, useContext, useEffect, useState, ReactNode } from "react";
-import Alert from "../components/Main/Alert/Alert";
+import { createContext, FC, useCallback, useContext, useEffect, useRef, useState, ReactNode } from "preact/compat";
+import Alert from "../components/Main/Alert";
 import useDeviceDetect from "../hooks/useDeviceDetect";
 import classNames from "classnames";
 import { CloseIcon } from "../components/Main/Icons";
@@ -25,6 +25,7 @@ export const SnackbarContext = createContext<SnackbarContextType>({
   }
 });
 
+// eslint-disable-next-line @eslint-react/no-use-context -- preact/compat does not export a 'use' hook, useContext is required here
 export const useSnack = (): SnackbarContextType => useContext(SnackbarContext);
 
 export const SnackbarProvider: FC = ({ children }) => {
@@ -33,26 +34,26 @@ export const SnackbarProvider: FC = ({ children }) => {
   const [snack, setSnack] = useState<SnackModel>({ text: "", type: "info" });
   const [open, setOpen] = useState(false);
 
-  const [infoMessage, setInfoMessage] = useState<SnackbarItem | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-  useEffect(() => {
-    if (!infoMessage) return;
+  const handleClose = useCallback(() => {
+    clearTimeout(timeoutRef.current);
+    setOpen(false);
+  }, []);
+
+  const showInfoMessage = useCallback((item: SnackbarItem) => {
+    clearTimeout(timeoutRef.current);
     setSnack({
-      ...infoMessage,
+      ...item,
       key: Date.now()
     });
     setOpen(true);
-    const timeout = setTimeout(handleClose, infoMessage.timeout || 4000);
+    timeoutRef.current = setTimeout(handleClose, item.timeout || 4000);
+  }, [handleClose]);
 
-    return () => clearTimeout(timeout);
-  }, [infoMessage]);
+  useEffect(() => () => clearTimeout(timeoutRef.current), []);
 
-  const handleClose = () => {
-    setInfoMessage(null);
-    setOpen(false);
-  };
-
-  return <SnackbarContext.Provider value={{ showInfoMessage: setInfoMessage }}>
+  return <SnackbarContext value={{ showInfoMessage }}>
     {open && <div
       className={classNames({
         "vm-snackbar": true,
@@ -72,7 +73,7 @@ export const SnackbarProvider: FC = ({ children }) => {
       </Alert>
     </div>}
     {children}
-  </SnackbarContext.Provider>;
+  </SnackbarContext>;
 };
 
 

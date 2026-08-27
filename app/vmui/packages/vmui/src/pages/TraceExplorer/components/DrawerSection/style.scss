@@ -1,0 +1,22 @@
+@use "src/styles/variables" as *;
+
+.vm-trace-info-drawer-section {
+  &__title {
+    font-weight: bold;
+    background-color: $color-background-block;
+    box-shadow: inset 0 0 0 999px $color-hover-black;
+    padding: $padding-small;
+    border-radius: $border-radius-medium $border-radius-medium 0 0;
+  }
+
+  &__count {
+    font-weight: normal;
+    color: $color-text-secondary;
+  }
+
+  &__body {
+    background-color: $color-background-block;
+    border-radius: 0 0 $border-radius-medium $border-radius-medium;
+    overflow: hidden;
+  }
+}
