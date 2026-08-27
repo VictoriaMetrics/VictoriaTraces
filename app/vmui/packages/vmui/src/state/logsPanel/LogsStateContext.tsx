@@ -5,7 +5,9 @@ type LogsStateContextType = { state: LogsState, dispatch: Dispatch<LogsAction> }
 
 export const LogsStateContext = createContext<LogsStateContextType>({} as LogsStateContextType);
 
+// eslint-disable-next-line @eslint-react/no-use-context -- preact/compat does not export a 'use' hook, useContext is required here
 export const useLogsState = (): LogsState => useContext(LogsStateContext).state;
+// eslint-disable-next-line @eslint-react/no-use-context -- preact/compat does not export a 'use' hook, useContext is required here
 export const useLogsDispatch = (): Dispatch<LogsAction> => useContext(LogsStateContext).dispatch;
 
 export const LogsStateProvider: FC = ({ children }) => {
@@ -15,9 +17,9 @@ export const LogsStateProvider: FC = ({ children }) => {
     return { state, dispatch };
   }, [state, dispatch]);
 
-  return <LogsStateContext.Provider value={contextValue}>
+  return <LogsStateContext value={contextValue}>
     {children}
-  </LogsStateContext.Provider>;
+  </LogsStateContext>;
 };
 
 

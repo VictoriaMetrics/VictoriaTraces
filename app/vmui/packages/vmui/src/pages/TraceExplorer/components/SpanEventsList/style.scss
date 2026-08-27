@@ -1,0 +1,68 @@
+@use "src/styles/variables" as *;
+
+.vm-span-events {
+  display: flex;
+  flex-direction: column;
+  gap: $padding-tiny;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.vm-span-events__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4em;
+  width: 100%;
+  flex-shrink: 0;
+  padding: $padding-small;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: default;
+}
+
+.vm-span-events__error-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--color-error);
+}
+
+.vm-span-events__error-icon svg {
+  width: 1em;
+  height: 1em;
+}
+
+.vm-span-events__name {
+  overflow: hidden;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vm-span-events__name_error {
+  font-weight: 600;
+}
+
+.vm-span-events__message {
+  overflow: hidden;
+  min-width: 0;
+  color: inherit;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vm-span-events__timing {
+  display: flex;
+  flex: none;
+  gap: 0.6em;
+  padding-left: 0.6em;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vm-span-events__offset {
+  color: rgba(255, 255, 255, 0.6);
+}

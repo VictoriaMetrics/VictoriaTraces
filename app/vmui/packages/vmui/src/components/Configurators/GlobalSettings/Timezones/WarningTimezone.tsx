@@ -1,5 +1,5 @@
-import { FC } from "react";
-import Tooltip from "../../../Main/Tooltip/Tooltip";
+import { FC } from "preact/compat";
+import Tooltip from "../../../Main/Tooltip";
 import { WarningIcon } from "../../../Main/Icons";
 
 const waringText = "Browser timezone is not recognized, supported, or could not be determined.";

@@ -31,7 +31,6 @@ $padding-modal: $padding-medium;
 
     &-header {
       padding: $padding-small $padding-small $padding-small $padding-global;
-      margin-bottom: $padding-global;
 
       &__title {
         max-width: 80vw;
@@ -42,36 +41,38 @@ $padding-modal: $padding-medium;
       display: grid;
       align-items: flex-start;
       min-height: 100%;
-      padding: 0 $padding-global $padding-modal;
+      padding: $padding-modal;
     }
   }
 
   &-content {
     background: $color-background-block;
     box-shadow: 0 0 24px rgba($color-black, 0.07);
-    border-radius: $border-radius-small;
+    border-radius: $border-radius-medium;
     max-height: calc($vh * 90);
     overflow: auto;
 
-    &-header {
+    &-header,
+    &-footer {
       position: sticky;
+      background-color: $color-background-body;
+      z-index: 3;
+    }
+
+    &-header {
       top: 0;
       display: grid;
       grid-template-columns: 1fr auto;
       gap: $padding-small;
       align-items: center;
       justify-content: space-between;
-      background-color: $color-background-block;
-      padding: $padding-global $padding-modal;
-      border-radius: $border-radius-small $border-radius-small 0 0;
+      padding: $padding-small $padding-modal;
+      border-radius: $border-radius-medium $border-radius-medium 0 0;
       color: $color-text;
       border-bottom: $border-divider;
-      margin-bottom: $padding-modal;
-      min-height: 51px;
-      z-index: 3;
 
       &__title {
-        font-weight: bold;
+        font-weight: 500;
         user-select: none;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -83,16 +84,30 @@ $padding-modal: $padding-medium;
         display: flex;
         align-items: center;
         justify-content: center;
+        aspect-ratio: 1/1;
         width: 24px;
-        padding: 10px;
+        height: auto;
         box-sizing: content-box;
         color: $color-white;
         cursor: pointer;
+
+        button {
+          padding: 0;
+          height: 100%;
+          width: 100%;
+        }
       }
     }
 
     &-body {
-      padding: 0 $padding-modal $padding-modal;
+      position: relative;
+      padding: $padding-modal;
+    }
+
+    &-footer {
+      bottom: 0;
+      border-top: $border-divider;
+      padding: $padding-small $padding-modal;
     }
   }
 }

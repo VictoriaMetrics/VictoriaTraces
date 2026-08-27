@@ -1,17 +1,20 @@
-import { FC, useEffect, useMemo, useRef, useState, RefObject, FormEvent, MouseEvent } from "react";
+import { FC, useCallback, useEffect, useMemo, useRef, useState, RefObject, FormEvent, MouseEvent } from "preact/compat";
 import classNames from "classnames";
 import { ArrowDropDownIcon, CloseIcon } from "../Icons";
-import Autocomplete from "../Autocomplete/Autocomplete";
+import Autocomplete from "../Autocomplete";
 import { useAppState } from "../../../state/common/StateContext";
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
-import MultipleSelectedValue from "./MultipleSelectedValue/MultipleSelectedValue";
+import MultipleSelectedValue from "./MultipleSelectedValue";
 import useEventListener from "../../../hooks/useEventListener";
 import useClickOutside from "../../../hooks/useClickOutside";
 
 interface SelectProps {
   value: string | string[]
   list: string[]
+  // Optional secondary text shown on the right side of each dropdown row (e.g. a timestamp
+  // or count next to a name) - parallel to `list`, same length/order.
+  metaList?: string[]
   label?: string
   placeholder?: string
   noOptionsText?: string
@@ -20,11 +23,14 @@ interface SelectProps {
   autofocus?: boolean
   disabled?: boolean
   onChange: (value: string) => void
+
+  onOpen?(open: boolean): void
 }
 
 const Select: FC<SelectProps> = ({
   value,
   list,
+  metaList,
   label,
   placeholder,
   noOptionsText,
@@ -32,13 +38,14 @@ const Select: FC<SelectProps> = ({
   searchable = false,
   autofocus,
   disabled,
-  onChange
+  onChange,
+  onOpen
 }) => {
   const { isDarkTheme } = useAppState();
   const { isMobile } = useDeviceDetect();
 
   const [search, setSearch] = useState("");
-  const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
+  const autocompleteAnchorElRef = useRef<HTMLDivElement>(null);
   const [wrapperRef, setWrapperRef] = useState<RefObject<HTMLElement> | null>(null);
   const [openList, setOpenList] = useState(false);
 
@@ -51,20 +58,21 @@ const Select: FC<SelectProps> = ({
   const textFieldValue = useMemo(() => {
     if (openList) return search;
     return Array.isArray(value) ? "" : value;
-  }, [value, search, openList, isMultiple]);
+  }, [value, search, openList]);
 
-  const autocompleteValue = useMemo(() => !openList ? "" : search || "(.+)", [search, openList]);
+  const autocompleteValue = useMemo(() => openList && search ? search : "", [search, openList]);
 
-  const clearFocus = () => {
+  const clearFocus = useCallback(() => {
     if (inputRef.current) {
       inputRef.current.blur();
     }
-  };
+  }, []);
 
-  const handleCloseList = () => {
+  const handleCloseList = useCallback(() => {
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- shared close handler, also used as an event/click-outside handler; the disabled-sync effect below is one of several callers
     setOpenList(false);
     clearFocus();
-  };
+  }, [clearFocus]);
 
   const handleFocus = () => {
     if (disabled) return;
@@ -103,20 +111,29 @@ const Select: FC<SelectProps> = ({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- must react to openList changes from any source, including the child Autocomplete's onOpenAutocomplete={setOpenList}
     setSearch("");
     if (openList && inputRef.current) {
       inputRef.current.focus();
     }
     if (!openList) clearFocus();
-  }, [openList, inputRef]);
+  }, [openList, inputRef, clearFocus]);
 
   useEffect(() => {
     if (!autofocus || !inputRef.current || isMobile) return;
     inputRef.current.focus();
-  }, [autofocus, inputRef]);
+  }, [autofocus, inputRef, isMobile]);
+
+  useEffect(() => {
+    if (disabled) handleCloseList();
+  }, [disabled, handleCloseList]);
+
+  useEffect(() => {
+    onOpen && onOpen(openList);
+  }, [openList, onOpen]);
 
   useEventListener("keyup", handleKeyUp);
-  useClickOutside(autocompleteAnchorEl, handleCloseList, wrapperRef);
+  useClickOutside(autocompleteAnchorElRef, handleCloseList, wrapperRef);
 
   return (
     <div
@@ -129,7 +146,7 @@ const Select: FC<SelectProps> = ({
       <div
         className="vm-select-input"
         onClick={handleToggleList}
-        ref={autocompleteAnchorEl}
+        ref={autocompleteAnchorElRef}
       >
         <div className="vm-select-input-content">
           {!!selectedValues?.length && (
@@ -148,6 +165,7 @@ const Select: FC<SelectProps> = ({
               onBlur={handleBlur}
               ref={inputRef}
               readOnly={isMobile || !searchable}
+              autoComplete="off"
             />
           )}
         </div>
@@ -169,19 +187,21 @@ const Select: FC<SelectProps> = ({
           <ArrowDropDownIcon/>
         </div>
       </div>
-      <Autocomplete
-        label={label}
-        value={autocompleteValue}
-        options={list.map(el => ({ value: el }))}
-        anchor={autocompleteAnchorEl}
-        selected={selectedValues}
-        minLength={1}
-        fullWidth
-        noOptionsText={noOptionsText}
-        onSelect={handleSelected}
-        onOpenAutocomplete={setOpenList}
-        onChangeWrapperRef={setWrapperRef}
-      />
+      {!disabled && openList && (
+        <Autocomplete
+          label={label}
+          value={autocompleteValue}
+          options={list.map((el, i) => ({ value: el, meta: metaList?.[i] }))}
+          anchor={autocompleteAnchorElRef}
+          selected={selectedValues}
+          minLength={0}
+          fullWidth
+          noOptionsText={noOptionsText}
+          onSelect={handleSelected}
+          onOpenAutocomplete={setOpenList}
+          onChangeWrapperRef={setWrapperRef}
+        />
+      )}
     </div>
   );
 };

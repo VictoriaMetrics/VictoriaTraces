@@ -1,0 +1,77 @@
+@use "src/styles/variables" as *;
+
+$input-limit-width: 98px;
+
+.vm-trace-explorer-header {
+  display: flex;
+  flex-direction: column;
+  gap: $padding-small;
+
+  &-top {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) minmax(60px, $input-limit-width);
+    align-items: center;
+    justify-content: center;
+    gap: $padding-small;
+    margin-bottom: -6px;
+
+    @media (max-width: 768px) {
+      grid-template-columns: 8fr 2fr;
+    }
+
+    &-fields {
+      display: flex;
+      align-items: flex-start;
+      gap: $padding-small;
+
+      > * {
+        flex: 1 1 0;
+        min-width: 0;
+      }
+    }
+  }
+
+  &-top-traceid {
+    display: flex;
+    align-items: center;
+    gap: $padding-small;
+    margin-bottom: -6px;
+
+    &__input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    &__button {
+      display: flex;
+      align-items: center;
+    }
+  }
+
+  &-bottom {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $padding-small;
+    font-size: $font-size-small;
+
+    &__toggle {
+      flex: 1;
+    }
+
+    &-execute {
+      position: relative;
+      display: grid;
+
+      &__text {
+        position: absolute;
+
+        &_hidden {
+          position: relative;
+          visibility: hidden;
+        }
+      }
+    }
+  }
+}

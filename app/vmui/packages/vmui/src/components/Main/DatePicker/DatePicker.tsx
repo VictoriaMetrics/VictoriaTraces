@@ -1,20 +1,21 @@
-import { useMemo, forwardRef, RefObject } from "react";
-import Calendar from "../../Main/DatePicker/Calendar/Calendar";
-import dayjs, { Dayjs } from "dayjs";
-import Popper from "../../Main/Popper/Popper";
+import { forwardRef, RefObject } from "preact/compat";
+import Calendar from "../../Main/DatePicker/Calendar";
+import Popper from "../../Main/Popper";
 import { DATE_TIME_FORMAT } from "../../../constants/date";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
 import useEventListener from "../../../hooks/useEventListener";
+import type { VmDate } from "../../../utils/time";
 
 interface DatePickerProps {
-  date: string | Date | Dayjs,
+  date: VmDate,
   targetRef: RefObject<HTMLElement>;
   format?: string
   label?: string
   onChange: (val: string) => void
 }
 
+// eslint-disable-next-line @eslint-react/no-forward-ref -- preact/compat still requires forwardRef; a plain function component does not receive 'ref' as a prop here
 const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
   date,
   targetRef,
@@ -22,7 +23,6 @@ const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
   onChange,
   label
 }, ref) => {
-  const dateDayjs = useMemo(() => dayjs(date).isValid() ? dayjs.tz(date) : dayjs().tz(), [date]);
   const { isMobile } = useDeviceDetect();
 
   const {
@@ -53,7 +53,7 @@ const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
     >
       <div ref={ref}>
         <Calendar
-          date={dateDayjs}
+          date={date}
           format={format}
           onChange={handleChangeDate}
         />

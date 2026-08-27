@@ -1,5 +1,5 @@
 import { useAppDispatch } from "../state/common/StateContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState } from "preact/compat";
 import { ErrorTypes } from "../types";
 
 const useFetchFlags = () => {
@@ -24,7 +24,7 @@ const useFetchFlags = () => {
     };
 
     fetchAppConfig();
-  }, []);
+  }, [dispatch]);
 
   return { isLoading, error };
 };

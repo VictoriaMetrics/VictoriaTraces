@@ -2,29 +2,51 @@ import { defineConfig, ProxyOptions } from "vite";
 import preact from "@preact/preset-vite";
 import dynamicIndexHtmlPlugin from "./config/plugins/dynamicIndexHtml.ts";
 
+const getProxy = (): Record<string, ProxyOptions> | undefined => {
+  const playground = process.env.PLAYGROUND;
+
+  switch (playground) {
+    case "TRACES": {
+      return {
+        "^(/select/.*|/flags)": {
+          target: "https://play-vtraces.victoriametrics.com",
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq) => {
+              proxyReq.removeHeader("AccountID");
+              proxyReq.removeHeader("ProjectID");
+            });
+
+            proxy.on("error", (err) => {
+              console.error("[proxy error]", err.message);
+            });
+          }
+        }
+      };
+    }
+    default: {
+      return undefined;
+    }
+  }
+};
+
 export default defineConfig(({ mode }) => {
   return {
     base: "",
     plugins: [
-      preact({ reactAliasesEnabled: false }),
+      preact(),
       dynamicIndexHtmlPlugin({ mode })
     ],
     assetsInclude: ["**/*.md"],
     server: {
-      host: "0.0.0.0",
       open: true,
       port: 3000,
-      allowedHosts: ['local.vtraces.test'],
+      proxy: getProxy(),
     },
     resolve: {
       alias: {
         "src": `${import.meta.dirname}/src`,
-        "react-dom/test-utils": "preact/test-utils",
-        "react-dom": "preact/compat",
-        "react/jsx-runtime": "preact/jsx-runtime",
-        "react": `${import.meta.dirname}/src/compat/react.ts`,
       },
-      preserveSymlinks: true,
     },
     build: {
       outDir: "./build",
@@ -34,14 +56,16 @@ export default defineConfig(({ mode }) => {
             if (id.includes("node_modules")) {
               return "vendor";
             }
-          }
+          },
+          assetFileNames: (assetInfo) => {
+            if (assetInfo.names.includes("favicon.svg")) {
+              return "assets/favicon.svg";
+            }
+
+            return "assets/[name]-[hash][extname]";
+          },
         }
       }
-    },
-    define: {
-      __REACT_APP_GA_DEBUG__: JSON.stringify(process.env.REACT_APP_GA_DEBUG || ''),
-      __REACT_APP_VSN_STATE__: JSON.stringify(process.env.REACT_APP_VSN_STATE || ''),
-      __APP_ENVIRONMENT__: JSON.stringify(process.env.NODE_ENV || 'development'),
     },
   };
 });

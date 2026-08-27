@@ -1,10 +1,10 @@
-import { FC, ReactNode } from "react";
+import { FC, ReactNode } from "preact/compat";
 import classNames from "classnames";
 import "./style.scss";
 
 interface SwitchProps {
   value: boolean
-  color?: "primary" | "secondary" | "error"
+  color?: "primary" | "secondary" | "error" | "neutral"
   disabled?: boolean
   label?: string | ReactNode
   fullWidth?: boolean
