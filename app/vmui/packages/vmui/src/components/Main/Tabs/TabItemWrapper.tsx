@@ -1,11 +1,10 @@
-import { FC, ReactNode } from "react";
-import { NavLink } from "react-router";
+import { FC, ReactNode } from "preact/compat";
+import { NavLink } from "react-router-dom";
 
 interface TabItemWrapperProps {
   to: string
   isNavLink?: boolean
   className: string
-  style: { color: string }
   children: ReactNode
   onClick: () => void
 }

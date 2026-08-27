@@ -1,15 +1,14 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useState } from "preact/compat";
 import { ErrorTypes } from "../../../../types";
-import TextField from "../../../Main/TextField/TextField";
+import TextField from "../../../Main/TextField";
 import { isValidHttpUrl } from "../../../../utils/url";
-import Button from "../../../Main/Button/Button";
+import Button from "../../../Main/Button";
 import { StorageIcon } from "../../../Main/Icons";
-import Tooltip from "../../../Main/Tooltip/Tooltip";
+import Tooltip from "../../../Main/Tooltip";
 import { getFromStorage, removeFromStorage, saveToStorage } from "../../../../utils/storage";
 import useBoolean from "../../../../hooks/useBoolean";
 import { ChildComponentHandle } from "../GlobalSettings";
 import { useAppDispatch, useAppState } from "../../../../state/common/StateContext";
-import { getTenantIdFromUrl } from "../../../../utils/tenants";
 
 interface ServerConfiguratorProps {
   onClose: () => void;
@@ -20,6 +19,7 @@ const tooltipSave = {
   disable: "Disable to stop saving the server URL to local storage, reverting to the default URL on page refresh."
 };
 
+// eslint-disable-next-line @eslint-react/no-forward-ref -- preact/compat still requires forwardRef; a plain function component does not receive 'ref' as a prop here
 const ServerConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorProps>(({ onClose }, ref) => {
   const { serverUrl: stateServerUrl } = useAppState();
   const dispatch = useAppDispatch();
@@ -39,16 +39,15 @@ const ServerConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
   };
 
   const handleApply = useCallback(() => {
-    const tenantIdFromUrl = getTenantIdFromUrl(serverUrl);
-    if (tenantIdFromUrl !== "") {
-      dispatch({ type: "SET_TENANT_ID", payload: tenantIdFromUrl });
-    }
     dispatch({ type: "SET_SERVER", payload: serverUrl });
     onClose();
-  }, [serverUrl]);
+  }, [serverUrl, dispatch, onClose]);
 
   useEffect(() => {
+    // derives a validation error from the applied server URL; setError("") on edit (see handleChange) keeps it from showing while the user is typing
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- syncs validation error to the external stateServerUrl, not to local edits
     if (!stateServerUrl) setError(ErrorTypes.emptyServer);
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- syncs validation error to the external stateServerUrl, not to local edits
     if (!isValidHttpUrl(stateServerUrl)) setError(ErrorTypes.validServer);
   }, [stateServerUrl]);
 
@@ -58,18 +57,15 @@ const ServerConfigurator = forwardRef<ChildComponentHandle, ServerConfiguratorPr
     } else {
       removeFromStorage(["SERVER_URL"]);
     }
-  }, [enabledStorage]);
-
-  useEffect(() => {
-    if (enabledStorage) {
-      saveToStorage("SERVER_URL", serverUrl);
-    }
-  }, [serverUrl]);
+  }, [enabledStorage, serverUrl]);
 
   useEffect(() => {
     // the tenant selector can change the serverUrl
     if (stateServerUrl === serverUrl) return;
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- syncs local editable value to the external stateServerUrl (e.g. tenant selector changes it)
     setServerUrl(stateServerUrl);
+    // 'serverUrl' intentionally excluded: including it would re-run this on every keystroke and revert the user's in-progress edit back to stateServerUrl
+    // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, [stateServerUrl]);
 
   useImperativeHandle(ref, () => ({ handleApply }), [handleApply]);

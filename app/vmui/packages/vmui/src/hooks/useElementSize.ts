@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "preact/compat";
 import useEventListener from "./useEventListener";
 
 export interface ElementSize {
-    width: number
-    height: number
+  width: number
+  height: number
 }
 
 const useElementSize = <T extends HTMLElement = HTMLDivElement>(): [(node: T | null) => void, ElementSize] => {
@@ -18,6 +18,7 @@ const useElementSize = <T extends HTMLElement = HTMLDivElement>(): [(node: T | n
 
   // Prevent too many rendering using useCallback
   const handleSize = useCallback(() => {
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- offsetWidth/offsetHeight are only measurable once the node is committed to the DOM
     setSize({
       width: ref?.offsetWidth || 0,
       height: ref?.offsetHeight || 0,
@@ -27,7 +28,7 @@ const useElementSize = <T extends HTMLElement = HTMLDivElement>(): [(node: T | n
 
   useEventListener("resize", handleSize);
 
-  useEffect(handleSize, [ref?.offsetHeight, ref?.offsetWidth]);
+  useEffect(handleSize, [ref?.offsetHeight, ref?.offsetWidth, handleSize]);
 
   return [setRef, size];
 };

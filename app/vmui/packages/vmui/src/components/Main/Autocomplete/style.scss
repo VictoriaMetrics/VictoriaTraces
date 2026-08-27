@@ -1,48 +1,45 @@
 @use "src/styles/variables" as *;
 
 .vm-autocomplete {
-  position: relative;
-  max-height: 300px;
-  overflow: auto;
-  overscroll-behavior: none;
+  &__title {
+    padding: $padding-small;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: $font-size-extra-small;
+    color: $color-text-secondary;
+  }
 
-  &_mobile {
-    max-height: calc(($vh * 100) - 70px);
+  &__content {
+    display: flex;
+    align-items: stretch;
+  }
+
+  &-base-panel {
+    min-width: 0;
+    flex-grow: 1;
   }
 
   &__no-options {
     padding: $padding-global;
     text-align: center;
-    color: $color-text-disabled;
-  }
-
-  &__loader {
-    display: grid;
-    grid-template-columns: 14px auto;
-    align-items: center;
-    justify-content: center;
-    gap: $padding-small;
-    padding: $padding-global;
     color: $color-text-secondary;
-    z-index: 2;
-    pointer-events: none;
-
-    svg {
-      animation: half-circle-spinner-animation 1s infinite linear, vm-fade 0.5s ease-in;
-    }
+    font-style: italic;
   }
 
-  &-info,
-  &-message {
-    padding: $padding-global;
+  &__warning {
+    position: relative;
+    display: grid;
+    grid-template-columns: 14px 1fr;
+    gap: calc($padding-small / 2);
+    align-items: center;
+    padding: $padding-small $padding-global;
     background-color: $color-background-block;
     border-top: $border-divider;
-  }
-
-  &-message {
-    position: relative;
-    color: $color-warning;
     font-size: $font-size-small;
+
+    svg {
+      color: $color-warning;
+    }
 
     &:after {
       content: '';
@@ -52,30 +49,16 @@
       width: 100%;
       height: 100%;
       background: $color-warning;
-      opacity: 0.1;
+      opacity: 0.04;
     }
   }
+}
 
-  &-info {
-    min-width: 450px;
-    max-width: 500px;
-    overflow-wrap: anywhere;
-
-    &__type {
-      color: $color-text-secondary;
-      margin-bottom: $padding-small;
-    }
-
-    &__description {
-      line-height: 130%;
-
-      p {
-        margin: $padding-global 0;
-
-        &:last-child {
-          margin: 0;
-        }
-      }
-    }
+@keyframes vm-spinner-animation {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
   }
 }

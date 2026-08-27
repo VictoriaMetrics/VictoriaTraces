@@ -1,8 +1,12 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "types": ["vite/client", "vitest/globals"],
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "types": ["vite/client", "vitest/globals", "node"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -25,5 +29,10 @@
       "react-dom/*": ["./node_modules/preact/compat/*"]
     }
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "scripts/**/*.ts"
+  ]
 }

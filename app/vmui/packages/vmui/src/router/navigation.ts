@@ -19,6 +19,15 @@ export interface NavigationItem {
 export const getTracesNavigation = (): NavigationItem[] => [
   {
     label: routerOptions[router.home].title,
-    value: router.home,
+    submenu: [
+      {
+        label: routerOptions[router.home].title,
+        value: router.home,
+      },
+      {
+        label: routerOptions[router.trace].title,
+        value: router.trace,
+      },
+    ],
   },
 ];

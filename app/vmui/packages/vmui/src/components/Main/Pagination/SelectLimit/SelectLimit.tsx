@@ -1,27 +1,63 @@
-import { FC, useMemo, useRef } from "react";
-import { ArrowDropDownIcon } from "../../Icons";
+import { useMemo, useRef } from "preact/compat";
+import { ArrowDropDownIcon, SpinnerIcon, WarningIcon } from "../../Icons";
 import useBoolean from "../../../../hooks/useBoolean";
-import Popper from "../../Popper/Popper";
+import Popper from "../../Popper";
 import classNames from "classnames";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import "./style.scss";
+import Button from "../../Button";
+import TextField from "../../TextField";
+import { useState } from "react";
+import { ComponentChildren } from "preact";
 
-interface SelectLimitProps {
-  limit: number | string;
+interface SelectLimitProps<T extends string | number> {
+  limit: T;
+  label?: string;
+  options?: T[];
   allowUnlimited?: boolean;
-  onChange: (val: number) => void;
+  emptyValueLabel?: string;
+  isLoading?: boolean;
+  error?: string;
+  searchable?: boolean;
+  textNoOptions?: string;
+  onChange: (val: T) => void;
   onOpenSelect?: () => void;
+  renderOptionLabel?: (value: T, isLabel: boolean) => ComponentChildren;
 }
 
 const defaultLimits = [10, 25, 50, 100, 250, 500, 1000];
 
-const SelectLimit: FC<SelectLimitProps> = ({ limit, allowUnlimited, onChange, onOpenSelect }) => {
+export const SelectLimit = <T extends string | number>(props: SelectLimitProps<T>) => {
+  const {
+    limit,
+    label,
+    options,
+    allowUnlimited,
+    emptyValueLabel,
+    isLoading,
+    error,
+    searchable,
+    textNoOptions,
+    onChange,
+    onOpenSelect,
+    renderOptionLabel
+  } = props;
+
+  const [search, setSearch] = useState("");
+
   const { isMobile } = useDeviceDetect();
   const buttonRef = useRef<HTMLDivElement>(null);
 
   const limits = useMemo(() => {
-    return allowUnlimited ? [...defaultLimits, 0] : defaultLimits;
-  }, [allowUnlimited]);
+    const arr = options || defaultLimits;
+    return allowUnlimited ? [...arr, 0] : arr;
+  }, [allowUnlimited, options]);
+
+  const filteredLimits = useMemo(() => {
+    if (!searchable || !search.trim()) return limits;
+    const q = search.toLowerCase();
+    return limits.filter(v => String(v).toLowerCase().includes(q));
+  }, [limits, search, searchable]);
 
   const {
     value: openList,
@@ -31,13 +67,19 @@ const SelectLimit: FC<SelectLimitProps> = ({ limit, allowUnlimited, onChange, on
 
   const handleClickSelect = () => {
     toggleOpenList();
-    if(!openList) onOpenSelect?.();
+    if (!openList) onOpenSelect?.();
   };
 
-  const handleChangeLimit = (n: number) => () => {
+  const handleChangeLimit = (n: T) => () => {
     onChange(n);
     handleClose();
   };
+
+  const defaultLabel = isMobile ? "Rows" : "Rows per page";
+  const displayLabel = label || defaultLabel;
+
+  const defaultValue = limit || emptyValueLabel || "All";
+  const displayValue = renderOptionLabel ? renderOptionLabel(limit, true) : defaultValue;
 
   return (
     <>
@@ -47,7 +89,7 @@ const SelectLimit: FC<SelectLimitProps> = ({ limit, allowUnlimited, onChange, on
         ref={buttonRef}
       >
         <div>
-          Rows per page: <b>{limit || "All"}</b>
+          {displayLabel}: <b>{displayValue}</b>
         </div>
         <ArrowDropDownIcon/>
       </div>
@@ -57,22 +99,58 @@ const SelectLimit: FC<SelectLimitProps> = ({ limit, allowUnlimited, onChange, on
         placement="bottom-right"
         buttonRef={buttonRef}
       >
-        <div
-          className="vm-select-limits"
-        >
-          {limits.map(n => (
-            <div
-              className={classNames({
-                "vm-list-item": true,
-                "vm-list-item_mobile": isMobile,
-                "vm-list-item_active": n === limit,
-              })}
-              key={n}
-              onClick={handleChangeLimit(n)}
+        <div className="vm-select-limits">
+          {isLoading && (
+            <Button
+              disabled
+              color="gray"
+              variant="text"
+              startIcon={<SpinnerIcon/>}
             >
-              {n || "All"}
+              loading...
+            </Button>
+          )}
+
+          {error && (
+            <div className="vm-select-limits__error">
+              <WarningIcon/>
+              {error}
             </div>
-          ))}
+          )}
+
+          {!isLoading && !error && limits.length === 0 && (
+            <div className="vm-select-limits__empty">
+              {textNoOptions || "No options available"}
+            </div>
+          )}
+
+          {searchable && !isLoading && !error && !!limits.length && (
+            <div className="vm-select-limits__search">
+              <TextField
+                autofocus
+                label="Search"
+                value={search}
+                onChange={setSearch}
+              />
+            </div>
+          )}
+
+          <div className="vm-list vm-select-limits-list">
+            {!isLoading && !error && filteredLimits.map(n => (
+              <div
+                className={classNames({
+                  "vm-list-item": true,
+                  "vm-select-limits__item": true,
+                  "vm-list-item_mobile": isMobile,
+                  "vm-list-item_active": n === limit,
+                })}
+                key={n}
+                onClick={handleChangeLimit(n as T)}
+              >
+                {renderOptionLabel ? renderOptionLabel(n as T, false) : n || "All"}
+              </div>
+            ))}
+          </div>
         </div>
       </Popper>
     </>

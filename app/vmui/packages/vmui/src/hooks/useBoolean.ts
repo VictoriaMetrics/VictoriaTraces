@@ -1,4 +1,4 @@
-import { useCallback, useState, Dispatch, SetStateAction } from "react";
+import { useCallback, useState, Dispatch, SetStateAction } from "preact/compat";
 
 interface UseBooleanOutput {
   value: boolean

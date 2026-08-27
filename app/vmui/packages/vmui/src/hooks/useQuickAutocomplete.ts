@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback } from "preact/compat";
 import useEventListener from "./useEventListener";
 import { useQueryDispatch } from "../state/query/QueryStateContext";
 
@@ -10,7 +10,6 @@ export const useQuickAutocomplete = () => {
   }, [queryDispatch]);
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    /** @see AUTOCOMPLETE_QUICK_KEY */
     const { code, ctrlKey, altKey } = e;
     if (code === "Space" && (ctrlKey || altKey)) {
       e.preventDefault();

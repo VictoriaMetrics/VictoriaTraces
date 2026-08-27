@@ -1,0 +1,81 @@
+import { FC, useMemo } from "preact/compat";
+import useDeviceDetect from "../../../../hooks/useDeviceDetect";
+import classNames from "classnames";
+import TextField from "../../../Main/TextField";
+import { TenantType } from "./Tenants";
+import Button from "../../../Main/Button";
+import { VICTORIALOGS_DOCS_URL } from "../../../../constants/logs";
+
+interface Props extends TenantType {
+  accountIds: string[];
+  tenantId: string;
+  search: string;
+  onSearch: (value: string) => void;
+  onChange: (tenant: Partial<TenantType>) => void;
+}
+
+const TenantsSelect: FC<Props> = ({ accountIds, tenantId, search, onSearch, onChange }) => {
+  const { isMobile } = useDeviceDetect();
+
+  const accountIdsFiltered = useMemo(() => {
+    if (!search) return accountIds;
+    try {
+      const regexp = new RegExp(search, "i");
+      const found = accountIds.filter((item) => regexp.test(item));
+      return found.sort((a,b) => (a.match(regexp)?.index || 0) - (b.match(regexp)?.index || 0));
+    } catch (e) {
+      return [];
+    }
+  }, [search, accountIds]);
+
+  const createHandlerChange = (value: string) => () => {
+    const [accountId, projectId] = value.split(":");
+    onChange({ accountId, projectId });
+  };
+
+  return (
+    <div
+      className={classNames({
+        "vm-list vm-tenant-input-list": true,
+        "vm-list vm-tenant-input-list_mobile": isMobile,
+      })}
+    >
+      <div className="vm-tenant-input-list__search">
+        <TextField
+          autofocus
+          label="Search"
+          value={search}
+          onChange={onSearch}
+          type="search"
+        />
+      </div>
+      {accountIdsFiltered.map(id => (
+        <div
+          className={classNames({
+            "vm-list-item": true,
+            "vm-list-item_mobile": isMobile,
+            "vm-list-item_active": id === tenantId
+          })}
+          key={id}
+          onClick={createHandlerChange(id)}
+        >
+          {id}
+        </div>
+      ))}
+      <div className="vm-tenant-input-list__buttons">
+        <Button
+          as="a"
+          href={`${VICTORIALOGS_DOCS_URL}/#multitenancy`}
+          target="_blank"
+          rel="help noreferrer"
+          variant="text"
+          color="primary"
+        >
+          Multitenancy docs
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+export default TenantsSelect;
