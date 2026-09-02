@@ -120,6 +120,21 @@ via [vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) or via 
 
 VictoriaTraces emits its own logs to stdout. It is recommended to investigate these logs during troubleshooting.
 
+## Upgrading
+
+It is safe upgrading VictoriaTraces to new versions unless [release notes](https://docs.victoriametrics.com/victoriatraces/changelog/) say otherwise.
+It is safe to skip multiple versions during the upgrade unless [release notes](https://docs.victoriametrics.com/victoriatraces/changelog/) say otherwise.
+It is recommended to perform regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
+
+It is also safe to downgrade to older versions unless [release notes](https://docs.victoriametrics.com/victoriatraces/changelog/) say otherwise.
+
+The following steps must be performed during the upgrade / downgrade procedure:
+
+- Send `SIGINT` signal to VictoriaTraces process in order to gracefully stop it.
+  See [how to send signals to processes](https://stackoverflow.com/questions/33239959/send-signal-to-process-from-command-line).
+- Wait until the process stops. This can take a few seconds.
+- Start the upgraded VictoriaTraces.
+
 ## Backup and restore
 
 VictoriaTraces stores data into independent per-day partitions. Every partition is stored in a distinct directory under `<-storageDataPath>/partitions/` directory.
