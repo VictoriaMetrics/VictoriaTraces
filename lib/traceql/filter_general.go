@@ -112,15 +112,25 @@ func (fc *filterCommon) String() string {
 	}
 
 	// TraceQL's `attr = nil` / `attr != nil` map to LogsQL's empty-value and
-	// any-value filters respectively — the canonical forms per
+	// any-value filters, the canonical forms per
 	// https://docs.victoriametrics.com/victorialogs/logsql/#empty-value-filter
 	// and https://docs.victoriametrics.com/victorialogs/logsql/#any-value-filter.
+	//
+	// Event and link fields take the negated any-value filter for `= nil` instead. This
+	// also flips the quantifier: `event.foo != nil` holds when any event carries `foo`,
+	// while `event.foo = nil` holds only when no event carries it.
 	if fc.value == "nil" {
+		vtField := fc.tagToVTField()
 		switch fc.op {
 		case "=":
-			return quoteFieldNameIfNeeded(fc.tagToVTField()) + `:""`
+			if strings.HasSuffix(vtField, eventLinkIndexWildcard) {
+				// An empty-value filter only visits the fields a span really has, so it can
+				// never fire on an attribute no event carries.
+				return `!` + quoteFieldNameIfNeeded(vtField) + `:*`
+			}
+			return quoteFieldNameIfNeeded(vtField) + `:""`
 		case "!=":
-			return quoteFieldNameIfNeeded(fc.tagToVTField()) + ":*"
+			return quoteFieldNameIfNeeded(vtField) + ":*"
 		}
 	}
 
@@ -161,20 +171,35 @@ func (fc *filterCommon) tagToVTField() string {
 	return TraceQLFieldToVTField(fc.fieldName)
 }
 
+// eventLinkIndexWildcard matches every event and every link of a span.
+//
+// Each event and link is stored under its own numbered field, so a span with two
+// events holds event:event_name:0 and event:event_name:1. TraceQL has no syntax
+// for a single event index, so a query on an event or link field must match them all.
+const eventLinkIndexWildcard = ":*"
+
 // TraceQLFieldToVTField converts a TraceQL field name to a VictoriaTraces internal field name.
 // e.g., "resource.service.name" -> "resource_attr:service.name"
 //
 //	"span.http.status_code" -> "span_attr:http.status_code"
 //	"status"                -> "status_code"
+//	"event.exception.type"  -> "event:event_attr:exception.type:*"
+//	"event:name"            -> "event:event_name:*"
 func TraceQLFieldToVTField(fieldName string) string {
 	if strings.HasPrefix(fieldName, "resource.") {
 		return otelpb.ResourceAttrPrefix + fieldName[len("resource."):]
 	} else if strings.HasPrefix(fieldName, "span.") {
 		return otelpb.SpanAttrPrefixField + fieldName[len("span."):]
 	} else if strings.HasPrefix(fieldName, "event.") {
-		return otelpb.EventPrefix + otelpb.EventAttrPrefix + fieldName[len("event."):]
+		return otelpb.EventPrefix + otelpb.EventAttrPrefix + fieldName[len("event."):] + eventLinkIndexWildcard
 	} else if strings.HasPrefix(fieldName, "link.") {
-		return otelpb.LinkPrefix + otelpb.LinkAttrPrefix + fieldName[len("link."):]
+		return otelpb.LinkPrefix + otelpb.LinkAttrPrefix + fieldName[len("link."):] + eventLinkIndexWildcard
+	} else if fieldName == "event:name" {
+		return otelpb.EventPrefix + otelpb.EventNameField + eventLinkIndexWildcard
+	} else if fieldName == "link:spanID" {
+		return otelpb.LinkPrefix + otelpb.LinkSpanIDField + eventLinkIndexWildcard
+	} else if fieldName == "link:traceID" {
+		return otelpb.LinkPrefix + otelpb.LinkTraceIDField + eventLinkIndexWildcard
 	} else if strings.HasPrefix(fieldName, "instrumentation.") {
 		return otelpb.InstrumentationScopeAttrPrefix + fieldName[len("instrumentation."):]
 	} else if fieldName == "status" {
@@ -186,12 +211,42 @@ func TraceQLFieldToVTField(fieldName string) string {
 	return fieldName
 }
 
+// trimEventLinkIndex drops the trailing event or link index from a stored field name,
+// e.g. "event:event_name:0" -> "event:event_name". It also accepts the ":*" wildcard
+// written by TraceQLFieldToVTField, so the two functions round-trip.
+func trimEventLinkIndex(fieldName string) string {
+	i := strings.LastIndexByte(fieldName, ':')
+	if i < 0 {
+		return fieldName
+	}
+	suffix := fieldName[i+1:]
+	if suffix == "*" {
+		return fieldName[:i]
+	}
+	if suffix == "" {
+		return fieldName
+	}
+	for _, c := range suffix {
+		if c < '0' || c > '9' {
+			return fieldName
+		}
+	}
+	return fieldName[:i]
+}
+
 // VTFieldToTraceQL converts a VictoriaTraces internal field name back to a TraceQL field name.
 // e.g., "resource_attr:service.name" -> "resource.service.name"
 //
-//	"span_attr:http.status_code" -> "span.http.status_code"
-//	"status_code"                -> "status"
+//	"span_attr:http.status_code"       -> "span.http.status_code"
+//	"status_code"                      -> "status"
+//	"event:event_attr:exception.type:0" -> "event.exception.type"
+//	"event:event_name:0"               -> "event:name"
 func VTFieldToTraceQL(fieldName string) string {
+	// Events and links carry a per-event index which TraceQL cannot express.
+	if strings.HasPrefix(fieldName, otelpb.EventPrefix) || strings.HasPrefix(fieldName, otelpb.LinkPrefix) {
+		fieldName = trimEventLinkIndex(fieldName)
+	}
+
 	if strings.HasPrefix(fieldName, otelpb.ResourceAttrPrefix) {
 		return "resource." + fieldName[len(otelpb.ResourceAttrPrefix):]
 	} else if strings.HasPrefix(fieldName, otelpb.SpanAttrPrefixField) {
@@ -200,6 +255,12 @@ func VTFieldToTraceQL(fieldName string) string {
 		return "event." + fieldName[len(otelpb.EventPrefix+otelpb.EventAttrPrefix):]
 	} else if strings.HasPrefix(fieldName, otelpb.LinkPrefix+otelpb.LinkAttrPrefix) {
 		return "link." + fieldName[len(otelpb.LinkPrefix+otelpb.LinkAttrPrefix):]
+	} else if fieldName == otelpb.EventPrefix+otelpb.EventNameField {
+		return "event:name"
+	} else if fieldName == otelpb.LinkPrefix+otelpb.LinkSpanIDField {
+		return "link:spanID"
+	} else if fieldName == otelpb.LinkPrefix+otelpb.LinkTraceIDField {
+		return "link:traceID"
 	} else if strings.HasPrefix(fieldName, otelpb.InstrumentationScopeAttrPrefix) {
 		return "instrumentation." + fieldName[len(otelpb.InstrumentationScopeAttrPrefix):]
 	} else if fieldName == otelpb.StatusCodeField {

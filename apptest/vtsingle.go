@@ -32,6 +32,8 @@ type Vtsingle struct {
 	jaegerAPITraceURL        string
 	jaegerAPIDependenciesURL string
 
+	tempoAPISearchURL string
+
 	logsQLQueryURL string
 
 	otlpTracesURL     string
@@ -78,6 +80,8 @@ func StartVtsingle(instance string, flags []string, cli *Client) (*Vtsingle, err
 		jaegerAPITracesURL:       fmt.Sprintf("http://%s/select/jaeger/api/traces", stderrExtracts[1]),
 		jaegerAPITraceURL:        fmt.Sprintf("http://%s/select/jaeger/api/traces/%%s", stderrExtracts[1]),
 		jaegerAPIDependenciesURL: fmt.Sprintf("http://%s/select/jaeger/api/dependencies", stderrExtracts[1]),
+
+		tempoAPISearchURL: fmt.Sprintf("http://%s/select/tempo/api/search", stderrExtracts[1]),
 
 		logsQLQueryURL: fmt.Sprintf("http://%s/select/logsql/query", stderrExtracts[1]),
 
@@ -173,6 +177,25 @@ func (app *Vtsingle) JaegerAPIDependencies(t *testing.T, param JaegerDependencie
 	}
 	res, _ := app.cli.Get(t, app.jaegerAPIDependenciesURL+paramsEnc)
 	return NewJaegerAPIDependenciesResponse(t, res)
+}
+
+// TempoAPISearch is a test helper function that searches for traces with a TraceQL
+// query by sending an HTTP GET request to /select/tempo/api/search Vtsingle endpoint.
+func (app *Vtsingle) TempoAPISearch(t *testing.T, traceQL string, opts QueryOpts) *TempoAPISearchResponse {
+	t.Helper()
+
+	q := url.Values{}
+	q.Add("q", traceQL)
+	for name, values := range opts.asURLValues() {
+		for _, value := range values {
+			q.Add(name, value)
+		}
+	}
+	res, statusCode := app.cli.Get(t, app.tempoAPISearchURL+"?"+q.Encode())
+	if statusCode != http.StatusOK {
+		t.Fatalf("unexpected status code from %s: %d; want %d", app.tempoAPISearchURL, statusCode, http.StatusOK)
+	}
+	return NewTempoAPISearchResponse(t, res)
 }
 
 func (app *Vtsingle) LogsQLQuery(t *testing.T, LogsQL string, opts QueryOpts) *LogsQLQueryResponse {

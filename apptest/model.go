@@ -324,6 +324,38 @@ type DependenciesResponseData struct {
 	CallCount int    `json:"callCount"`
 }
 
+// TempoAPISearchResponse is an in-memory representation of the
+// /select/tempo/api/search response.
+type TempoAPISearchResponse struct {
+	Traces []TempoAPISearchTrace `json:"traces"`
+}
+
+// TempoAPISearchTrace is a single trace of a TempoAPISearchResponse.
+type TempoAPISearchTrace struct {
+	TraceID string `json:"traceID"`
+}
+
+// TraceIDs returns the trace IDs of the response in the order they were returned.
+func (r *TempoAPISearchResponse) TraceIDs() []string {
+	traceIDs := make([]string, len(r.Traces))
+	for i, trace := range r.Traces {
+		traceIDs[i] = trace.TraceID
+	}
+	return traceIDs
+}
+
+// NewTempoAPISearchResponse is a test helper function that creates a new
+// instance of TempoAPISearchResponse by unmarshalling a json string.
+func NewTempoAPISearchResponse(t *testing.T, s string) *TempoAPISearchResponse {
+	t.Helper()
+
+	res := &TempoAPISearchResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal tempo search response=%q: %s", s, err)
+	}
+	return res
+}
+
 // LogsQLQueryResponse is an in-memory representation of the
 // /select/logsql/query response.
 type LogsQLQueryResponse struct {
