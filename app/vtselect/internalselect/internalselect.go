@@ -347,6 +347,16 @@ func processStreamIDsRequest(ctx context.Context, w http.ResponseWriter, r *http
 }
 
 func processDeleteRunTask(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	// This endpoint removes spans, so it must not be reachable via GET.
+	// vtselect always sends POST here, so this rejects nothing legitimate.
+	// See https://github.com/VictoriaMetrics/VictoriaTraces/issues/225
+	if r.Method != http.MethodPost {
+		return &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("only POST method is allowed for %s; got %s", r.URL.Path, r.Method),
+			StatusCode: http.StatusMethodNotAllowed,
+		}
+	}
+
 	if err := checkProtocolVersion(r, netselect.DeleteRunTaskProtocolVersion); err != nil {
 		return err
 	}
