@@ -8,7 +8,6 @@ import (
 	"io"
 	"math"
 	"net/http"
-	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -26,9 +25,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timeutil"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/fastjson"
 	"github.com/valyala/quicktemplate"
 
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/common"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 )
 
@@ -1553,7 +1552,7 @@ func parseCommonArgsWithConfig(r *http.Request, skipMaxRangeCheck bool) (*common
 
 	// Parse optional extra_filters
 	for _, extraFiltersStr := range r.Form["extra_filters"] {
-		extraFilters, err := parseExtraFilters(extraFiltersStr)
+		extraFilters, err := common.ParseExtraFilters(extraFiltersStr)
 		if err != nil {
 			return nil, err
 		}
@@ -1562,7 +1561,7 @@ func parseCommonArgsWithConfig(r *http.Request, skipMaxRangeCheck bool) (*common
 
 	// Parse optional extra_stream_filters
 	for _, extraStreamFiltersStr := range r.Form["extra_stream_filters"] {
-		extraStreamFilters, err := parseExtraStreamFilters(extraStreamFiltersStr)
+		extraStreamFilters, err := common.ParseExtraStreamFilters(extraStreamFiltersStr)
 		if err != nil {
 			return nil, err
 		}
@@ -1650,118 +1649,6 @@ func getTimeNsec(r *http.Request, argName string) (int64, bool, error) {
 		return 0, false, fmt.Errorf("cannot parse %s=%s: %w", argName, s, err)
 	}
 	return nsecs, true, nil
-}
-
-func parseExtraFilters(s string) (*logstorage.Filter, error) {
-	if s == "" {
-		return nil, nil
-	}
-	if !strings.HasPrefix(s, `{"`) {
-		return logstorage.ParseFilter(s)
-	}
-
-	// Extra filters in the form {"field":"value",...}.
-	kvs, err := parseExtraFiltersJSON(s)
-	if err != nil {
-		return nil, err
-	}
-
-	filters := make([]string, len(kvs))
-	for i, kv := range kvs {
-		if len(kv.values) == 1 {
-			filters[i] = fmt.Sprintf("%q:=%q", kv.key, kv.values[0])
-		} else {
-			orValues := make([]string, len(kv.values))
-			for j, v := range kv.values {
-				orValues[j] = fmt.Sprintf("%q", v)
-			}
-			filters[i] = fmt.Sprintf("%q:in(%s)", kv.key, strings.Join(orValues, ","))
-		}
-	}
-	s = strings.Join(filters, " ")
-	return logstorage.ParseFilter(s)
-}
-
-func parseExtraStreamFilters(s string) (*logstorage.Filter, error) {
-	if s == "" {
-		return nil, nil
-	}
-	if !strings.HasPrefix(s, `{"`) {
-		return logstorage.ParseFilter(s)
-	}
-
-	// Extra stream filters in the form {"field":"value",...}.
-	kvs, err := parseExtraFiltersJSON(s)
-	if err != nil {
-		return nil, err
-	}
-
-	filters := make([]string, len(kvs))
-	for i, kv := range kvs {
-		if len(kv.values) == 1 {
-			filters[i] = fmt.Sprintf("%q=%q", kv.key, kv.values[0])
-		} else {
-			orValues := make([]string, len(kv.values))
-			for j, v := range kv.values {
-				orValues[j] = regexp.QuoteMeta(v)
-			}
-			filters[i] = fmt.Sprintf("%q=~%q", kv.key, strings.Join(orValues, "|"))
-		}
-	}
-	s = "{" + strings.Join(filters, ",") + "}"
-	return logstorage.ParseFilter(s)
-}
-
-type extraFilter struct {
-	key    string
-	values []string
-}
-
-func parseExtraFiltersJSON(s string) ([]extraFilter, error) {
-	v, err := fastjson.Parse(s)
-	if err != nil {
-		return nil, err
-	}
-	o := v.GetObject()
-
-	var errOuter error
-	var filters []extraFilter
-	o.Visit(func(k []byte, v *fastjson.Value) {
-		if errOuter != nil {
-			return
-		}
-		switch v.Type() {
-		case fastjson.TypeString:
-			filters = append(filters, extraFilter{
-				key:    string(k),
-				values: []string{string(v.GetStringBytes())},
-			})
-		case fastjson.TypeArray:
-			a := v.GetArray()
-			if len(a) == 0 {
-				return
-			}
-			orValues := make([]string, len(a))
-			for i, av := range a {
-				ov, err := av.StringBytes()
-				if err != nil {
-					errOuter = fmt.Errorf("cannot obtain string item at the array for key %q; item: %s", k, av)
-					return
-				}
-				orValues[i] = string(ov)
-			}
-			filters = append(filters, extraFilter{
-				key:    string(k),
-				values: orValues,
-			})
-		default:
-			errOuter = fmt.Errorf("unexpected type of value for key %q: %s; value: %s", k, v.Type(), v)
-		}
-	})
-	if errOuter != nil {
-		return nil, errOuter
-	}
-	return filters, nil
 }
 
 func getPositiveInt(r *http.Request, argName string) (int, error) {

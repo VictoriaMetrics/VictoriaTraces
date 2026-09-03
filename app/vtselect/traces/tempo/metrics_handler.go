@@ -359,7 +359,7 @@ func runFacetsQuery(ctx context.Context, cp *tracecommon.CommonParams, filterStr
 	}
 
 	cpCopy := *cp
-	cpCopy.Query = q
+	cpCopy.Query = cpCopy.ApplyExtraFilters(q)
 	qctx := cpCopy.NewQueryContext(ctx)
 	defer cpCopy.UpdatePerQueryStatsMetrics()
 	if err := vtstorage.RunQuery(qctx, writeBlock); err != nil {
@@ -395,7 +395,7 @@ func runTotalCount(ctx context.Context, cp *tracecommon.CommonParams, filterStr 
 		}
 	}
 	cpCopy := *cp
-	cpCopy.Query = q
+	cpCopy.Query = cpCopy.ApplyExtraFilters(q)
 	qctx := cpCopy.NewQueryContext(ctx)
 	defer cpCopy.UpdatePerQueryStatsMetrics()
 	if err := vtstorage.RunQuery(qctx, writeBlock); err != nil {
@@ -672,7 +672,7 @@ func executeStatsQuery(ctx context.Context, cp *tracecommon.CommonParams, logsQL
 	}
 
 	cpCopy := *cp
-	cpCopy.Query = q
+	cpCopy.Query = cpCopy.ApplyExtraFilters(q)
 	qctx := cpCopy.NewQueryContext(ctx)
 	defer cpCopy.UpdatePerQueryStatsMetrics()
 
@@ -885,7 +885,7 @@ func collectExemplars(ctx context.Context, cp *tracecommon.CommonParams, filterS
 	}
 
 	cpCopy := *cp
-	cpCopy.Query = q
+	cpCopy.Query = cpCopy.ApplyExtraFilters(q)
 	qctx := cpCopy.NewQueryContext(ctx)
 	defer cpCopy.UpdatePerQueryStatsMetrics()
 
