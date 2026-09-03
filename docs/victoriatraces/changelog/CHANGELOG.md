@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): add support for the [Jaeger HTTP API v3](https://github.com/jaegertracing/jaeger-idl/blob/main/proto/api_v3/query_service.proto) at `/select/jaeger/api/v3/services`, `/select/jaeger/api/v3/operations`, `/select/jaeger/api/v3/trace-summaries`, `/select/jaeger/api/v3/traces` and `/select/jaeger/api/v3/traces/{trace_id}`. These endpoints return traces in the OpenTelemetry format, which is what Jaeger UI v2.15 and newer asks for. The v1 endpoints are unchanged, so an older Jaeger UI keeps working. Thanks to @timur-ND for reporting [the issue #141](https://github.com/VictoriaMetrics/VictoriaTraces/issues/141).
+
 ## [v0.11.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.11.0)
 
 Released at 2026-08-14
