@@ -1,6 +1,7 @@
 ---
 weight: 4
 title: Visualization in Jaeger UI
+description: "Visualize VictoriaTraces traces using the Jaeger Query Service UI."
 disableToc: true
 menu:
   docs:

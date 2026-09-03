@@ -1,6 +1,7 @@
 ---
 weight: 30
 title: Roadmap
+description: "Upcoming features toward GA release of VictoriaTraces."
 menu:
   docs:
     identifier: vt-roadmap

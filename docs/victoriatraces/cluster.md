@@ -1,6 +1,7 @@
 ---
 weight: 3
 title: VictoriaTraces cluster
+description: "Deploy VictoriaTraces cluster with vtinsert, vtselect, and vtstorage."
 menu:
   docs:
     parent: victoriatraces

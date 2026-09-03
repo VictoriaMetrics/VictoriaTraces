@@ -1,5 +1,6 @@
 ---
 title: Data ingestion
+description: "Accept trace spans via OpenTelemetry Protocol (OTLP) into VictoriaTraces."
 weight: 4
 menu:
   docs:

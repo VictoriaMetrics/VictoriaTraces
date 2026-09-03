@@ -1,6 +1,7 @@
 ---
 weight: 2
 title: Key concepts
+description: "VictoriaTraces tracing data model, spans, resources, service discovery, and LogsQL-based querying."
 menu:
   docs:
     identifier: vt-key-concepts

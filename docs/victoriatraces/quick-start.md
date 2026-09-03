@@ -1,6 +1,7 @@
 ---
 weight: 1
 title: Quick start
+description: "Get started with VictoriaTraces. Single-node and cluster deployment."
 menu:
   docs:
     identifier: vt-quick-start

@@ -1,6 +1,7 @@
 ---
 weight: 100
 title: CHANGELOG
+description: "Release history for VictoriaTraces"
 menu:
   docs:
     identifier: vt-changelog

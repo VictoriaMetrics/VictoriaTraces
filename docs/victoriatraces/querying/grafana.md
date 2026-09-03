@@ -1,6 +1,7 @@
 ---
 weight: 4
 title: Visualization in Grafana
+description: "Visualize VictoriaTraces traces in Grafana using the Jaeger and the Tempo datasource."
 disableToc: true
 menu:
   docs:
