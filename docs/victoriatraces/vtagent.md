@@ -57,6 +57,23 @@ vtagent can also accept data over OTLP/gRPC at the port specified by `-otlpGRPCL
 
 Pass `-help` to `vtagent` in order to see [the full list of supported command-line flags with their descriptions](https://docs.victoriametrics.com/victoriatraces/vtagent/#advanced-usage).
 
+### Replication and high availability
+
+`vtagent` can accept multiple `-remoteWrite.url` command-line flags. In this case it replicates the collected spans among
+all the VictoriaTraces instances mentioned in `-remoteWrite.url` command-line flags.
+
+If some of VictoriaTraces instances are temporarily unavailable, then the collected spans are buffered at the directory specified
+via `-remoteWrite.tmpDataPath` command-line flag. The buffered spans are sent to the VictoriaTraces instance as soon as it becomes available.
+This guarantees the delivery of all the spans across all the VictoriaTraces instances specified via `-remoteWrite.url` command-line flags.
+
+The on-disk buffer is limited by the available disk space at the `-remoteWrite.tmpDataPath` by default. It is possible to limit it
+to the given size via `-remoteWrite.maxDiskUsagePerURL` command-line flag (this flag can be specified individually per each `-remoteWrite.url`).
+When the buffer size reaches this limit for the given `-remoteWrite.url`, then the oldest spans are dropped from the buffer and are replaced by the newly
+received spans.
+
+`vtagent` maintains independent buffers for each `-remoteWrite.url`, so the collected spans are delivered to the remaining available VictoriaTraces instances
+in a timely manner when some of the VictoriaTraces instances are unavailable.
+
 ## Advanced usage
 
 `vtagent` can be fine-tuned with various command-line flags. Run `./vtagent -help` in order to see the full list of these flags with their descriptions and default values:
