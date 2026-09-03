@@ -1,0 +1,92 @@
+@use "src/styles/variables" as *;
+
+.vm-traces-heatmap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: $padding-small;
+  padding: $padding-small $padding-global;
+  background-color: $color-background-block;
+  border-bottom: $border-divider;
+
+  &_loading {
+    opacity: 0.6;
+  }
+}
+
+.vm-traces-heatmap__canvas-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.vm-traces-heatmap__canvas {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.vm-traces-heatmap__plot-bounds {
+  position: absolute;
+  top: 0;
+  pointer-events: none;
+}
+
+.vm-traces-heatmap__selection {
+  position: absolute;
+  background-color: rgba($color-dodger-blue, 0.15);
+  border: 1px solid $color-dodger-blue;
+  pointer-events: none;
+  z-index: 4;
+
+  &_dragging {
+    background-color: rgba($color-dodger-blue, 0.1);
+    border-style: dashed;
+  }
+}
+
+.vm-traces-heatmap__highlight {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid $color-white;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.vm-traces-heatmap__tooltip {
+  position: absolute;
+  padding: 6px 10px;
+  background-color: $color-background-tooltip;
+  box-shadow: $box-shadow-popper;
+  border-radius: $border-radius-small;
+  color: $color-white;
+  font-size: $font-size-small;
+  line-height: 150%;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.vm-traces-heatmap__tooltip-row {
+  display: flex;
+  align-items: baseline;
+  gap: $padding-small;
+}
+
+.vm-traces-heatmap__tooltip-row + .vm-traces-heatmap__tooltip-row {
+  margin-top: 2px;
+}
+
+.vm-traces-heatmap__tooltip-label {
+  color: $color-text-disabled;
+}
+
+.vm-traces-heatmap__tooltip-value {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.vm-traces-heatmap__tooltip-value_error {
+  color: $color-error;
+}

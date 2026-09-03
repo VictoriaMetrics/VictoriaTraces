@@ -12,8 +12,8 @@ export const darkPalette = {
   "color-text-secondary": "#768390",
   "color-text-disabled": "#636e7b",
   "box-shadow": "rgba(0, 0, 0, 0.16) 1px 2px 6px",
-  "box-shadow-popper": "rgba(0, 0, 0, 0.2) 0px 2px 8px 0px",
-  "border-divider": "1px solid rgba(99, 110, 123, 0.5)",
+  "box-shadow-popper": "rgba(0, 0, 0, 0.45) 0px 4px 8px -2px, rgba(255, 255, 255, 0.08) 0px 0px 0px 1px",
+  "border-color": "rgba(99, 110, 123, 0.5)",
   "color-hover-black": "rgba(0, 0, 0, 0.2)",
   // log hits chart colors
   "color-log-hits-bar-0": "rgba(255, 255, 255, 0.18)",
@@ -22,12 +22,17 @@ export const darkPalette = {
   "color-log-hits-bar-3": "#64B5F6",
   "color-log-hits-bar-4": "#E57373",
   "color-log-hits-bar-5": "#8a62f0",
+  // trace explorer
+  "syntax-string": "#79c0ff",
+  "syntax-number": "#d2a8ff",
+  "syntax-bool": "#ff7b72",
+  "syntax-null": "#8b949e",
 };
 
 export const lightPalette = {
   "color-primary": "#3F51B5",
   "color-secondary": "#E91E63",
-  "color-error": "#FD080E",
+  "color-error": "#E5484D",
   "color-warning": "#FF8308",
   "color-info": "#03A9F4",
   "color-success": "#4CAF50",
@@ -38,8 +43,8 @@ export const lightPalette = {
   "color-text-secondary": "#706F6F",
   "color-text-disabled": "#A09F9F",
   "box-shadow": "rgba(0, 0, 0, 0.08) 1px 2px 6px",
-  "box-shadow-popper": "rgba(0, 0, 0, 0.1) 0px 2px 8px 0px",
-  "border-divider": "1px solid rgba(0, 0, 0, 0.15)",
+  "box-shadow-popper": "rgba(9, 30, 66, 0.25) 0px 4px 8px -2px, rgba(9, 30, 66, 0.08) 0px 0px 0px 1px",
+  "border-color": "rgba(0, 0, 0, 0.15)",
   "color-hover-black": "rgba(0, 0, 0, 0.06)",
   // log hits chart colors
   "color-log-hits-bar-0": "rgba(0, 0, 0, 0.18)",
@@ -48,5 +53,9 @@ export const lightPalette = {
   "color-log-hits-bar-3": "#64B5F6",
   "color-log-hits-bar-4": "#E57373",
   "color-log-hits-bar-5": "#8a62f0",
-
+  // trace explorer
+  "syntax-string": "#22863a",
+  "syntax-number": "#005cc5",
+  "syntax-bool": "#d73a49",
+  "syntax-null": "#6a737d",
 };

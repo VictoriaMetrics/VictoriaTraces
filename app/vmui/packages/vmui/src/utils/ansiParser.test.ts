@@ -36,7 +36,7 @@ describe("ANSI Parser", () => {
 
     expect(spans.length).toBe(2);
     expect(spans[0]).toHaveStyle("color: #AA0000");
-    expect(spans[1]).toHaveStyle("color: inherit");
+    expect(spans[1]).toHaveStyle("color: rgb(0, 0, 0)");
   });
 
   // Test that parseAnsiToHtml correctly parses bold text.
@@ -91,12 +91,12 @@ describe("ANSI Parser", () => {
     const { container } = render(parseAnsiToHtml(input));
     const spans = container.querySelectorAll("span");
 
-    // Check that after the cancellation codes, the style properties are set to 'inherit'
+    // Check that after the cancellation codes, the style properties are set to 'normal'
     spans.forEach(span => {
       if (span.textContent?.includes("Normal")) {
-        expect(span).toHaveStyle("font-weight: inherit");
-        expect(span).toHaveStyle("font-style: inherit");
-        expect(span).toHaveStyle("text-decoration: inherit");
+        expect(span).toHaveStyle("font-weight: normal");
+        expect(span).toHaveStyle("font-style: normal");
+        expect(span).toHaveStyle("text-decoration: normal");
       }
     });
   });
@@ -115,6 +115,6 @@ describe("ANSI Parser", () => {
   test("parseAnsiToHtml should ignore unknown ANSI codes", () => {
     const { container } = render(parseAnsiToHtml("\u001B[999mText with unknown code\u001B[0m"));
     const span = container.querySelector("span");
-    expect(span).toHaveStyle("color: inherit");
+    expect(span).toHaveStyle("color: rgb(0, 0, 0)");
   });
 });

@@ -1,0 +1,86 @@
+@use "src/styles/variables" as *;
+
+.vm-span-detail-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: 420px;
+  min-width: 320px;
+  height: 100%;
+  border-radius: $border-radius-medium;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--color-background-block);
+  box-shadow: var(--box-shadow);
+}
+
+.vm-span-detail-panel__header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4em;
+  padding: $padding-small $padding-medium;
+  background-color: var(--color-background-block);
+  box-shadow: inset 0 0 0 999px var(--color-hover-black);
+  border-radius: $border-radius-medium $border-radius-medium 0 0;
+}
+
+.vm-span-detail-panel__content {
+  display: flex;
+  flex-direction: column;
+  row-gap: $padding-small;
+  padding: $padding-small;
+}
+
+.vm-span-detail-panel__header-label {
+  color: var(--color-text-secondary);
+}
+
+.vm-span-detail-panel__header-id {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+
+.vm-span-detail-panel__empty {
+  color: var(--text-muted);
+}
+
+.vm-span-detail-panel__events-header {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.vm-span-detail-panel__events-timeline {
+  height: 96px;
+  padding: 32px;
+}
+
+.vm-span-detail-panel__event {
+  border: 1px solid var(--border-color);
+  border-radius: $border-radius-small;
+  overflow: hidden;
+}
+
+.vm-span-detail-panel__link-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25em 0.25em 0 0.75em;
+}
+
+.vm-span-detail-panel__link-header-label {
+  font-size: $font-size-small;
+  font-weight: 600;
+}
+
+.vm-span-detail-panel__event .vm-trace-attributes {
+  padding: 0 $padding-small $padding-small;
+}

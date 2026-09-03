@@ -1,0 +1,55 @@
+@use "src/styles/variables" as *;
+
+.vm-trace-explorer_bounded {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+}
+
+.vm-trace-explorer-body {
+  display: flex;
+  align-items: stretch;
+  gap: $padding-small;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  font-size: $font-size-small;
+}
+
+.vm-trace-explorer-body__resize-handle {
+  position: relative;
+  flex: none;
+}
+
+.vm-trace-view-error {
+  margin: 1rem;
+}
+
+@keyframes vm-trace-view-loading-color-anim {
+  from {
+    color: var(--interactive-primary-light);
+  }
+  to {
+    color: var(--interactive-primary);
+  }
+}
+
+.vm-trace-view-loading {
+  display: block;
+  margin: 13rem auto 0;
+  width: 42px;
+  height: 42px;
+  animation: vm-trace-view-loading-color-anim 1s infinite alternate;
+}
+
+.vm-trace-view-loading svg {
+  width: 100%;
+  height: 100%;
+}
+
+.vm-trace-view-placeholder {
+  margin-top: 13rem;
+  text-align: center;
+  color: var(--text-muted);
+}

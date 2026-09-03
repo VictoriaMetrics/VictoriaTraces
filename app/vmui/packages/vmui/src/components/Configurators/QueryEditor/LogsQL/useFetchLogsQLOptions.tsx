@@ -1,35 +1,38 @@
 import { useEffect, useState, useRef, useCallback } from "preact/compat";
 import dayjs from "dayjs";
 import { ContextData, ContextType } from "./types";
-import { FunctionIcon, LabelIcon, MetricIcon, ValueIcon } from "../../../Main/Icons";
-import { AutocompleteOptions } from "../../../Main/Autocomplete/Autocomplete";
+import { SuggestFunctionIcon, SuggestLabelIcon, SuggestMetricIcon, SuggestValueIcon } from "../../../Main/Icons";
+import { AutocompleteOptions } from "../../../Main/Autocomplete";
 import { useAppState } from "../../../../state/common/StateContext";
-import { useTimeState } from "../../../../state/time/TimeStateContext";
+import { useTimePeriod } from "../../../../pages/TraceExplorer/hooks/useTimePeriod";
 import { AUTOCOMPLETE_LIMITS } from "../../../../constants/queryAutocomplete";
-import { LogsFiledValues } from "../../../../api/types";
+import { LogsFieldValues } from "../../../../api/types";
 import { useLogsDispatch, useLogsState } from "../../../../state/logsPanel/LogsStateContext";
 import { useTenant } from "../../../../hooks/useTenant";
 import { generateQuery } from "./utils";
 
 type FetchDataArgs = {
   urlSuffix: string;
-  setter: (value: LogsFiledValues[]) => void;
+  setter: (value: LogsFieldValues[]) => void;
   params?: URLSearchParams;
 }
 
 const icons = {
-  [ContextType.FilterName]: <MetricIcon/>,
-  [ContextType.FilterUnknown]: <MetricIcon/>,
-  [ContextType.FilterValue]: <ValueIcon/>,
-  [ContextType.PipeName]: <FunctionIcon/>,
-  [ContextType.PipeValue]: <LabelIcon/>,
-  [ContextType.Unknown]: <ValueIcon/>,
-  [ContextType.FilterOrPipeName]: <FunctionIcon/>
+  [ContextType.FilterName]: <SuggestMetricIcon/>,
+  [ContextType.FilterUnknown]: <SuggestMetricIcon/>,
+  [ContextType.FilterValue]: <SuggestValueIcon/>,
+  [ContextType.PipeName]: <SuggestFunctionIcon/>,
+  [ContextType.PipeValue]: <SuggestLabelIcon/>,
+  [ContextType.Unknown]: <SuggestValueIcon/>,
+  [ContextType.FilterOrPipeName]: <SuggestFunctionIcon/>
 };
 
 export const useFetchLogsQLOptions = (contextData?: ContextData) => {
   const { serverUrl } = useAppState();
-  const { period: { start, end } } = useTimeState();
+  const { period } = useTimePeriod();
+  // period is nanoseconds (bigint); this endpoint wants unix seconds.
+  const start = Number(period.start / 1_000_000_000n);
+  const end = Number(period.end / 1_000_000_000n);
   const { autocompleteCache } = useLogsState();
   const dispatch = useLogsDispatch();
   const tenant = useTenant();
@@ -40,6 +43,7 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
   const [fieldValues, setFieldValues] = useState<AutocompleteOptions[]>([]);
 
   const abortControllerRef = useRef(new AbortController());
+  const fetchDataRef = useRef<(args: FetchDataArgs) => Promise<void>>();
 
   const getQueryParams = useCallback((params?: Record<string, string>) => {
     const startDay = dayjs(start * 1000).startOf("day").valueOf() / 1000;
@@ -53,7 +57,7 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
     });
   }, [start, end]);
 
-  const processData = (values: LogsFiledValues[], type: ContextType): AutocompleteOptions[] => {
+  const processData = (values: LogsFieldValues[], type: ContextType): AutocompleteOptions[] => {
     return values.map(v => ({
       value: v.value,
       type: `${type}`,
@@ -85,7 +89,7 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
 
       if (response.ok) {
         const data = await response.json();
-        const value = (data?.values || []) as LogsFiledValues[];
+        const value = (data?.values || []) as LogsFieldValues[];
         setter(value || []);
         dispatch({ type: "SET_AUTOCOMPLETE_CACHE", payload: { key, value } });
       }
@@ -99,6 +103,8 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
     }
   };
 
+  fetchDataRef.current = fetchData;
+
   // fetch field names
   useEffect(() => {
     const validContexts = [ContextType.FilterName, ContextType.FilterUnknown, ContextType.FilterOrPipeName];
@@ -107,20 +113,21 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
       return;
     }
 
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- clears stale options synchronously before starting a new fetch, so old results aren't shown while loading
     setFieldNames([]);
 
-    const setter = (filterNames: LogsFiledValues[]) => {
+    const setter = (filterNames: LogsFieldValues[]) => {
       setFieldNames(processData(filterNames, ContextType.FilterName));
     };
 
-    fetchData({
+    fetchDataRef.current?.({
       urlSuffix: "field_names",
       setter: setter,
       params: getQueryParams({ query: contextData?.queryBeforeIncompleteFilter || "*" })
     });
 
     return () => abortControllerRef.current?.abort();
-  }, [serverUrl, contextData]);
+  }, [serverUrl, contextData, start, end, getQueryParams]);
 
   // fetch field values
   useEffect(() => {
@@ -129,20 +136,21 @@ export const useFetchLogsQLOptions = (contextData?: ContextData) => {
       return;
     }
 
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- clears stale options synchronously before starting a new fetch, so old results aren't shown while loading
     setFieldValues([]);
 
-    const setter = (filterValues: LogsFiledValues[]) => {
+    const setter = (filterValues: LogsFieldValues[]) => {
       setFieldValues(processData(filterValues, ContextType.FilterValue));
     };
 
-    fetchData({
+    fetchDataRef.current?.({
       urlSuffix: "field_values",
       setter: setter,
       params: getQueryParams({ query: generateQuery(contextData), field: contextData.filterName })
     });
 
     return () => abortControllerRef.current?.abort();
-  }, [serverUrl, contextData]);
+  }, [serverUrl, contextData, start, end, getQueryParams]);
 
   return {
     fieldNames,

@@ -6,7 +6,9 @@ type StateContextType = { state: AppState, dispatch: Dispatch<Action> };
 
 export const StateContext = createContext<StateContextType>({} as StateContextType);
 
+// eslint-disable-next-line @eslint-react/no-use-context -- preact/compat does not export a 'use' hook, useContext is required here
 export const useAppState = (): AppState => useContext(StateContext).state;
+// eslint-disable-next-line @eslint-react/no-use-context -- preact/compat does not export a 'use' hook, useContext is required here
 export const useAppDispatch = (): Dispatch<Action> => useContext(StateContext).dispatch;
 
 export const initialPrepopulatedState = Object.entries(initialState)
@@ -22,9 +24,9 @@ export const AppStateProvider: FC = ({ children }) => {
     return { state, dispatch };
   }, [state, dispatch]);
 
-  return <StateContext.Provider value={contextValue}>
+  return <StateContext value={contextValue}>
     {children}
-  </StateContext.Provider>;
+  </StateContext>;
 };
 
 

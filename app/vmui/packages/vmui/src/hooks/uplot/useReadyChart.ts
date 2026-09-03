@@ -13,15 +13,19 @@ const isLiftClickWithMeta = (e: MouseEvent) => {
 const dragSpeed = 0.9;
 
 const useReadyChart = (setPlotScale: SetMinMax) => {
-  const [isPanning, setPanning] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
 
-  const dragChart = useDragChart({ dragSpeed, setPanning, setPlotScale });
+  const dragChart = useDragChart({ dragSpeed, setPanning: setIsPanning, setPlotScale });
 
   const onReadyChart = (u: uPlot): void => {
     const handleInteractionStart = (e: MouseEvent | TouchEvent) => {
       const dragByMouse = e instanceof MouseEvent && isLiftClickWithMeta(e);
-      const dragByTouch = window.TouchEvent && e instanceof TouchEvent && e.touches.length > 1;
-      if (dragByMouse || dragByTouch) {
+      if (dragByMouse) {
+        dragChart({ u, e });
+      }
+
+      const dragByTouch = window.TouchEvent && e instanceof TouchEvent && e.touches.length === 1;
+      if (dragByTouch) {
         dragChart({ u, e });
       }
     };

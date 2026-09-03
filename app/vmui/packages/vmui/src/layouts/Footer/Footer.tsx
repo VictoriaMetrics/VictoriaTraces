@@ -1,7 +1,10 @@
-import { FC, memo } from "preact/compat";
+import { FC, memo, useEffect, useRef } from "preact/compat";
 import { LogoShortIcon } from "../../components/Main/Icons";
 import "./style.scss";
-import { footerLinksToLogs } from "../../constants/footerLinks";
+import { footerLinksToTraces } from "../../constants/footerLinks";
+import useGetVersion from "../../hooks/useGetVersion";
+import { useResizeObserver } from "../../hooks/useResizeObserver";
+import { setCssVariable } from "../../utils/theme";
 
 interface Props {
   links?: {
@@ -11,10 +14,24 @@ interface Props {
   }[]
 }
 
-const Footer: FC<Props> = memo(({ links = footerLinksToLogs }) => {
-  const copyrightYears = `2019-${new Date().getFullYear()}`;
+const copyrightYears = `2019-${new Date().getFullYear()}`;
 
-  return <footer className="vm-footer">
+const Footer: FC<Props> = memo(({ links = footerLinksToTraces }) => {
+  const { version } = useGetVersion();
+
+  const footerRef = useRef<HTMLElement>(null);
+  const { height: footerHeight } = useResizeObserver({ ref: footerRef });
+
+  useEffect(() => {
+    setCssVariable("footer-height", `${footerHeight || 0}px`);
+    return () => setCssVariable("footer-height", "0px");
+  }, [footerHeight]);
+
+  return <footer
+    id="vm-footer"
+    className="vm-footer"
+    ref={footerRef}
+  >
     <a
       className="vm-link vm-footer__website"
       target="_blank"
@@ -36,9 +53,14 @@ const Footer: FC<Props> = memo(({ links = footerLinksToLogs }) => {
         {title}
       </a>
     ))}
-    <div className="vm-footer__copyright">
-      &copy; {copyrightYears} VictoriaMetrics
-    </div>
+    <div className="vm-footer__copyright">&copy; {copyrightYears} VictoriaMetrics.</div>
+    {version && <span className="vm-footer__version">&nbsp;Version:
+      <a
+        href={`https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/${version}`}
+        target="_blank"
+        rel="noreferrer"
+      >{version}</a>
+    </span>}
   </footer>;
 });
 

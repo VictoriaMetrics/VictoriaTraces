@@ -1,15 +1,13 @@
 const router = {
   home: "/",
+  trace: "/trace",
   icons: "/icons",
 };
 
 export interface RouterOptionsHeader {
   tenant?: boolean,
-  stepControl?: boolean,
   timeSelector?: boolean,
   executionControls?: boolean,
-  globalSettings?: boolean,
-  cardinalityDatePicker?: boolean
 }
 
 export interface RouterOptions {
@@ -19,8 +17,18 @@ export interface RouterOptions {
 
 export const routerOptions: { [key: string]: RouterOptions } = {
   [router.home]: {
-    title: "Traces Explorer",
-    header: {}
+    title: "Trace Explorer",
+    header: {
+      tenant: true,
+      timeSelector: true,
+      executionControls: true,
+    }
+  },
+  [router.trace]: {
+    title: "Trace ID",
+    header: {
+      tenant: true,
+    }
   },
   [router.icons]: {
     title: "Icons",

@@ -10,8 +10,8 @@ const providers = [
   AppStateProvider,
   TimeStateProvider,
   QueryStateProvider,
+  LogsStateProvider,
   SnackbarProvider,
-  LogsStateProvider
 ];
 
 export default combineComponents(...providers);

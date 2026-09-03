@@ -1,13 +1,15 @@
 import {
   FC,
   useEffect,
+  useCallback,
   useRef,
   useMemo,
   FormEvent,
   KeyboardEvent,
   MouseEvent,
   HTMLInputTypeAttribute,
-  ReactNode
+  ReactNode,
+  forwardRef
 } from "preact/compat";
 import classNames from "classnames";
 import { useAppState } from "../../../state/common/StateContext";
@@ -39,27 +41,31 @@ interface TextFieldProps {
   onChangeCaret?: (position: [number, number]) => void
 }
 
-const TextField: FC<TextFieldProps> = ({
-  label,
-  value,
-  type = "text",
-  error = "",
-  warning = "",
-  helperText = "",
-  placeholder,
-  endIcon,
-  startIcon,
-  disabled = false,
-  autofocus = false,
-  inputmode = "text",
-  caretPosition,
-  onChange,
-  onEnter,
-  onKeyDown,
-  onFocus,
-  onBlur,
-  onChangeCaret,
-}) => {
+// eslint-disable-next-line @eslint-react/no-forward-ref -- preact/compat still requires forwardRef; a plain function component does not receive 'ref' as a prop here
+const TextField: FC<TextFieldProps> = forwardRef<HTMLInputElement | HTMLTextAreaElement, TextFieldProps>((
+  {
+    label,
+    value,
+    type = "text",
+    error = "",
+    warning = "",
+    helperText = "",
+    placeholder,
+    endIcon,
+    startIcon,
+    disabled = false,
+    autofocus = false,
+    inputmode = "text",
+    caretPosition,
+    onChange,
+    onEnter,
+    onKeyDown,
+    onFocus,
+    onBlur,
+    onChangeCaret,
+  },
+  extRef
+) => {
   const { isDarkTheme } = useAppState();
   const { isMobile } = useDeviceDetect();
 
@@ -115,79 +121,106 @@ const TextField: FC<TextFieldProps> = ({
     onBlur && onBlur();
   };
 
-  const setSelectionRange = (range: [number, number]) => {
-    try {
-      fieldRef.current && fieldRef.current.setSelectionRange(range[0], range[1]);
-    }  catch (e) {
-      return e;
+  const setExternalRef = useCallback((element: HTMLInputElement | HTMLTextAreaElement | null) => {
+    if (extRef) {
+      if (typeof extRef === "function") {
+        extRef(element);
+      } else {
+        extRef.current = element;
+      }
     }
-  };
+  }, [extRef]);
+
+  const setInputRefs = useCallback((element: HTMLInputElement | null) => {
+    setExternalRef(element);
+    inputRef.current = element;
+  }, [setExternalRef]);
+
+  const setTextareaRefs = useCallback((element: HTMLTextAreaElement | null) => {
+    setExternalRef(element);
+    textareaRef.current = element;
+  }, [setExternalRef]);
+
 
   useEffect(() => {
     if (!autofocus || isMobile) return;
     fieldRef?.current?.focus && fieldRef.current.focus();
-  }, [fieldRef, autofocus]);
+  }, [fieldRef, autofocus, isMobile]);
+
+  const caretStart = caretPosition?.[0];
+  const caretEnd = caretPosition?.[1];
 
   useEffect(() => {
-    caretPosition && setSelectionRange(caretPosition);
-  }, [caretPosition]);
+    const el = fieldRef.current;
+    if (caretStart === undefined || caretEnd === undefined || !el) return;
+    if (document.activeElement !== el) return;
 
-  return <label
-    className={classNames({
-      "vm-text-field": true,
-      "vm-text-field_textarea": type === "textarea",
-      "vm-text-field_dark": isDarkTheme
-    })}
-    data-replicated-value={value}
-  >
-    {startIcon && <div className="vm-text-field__icon-start">{startIcon}</div>}
-    {endIcon && <div className="vm-text-field__icon-end">{endIcon}</div>}
-    {type === "textarea"
-      ? (
-        <textarea
-          className={inputClasses}
-          disabled={disabled}
-          ref={textareaRef}
-          value={value}
-          rows={1}
-          inputMode={inputmode}
-          placeholder={placeholder}
-          autoCapitalize={"none"}
-          onInput={handleChange}
-          onKeyDown={handleKeyDown}
-          onKeyUp={handleKeyUp}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          onMouseUp={handleMouseUp}
-        />
-      )
-      : (
-        <input
-          className={inputClasses}
-          disabled={disabled}
-          ref={inputRef}
-          value={value}
-          type={type}
-          placeholder={placeholder}
-          inputMode={inputmode}
-          autoCapitalize={"none"}
-          onInput={handleChange}
-          onKeyDown={handleKeyDown}
-          onKeyUp={handleKeyUp}
-          onFocus={handleFocus}
-          onBlur={handleBlur}
-          onMouseUp={handleMouseUp}
-        />
-      )
+    try {
+      el.setSelectionRange(caretStart, caretEnd);
+    } catch {
+      // ignore
     }
-    {label && <span className="vm-text-field__label">{label}</span>}
-    <TextFieldMessage
-      error={error}
-      warning={warning}
-      info={helperText}
-    />
-  </label>
-  ;
-};
+  }, [caretStart, caretEnd, fieldRef]);
+
+  return (
+    <label
+      className={classNames({
+        "vm-text-field": true,
+        "vm-text-field_textarea": type === "textarea",
+        "vm-text-field_dark": isDarkTheme
+      })}
+      data-replicated-value={value}
+    >
+      {startIcon && <div className="vm-text-field__icon-start">{startIcon}</div>}
+      {endIcon && <div className="vm-text-field__icon-end">{endIcon}</div>}
+      {type === "textarea"
+        ? (
+          <textarea
+            name={label || placeholder}
+            className={inputClasses}
+            disabled={disabled}
+            ref={setTextareaRefs}
+            value={value}
+            rows={1}
+            inputMode={inputmode}
+            placeholder={placeholder}
+            autoCapitalize={"none"}
+            onInput={handleChange}
+            onKeyDown={handleKeyDown}
+            onKeyUp={handleKeyUp}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onMouseUp={handleMouseUp}
+          />
+        )
+        : (
+          <input
+            name={label || placeholder}
+            className={inputClasses}
+            disabled={disabled}
+            ref={setInputRefs}
+            value={value}
+            type={type}
+            placeholder={placeholder}
+            inputMode={inputmode}
+            autoCapitalize={"none"}
+            onInput={handleChange}
+            onKeyDown={handleKeyDown}
+            onKeyUp={handleKeyUp}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onMouseUp={handleMouseUp}
+          />
+        )
+      }
+      {label && <span className="vm-text-field__label">{label}</span>}
+      <TextFieldMessage
+        error={error}
+        warning={warning}
+        info={helperText}
+      />
+    </label>
+  );
+});
 
 export default TextField;

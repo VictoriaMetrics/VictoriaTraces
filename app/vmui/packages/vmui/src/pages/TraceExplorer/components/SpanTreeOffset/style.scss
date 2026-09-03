@@ -1,0 +1,61 @@
+@use "src/styles/variables" as *;
+
+.vm-span-tree-offset {
+  color: var(--color-text);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+}
+
+.vm-span-tree-offset.is-parent:hover {
+  cursor: pointer;
+}
+
+.vm-span-tree-offset__indent-guide-wrapper {
+  display: flex;
+  flex-shrink: 0;
+  height: 100%;
+  padding: $padding-tiny;
+}
+
+.vm-span-tree-offset__indent-guide {
+  height: 50%;
+  aspect-ratio: 1;
+  align-self: flex-start;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.vm-span-tree-offset__icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vm-span-tree-offset__icon-wrapper.is-toggle {
+  padding: $padding-tiny;
+  margin: -$padding-tiny;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.vm-span-tree-offset__icon-wrapper.is-toggle:hover {
+  background-color: var(--surface-component-background-hover);
+}
+
+.vm-span-tree-offset__dot {
+  display: block;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.vm-span-tree-offset__dot.is-collapsed {
+  background-color: transparent;
+  border: 1.5px solid;
+}
