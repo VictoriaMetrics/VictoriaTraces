@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -103,11 +102,7 @@ func httpRequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// HTTP/2 support on the backend to enable streaming features.
 		// Since this support is currently unnecessary, we handle these requests
 		// with a 405 Method Not Allowed status code to eliminate noisy logs.
-		err := &httpserver.ErrorWithStatusCode{
-			Err:        errors.New("HTTP/2 is currently not supported on this port"),
-			StatusCode: http.StatusMethodNotAllowed,
-		}
-		httpserver.Errorf(w, r, "%s", err)
+		http.Error(w, "HTTP/2 is currently not supported on this port", http.StatusMethodNotAllowed)
 		return true
 	}
 
