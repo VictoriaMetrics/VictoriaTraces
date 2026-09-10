@@ -120,5 +120,5 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
 
 func initSecretFlags() {
 	pushmetrics.InitSecretFlags()
-	flagutil.RegisterSecretFlag("vmalert.proxyURL")
+	vtselect.InitSecretFlags()
 }

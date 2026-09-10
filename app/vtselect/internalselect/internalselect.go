@@ -82,8 +82,16 @@ func requestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request,
 
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vt_http_requests_total{path=%q}`, path)).Inc()
 	if err := rh(ctx, w, r); err != nil && !netutil.IsTrivialNetworkError(err) {
-		metrics.GetOrCreateCounter(fmt.Sprintf(`vt_http_request_errors_total{path=%q}`, path)).Inc()
+		metrics.GetOrCreateCounter(fmt.Sprintf(`vt_http_errors_total{path=%q}`, path)).Inc()
+
+		// Return the error with 502 status code to vtselect, so it properly propagates the status code to the client,
+		// even if returning partial responses is enabled via -search.allowPartialResponse command-line flag.
+		err = &httpserver.ErrorWithStatusCode{
+			Err:        err,
+			StatusCode: http.StatusBadGateway,
+		}
 		httpserver.Errorf(w, r, "%s", err)
+
 		// The return is skipped intentionally in order to track the duration of failed queries.
 	}
 	metrics.GetOrCreateSummary(fmt.Sprintf(`vt_http_request_duration_seconds{path=%q}`, path)).UpdateDuration(startTime)
