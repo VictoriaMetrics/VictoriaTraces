@@ -97,6 +97,15 @@ func httpRequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
+	if r.Method == "PRI" && r.URL.Path == "*" {
+		// Typically, this request originates from clients (e.g., Grafana) testing
+		// HTTP/2 support on the backend to enable streaming features.
+		// Since this support is currently unnecessary, we handle these requests
+		// with a 405 Method Not Allowed status code to eliminate noisy logs.
+		http.Error(w, "HTTP/2 is currently not supported on this port", http.StatusMethodNotAllowed)
+		return true
+	}
+
 	if vtinsert.RequestHandler(w, r) {
 		return true
 	}
