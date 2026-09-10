@@ -22,7 +22,7 @@ type traceSpanProcessor struct {
 //
 // MustClose() must be called on the returned TraceSpansProcessor when it is no longer needed.
 func (cp *CommonParams) NewTraceProcessor(protocolName string, isStreamMode bool) LogMessageProcessor {
-	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.DecolorizeFields, cp.ExtraFields, *defaultMsgValue)
+	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields, cp.DecolorizeFields, cp.ExtraFields, *DefaultMsgValue)
 	rowsIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vt_rows_ingested_total{type=%q}", protocolName))
 	bytesIngestedTotal := metrics.GetOrCreateCounter(fmt.Sprintf("vt_bytes_ingested_total{type=%q}", protocolName))
 	flushDuration := metrics.GetOrCreateSummary(fmt.Sprintf("vt_insert_flush_duration_seconds{type=%q}", protocolName))
