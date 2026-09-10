@@ -2,7 +2,7 @@ import { FC, useRef, useState, useEffect } from "preact/compat";
 import { useLocation } from "react-router-dom";
 import classNames from "classnames";
 import { ArrowDropDownIcon } from "../../../components/Main/Icons";
-import Popper from "../../../components/Main/Popper/Popper";
+import Popper from "../../../components/Main/Popper";
 import NavItem from "./NavItem";
 import useBoolean from "../../../hooks/useBoolean";
 import { NavigationItem, NavigationItemType } from "../../../router/navigation";
@@ -52,7 +52,10 @@ const NavSubItem: FC<NavItemProps> = ({
 
   useEffect(() => {
     handleCloseSubmenu();
-  }, [pathname]);
+  }, [pathname, handleCloseSubmenu]);
+
+  const activeItem = submenu.find(m => m.value === activeMenu);
+  const triggerLabel = activeItem?.label || label;
 
   if (direction === "column") {
     return (
@@ -76,14 +79,14 @@ const NavSubItem: FC<NavItemProps> = ({
         "vm-header-nav-item": true,
         "vm-header-nav-item_sub": true,
         "vm-header-nav-item_open": openSubmenu,
-        "vm-header-nav-item_active": submenu.find(m => m.value === activeMenu)
+        "vm-header-nav-item_active": Boolean(activeItem)
       })}
       style={{ color }}
       onMouseEnter={handleOpenSubmenu}
       onMouseLeave={handleMouseLeave}
       ref={buttonRef}
     >
-      {label}
+      {triggerLabel}
       <ArrowDropDownIcon/>
 
       <Popper

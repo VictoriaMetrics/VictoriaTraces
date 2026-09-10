@@ -24,7 +24,7 @@ const useFetchFlags = () => {
     };
 
     fetchAppConfig();
-  }, []);
+  }, [dispatch]);
 
   return { isLoading, error };
 };

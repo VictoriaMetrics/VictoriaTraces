@@ -1,10 +1,14 @@
 import { FC, useState } from "preact/compat";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import AppContextProvider from "./contexts/AppContextProvider";
-import ThemeProvider from "./components/Main/ThemeProvider/ThemeProvider";
-import ExploreLogs from "./pages/ExploreLogs/ExploreLogs";
-import LogsLayout from "./layouts/LogsLayout/LogsLayout";
-import "./constants/markedPlugins";
+import ThemeProvider from "./components/Main/ThemeProvider";
+import TraceExplorer from "./pages/TraceExplorer";
+import TraceById from "./pages/TraceExplorer/TraceById";
+import TracesLayout from "./layouts/TracesLayout";
+import PreviewIcons from "./components/Main/Icons/PreviewIcons";
+import AllButtonsPreview from "./components/Main/Button/AllButtonsPreview";
+
+const isDev = import.meta.env.DEV;
 
 const App: FC = () => {
   const [loadedTheme, setLoadedTheme] = useState(false);
@@ -18,12 +22,29 @@ const App: FC = () => {
             <Routes>
               <Route
                 path={"/"}
-                element={<LogsLayout/>}
+                element={<TracesLayout/>}
               >
                 <Route
                   path={"/"}
-                  element={<ExploreLogs/>}
+                  element={<TraceExplorer/>}
                 />
+                <Route
+                  path={"/trace"}
+                  element={<TraceById/>}
+                />
+
+                {isDev && (
+                  <>
+                    <Route
+                      path="/icons"
+                      element={<PreviewIcons />}
+                    />
+                    <Route
+                      path="/buttons"
+                      element={<AllButtonsPreview />}
+                    />
+                  </>
+                )}
               </Route>
             </Routes>
           )}

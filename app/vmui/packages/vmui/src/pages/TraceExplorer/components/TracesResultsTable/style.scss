@@ -1,0 +1,23 @@
+@use "src/styles/variables" as *;
+
+.vm-traces-results-table {
+  display: flex;
+  flex-direction: column;
+
+  &-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 101;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $padding-small;
+    padding: $padding-small;
+    flex: none;
+    background-color: $color-background-block;
+
+    @media (max-width: 1000px) {
+      top: 51px;
+    }
+  }
+}

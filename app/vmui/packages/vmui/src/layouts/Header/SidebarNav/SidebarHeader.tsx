@@ -1,9 +1,9 @@
 import { FC, useEffect, useRef } from "preact/compat";
 import { useLocation } from "react-router-dom";
 import classNames from "classnames";
-import HeaderNav from "../HeaderNav/HeaderNav";
+import HeaderNav from "../HeaderNav";
 import useClickOutside from "../../../hooks/useClickOutside";
-import MenuBurger from "../../../components/Main/MenuBurger/MenuBurger";
+import MenuBurger from "../../../components/Main/MenuBurger";
 import "./style.scss";
 import useBoolean from "../../../hooks/useBoolean";
 
@@ -26,7 +26,7 @@ const SidebarHeader: FC<SidebarHeaderProps> = ({
     setFalse: handleCloseMenu,
   } = useBoolean(false);
 
-  useEffect(handleCloseMenu, [pathname]);
+  useEffect(handleCloseMenu, [pathname, handleCloseMenu]);
 
   useClickOutside(sidebarRef, handleCloseMenu);
 

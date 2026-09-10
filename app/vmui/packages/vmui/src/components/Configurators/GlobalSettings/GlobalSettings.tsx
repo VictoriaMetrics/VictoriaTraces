@@ -1,15 +1,17 @@
-import { FC, useRef } from "preact/compat";
+import { forwardRef, useImperativeHandle } from "preact/compat";
 import { ArrowDownIcon, SettingsIcon } from "../../Main/Icons";
-import Button from "../../Main/Button/Button";
-import Modal from "../../Main/Modal/Modal";
+import Button from "../../Main/Button";
+import Modal from "../../Main/Modal";
 import "./style.scss";
-import Tooltip from "../../Main/Tooltip/Tooltip";
+import Tooltip from "../../Main/Tooltip";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import classNames from "classnames";
-import Timezones from "./Timezones/Timezones";
-import ThemeControl from "../ThemeControl/ThemeControl";
+import TimezonesPicker from "./Timezones/TimezonesPicker";
+import ThemeControl from "../ThemeControl";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
+import QueryTimeOverride from "./QueryTimeOverride";
+import BrowserTabController from "./BrowserTabController";
 
 const title = "Settings";
 
@@ -17,14 +19,15 @@ export interface ChildComponentHandle {
   handleApply: () => void;
 }
 
-const GlobalSettings: FC = () => {
+export interface GlobalSettingsHandle {
+  open: () => void;
+}
+
+// eslint-disable-next-line @eslint-react/no-forward-ref -- preact/compat still requires forwardRef; a plain function component does not receive 'ref' as a prop here
+const GlobalSettings = forwardRef<GlobalSettingsHandle>((_, ref) => {
   const { isMobile } = useDeviceDetect();
 
   const appModeEnable = getAppModeEnable();
-
-  const serverSettingRef = useRef<ChildComponentHandle>(null);
-  const limitsSettingRef = useRef<ChildComponentHandle>(null);
-  const timezoneSettingRef = useRef<ChildComponentHandle>(null);
 
   const {
     value: open,
@@ -32,23 +35,28 @@ const GlobalSettings: FC = () => {
     setFalse: handleClose,
   } = useBoolean(false);
 
-  const handleApply = () => {
-    serverSettingRef.current && serverSettingRef.current.handleApply();
-    limitsSettingRef.current && limitsSettingRef.current.handleApply();
-    timezoneSettingRef.current && timezoneSettingRef.current.handleApply();
-    handleClose();
-  };
-
   const controls = [
     {
       show: true,
-      component: <Timezones ref={timezoneSettingRef}/>
+      component: <TimezonesPicker/>
+    },
+    {
+      show: true,
+      component: <QueryTimeOverride/>
     },
     {
       show: !appModeEnable,
       component: <ThemeControl/>
-    }
+    },
+    {
+      show: true,
+      component: <BrowserTabController/>
+    },
   ].filter(control => control.show);
+
+  useImperativeHandle(ref, () => ({
+    open: handleOpen,
+  }));
 
   return <>
     {isMobile ? (
@@ -72,7 +80,7 @@ const GlobalSettings: FC = () => {
           color="primary"
           startIcon={<SettingsIcon/>}
           onClick={handleOpen}
-          ariaLabel="settings"
+          aria-label="settings"
         />
       </Tooltip>
     )}
@@ -90,31 +98,16 @@ const GlobalSettings: FC = () => {
           {controls.map((control, index) => (
             <div
               className="vm-server-configurator__input"
+              // eslint-disable-next-line @eslint-react/no-array-index-key -- controls list order/length is fixed at mount, filtered only by static appModeEnable flag
               key={index}
             >
               {control.component}
             </div>
           ))}
-          <div className="vm-server-configurator-footer">
-            <Button
-              color="error"
-              variant="outlined"
-              onClick={handleClose}
-            >
-              Cancel
-            </Button>
-            <Button
-              color="primary"
-              variant="contained"
-              onClick={handleApply}
-            >
-              Apply
-            </Button>
-          </div>
         </div>
       </Modal>
     )}
   </>;
-};
+});
 
 export default GlobalSettings;
