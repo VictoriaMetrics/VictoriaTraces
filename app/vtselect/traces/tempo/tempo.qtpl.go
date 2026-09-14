@@ -291,11 +291,11 @@ func streamsummaryJson(qw422016 *qt422016.Writer, summary traceSummary) {
 //line app/vtselect/traces/tempo/tempo.qtpl:137
 	qw422016.N().Q(summary.rootSpan.name)
 //line app/vtselect/traces/tempo/tempo.qtpl:137
-	qw422016.N().S(`,"startTimeUnixNano":`)
+	qw422016.N().S(`,"startTimeUnixNano":"`)
 //line app/vtselect/traces/tempo/tempo.qtpl:138
 	qw422016.N().DL(summary.rootSpan.startTimeUnixNano)
 //line app/vtselect/traces/tempo/tempo.qtpl:138
-	qw422016.N().S(`,"durationMs":`)
+	qw422016.N().S(`","durationMs":`)
 //line app/vtselect/traces/tempo/tempo.qtpl:139
 	if summary.rootSpan.endTimeUnixNano > 0 && summary.rootSpan.startTimeUnixNano > 0 {
 //line app/vtselect/traces/tempo/tempo.qtpl:139
@@ -401,11 +401,11 @@ func streamspanSummaryJson(qw422016 *qt422016.Writer, span spanSummary) {
 //line app/vtselect/traces/tempo/tempo.qtpl:160
 	qw422016.N().Q(span.spanID)
 //line app/vtselect/traces/tempo/tempo.qtpl:160
-	qw422016.N().S(`,"startTimeUnixNano":`)
+	qw422016.N().S(`,"startTimeUnixNano":"`)
 //line app/vtselect/traces/tempo/tempo.qtpl:161
 	qw422016.N().DL(span.startTimeUnixNano)
 //line app/vtselect/traces/tempo/tempo.qtpl:161
-	qw422016.N().S(`,"durationNanos":`)
+	qw422016.N().S(`","durationNanos":`)
 //line app/vtselect/traces/tempo/tempo.qtpl:162
 	if span.endTimeUnixNano > 0 && span.startTimeUnixNano > 0 {
 //line app/vtselect/traces/tempo/tempo.qtpl:162
