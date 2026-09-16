@@ -69,7 +69,7 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
-     The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
+     The maximum duration for a graceful shutdown of the HTTP server. During this period the server stops accepting new connections, but it will continue serving existing connections. The remaining in-flight requests are canceled before the deadline, so the shutdown can finish within this duration. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string
      An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
   -http.shutdownDelay duration
@@ -161,6 +161,9 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file.
      Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
+  -nativeinsert.maxRequestSize size
+     The maximum size in bytes of a single request, which can be accepted at /insert/native and /insert/multitenant/native HTTP endpoints
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -opentelemetry.traces.maxRequestSize size
      The maximum size in bytes of a single OpenTelemetry trace export request.
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
@@ -212,6 +215,8 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
      The following optional suffixes are supported: s (second), h (hour), d (day), w (week), M (month), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
   -search.allowPartialResponse
      Whether to allow returning partial responses when some of vtstorage nodes from the -storageNode list are unavailable for querying. This flag works only for cluster setup of VictoriaLogs. See https://docs.victoriametrics.com/victorialogs/querying/#partial-responses
+  -search.fieldsLookbehind duration
+     The default time range of searching for normal fields (tags and attributes).It affects various Tempo tag-related APIs. (default 2h0m0s)
   -search.latencyOffset duration
      The time when a trace become visible in query results after the collection. see -insert.traceMaxDuration as well. (default 30s) (default 30s)
   -search.logSlowQueryDuration duration
@@ -232,6 +237,8 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
      The maximum number of tags (including service name, span name) that can be returned in a single search request. This limit applies to Jaeger’s /api/services, /api/services/*/operations APIs, and various Tempo tag-related APIs. (default 1000)
   -search.maxTraces int
      The maximum number of traces that can be returned in a single search request. Users may request with different limit value via query argument which shouldn't exceed this limit. This limit applies to Jaeger’s /api/traces API and Tempo's /api/search API. (default 1000)
+  -search.streamFieldsLookbehind duration
+     The default time range of searching for stream fields (service name and span name).It affects Jaeger's /api/services and /api/services/*/operations APIs. (default 72h0m0s)
   -search.traceMaxDurationWindow duration
      The window of searching for the rest trace spans after finding one span.It allows extending the search start time and end time by -search.traceMaxDurationWindow to make sure all spans are included.It affects both Jaeger's /api/traces and /api/traces/<trace_id> APIs. (default 1m0s)
   -search.traceMaxServiceNameList uint
@@ -241,7 +248,7 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
   -search.traceSearchStep duration
      Splits the [0, now] time range into many small time ranges by -search.traceSearchStep when searching for spans by trace_id. Once it finds spans in a time range, it performs an additional search according to -search.traceMaxDurationWindow and then stops. It affects Jaeger's /api/traces/<trace_id> API. (default 24h0m0s)
   -search.traceServiceAndSpanNameLookbehind duration
-     The time range of searching for service name and span name. It affects Jaeger's /api/services and /api/services/*/operations APIs. (default 72h0m0s)
+     Deprecated, see -search.tagsLookbehind. (default 72h0m0s)
   -secret.flags array
      Comma-separated list of flag names with secret values. Values for these flags are hidden in logs and on /metrics page
      Supports an array of values separated by comma or specified via multiple flags.
