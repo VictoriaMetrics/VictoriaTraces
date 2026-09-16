@@ -17,6 +17,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 * FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.51.0 to v1.52.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.51.0...v1.52.0).
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): properly handle HTTP/2 handshake requests (`PRI *`) from clients such as the Grafana Tempo datasource to eliminate unnecessary warning logs.
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtstorage in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): create index correctly for different tenants when they receive trace with the same `trace_id` at the same flush period. Thank @MuNeNiCK for [the bug report #255](https://github.com/VictoriaMetrics/VictoriaTraces/issues/255).
+
 ## [v0.11.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.11.0)
 
 Released at 2026-08-14
