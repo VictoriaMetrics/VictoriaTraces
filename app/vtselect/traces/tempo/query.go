@@ -66,7 +66,7 @@ func GetTraceList(ctx context.Context, cp *tracecommon.CommonParams, filterQuery
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctxWithCancel)
 	defer cp.UpdatePerQueryStatsMetrics()
 
@@ -194,7 +194,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 	traceIDList := make([]string, 0, limit)
 	maxStartTimeStr := endTime.Format(time.RFC3339)
 
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
@@ -284,7 +284,7 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 	ctxWithCancel, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctxWithCancel)
 	defer cp.UpdatePerQueryStatsMetrics()
 
@@ -386,7 +386,7 @@ func findSpansByTraceIDAndTime(ctx context.Context, cp *tracecommon.CommonParams
 		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
 	}
 	ctxWithCancel, cancel := context.WithCancel(ctx)
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctxWithCancel)
 	defer cp.UpdatePerQueryStatsMetrics()
 

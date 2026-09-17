@@ -539,7 +539,7 @@ func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracec
 		}
 	}
 
-	cp.Query = q
+	cp.Query = cp.ApplyExtraFilters(q)
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
