@@ -268,6 +268,12 @@ func TestTraceQLFieldToVTField(t *testing.T) {
 	f("service.name", "resource_attr:service.name")
 	f("duration", "duration")
 	f("name", "name")
+
+	f("event.exception.type", "event:event_attr:exception.type:*")
+	f("event:name", "event:event_name:*")
+	f("link.foo", "link:link_attr:foo:*")
+	f("link:spanID", "link:link_span_id:*")
+	f("link:traceID", "link:link_trace_id:*")
 }
 
 func TestVTFieldToTraceQL(t *testing.T) {
@@ -284,6 +290,13 @@ func TestVTFieldToTraceQL(t *testing.T) {
 	f("status_code", "status")
 	f("duration", "duration")
 	f("name", "name")
+
+	// Stored event and link fields carry the index of the event they belong to.
+	f("event:event_attr:exception.type:0", "event.exception.type")
+	f("event:event_name:1", "event:name")
+	f("link:link_attr:foo:0", "link.foo")
+	f("link:link_span_id:0", "link:spanID")
+	f("link:link_trace_id:2", "link:traceID")
 }
 
 func TestFieldMappingRoundTrip(t *testing.T) {
@@ -293,6 +306,11 @@ func TestFieldMappingRoundTrip(t *testing.T) {
 		"status",
 		"duration",
 		"name",
+		"event.exception.type",
+		"event:name",
+		"link.foo",
+		"link:spanID",
+		"link:traceID",
 	}
 	for _, field := range fields {
 		vt := TraceQLFieldToVTField(field)
