@@ -66,17 +66,17 @@ const (
 	// DeleteRunTaskProtocolVersion is the version of the protocol used for /internal/delete/run_task HTTP endpoint.
 	//
 	// It must be updated every time the protocol changes.
-	DeleteRunTaskProtocolVersion = "v1"
+	DeleteRunTaskProtocolVersion = "v2"
 
 	// DeleteStopTaskProtocolVersion is the version of the protocol used for /internal/delete/stop_task HTTP endpoint.
 	//
 	// It must be updated every time the protocol changes.
-	DeleteStopTaskProtocolVersion = "v1"
+	DeleteStopTaskProtocolVersion = "v2"
 
 	// DeleteActiveTasksProtocolVersion is the version of the protocol used for /internal/delete/active_tasks endpoint.
 	//
 	// It must be updated every time the protocol changes.
-	DeleteActiveTasksProtocolVersion = "v1"
+	DeleteActiveTasksProtocolVersion = "v2"
 )
 
 // Storage is a network storage for querying remote storage nodes in the cluster.
@@ -110,6 +110,11 @@ func newStorageNode(s *Storage, addr string, ac *promauth.Config, isTLS bool) *s
 	tr := httputil.NewTransport(false, "vtselect_backend")
 	tr.TLSHandshakeTimeout = 20 * time.Second
 	tr.DisableCompression = true
+
+	// Set the idle connection timeout to the value smaller than the default timeout at the server side
+	// (60 seconds - see -http.idleConntimeout) in order to avoid EOF errors.
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/1440
+	tr.IdleConnTimeout = 5 * time.Second
 
 	scheme := "http"
 	if isTLS {
@@ -327,7 +332,7 @@ func (sn *storageNode) getResponseBodyForPathAndArgs(ctx context.Context, path s
 	// on the application/x-www-form-urlencoded request body size.
 	// See https://pkg.go.dev/net/http#Request.ParseForm
 	//
-	// This avoids the issue when too long query is sent to vlstorage.
+	// This avoids the issue when too long query is sent to vtstorage.
 	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/1462
 	reqBody, contentType := newMultipartRequestBody(args)
 	req, err := http.NewRequestWithContext(ctx, "POST", reqURL, reqBody)
@@ -342,14 +347,10 @@ func (sn *storageNode) getResponseBodyForPathAndArgs(ctx context.Context, path s
 	// send the request to the storage node
 	resp, err := sn.c.Do(req)
 	if err != nil {
-		// Wrap the error into httpserver.ErrorWithStatusCode in order to return the proper status code to the client.
-		// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/576
-		//
-		// This is also used by isUnavailableBackendError() function in order to differentiate unavailable backend errors
-		// from improper configuration errors.
-		return nil, "", &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("cannot connect to storage node at %q: %w", reqURL, err),
-			StatusCode: http.StatusBadGateway,
+		// the errUnavailableBackend is used by isUnavailableBackendError() function in order to differentiate
+		// unavailable backend errors from configuration errors at vtstorage, wich return non-200 status code.
+		return nil, "", &errUnavailableBackend{
+			err: fmt.Errorf("cannot connect to storage node at %q: %w", reqURL, err),
 		}
 	}
 
@@ -365,7 +366,9 @@ func (sn *storageNode) getResponseBodyForPathAndArgs(ctx context.Context, path s
 			responseBody = []byte(err.Error())
 		}
 		_ = resp.Body.Close()
-		return nil, "", fmt.Errorf("unexpected response status code from %q: %d; want %d; response: %q", reqURL, resp.StatusCode, http.StatusOK, responseBody)
+
+		err = fmt.Errorf("unexpected response status code from %q: %d; want %d; response: %q", reqURL, resp.StatusCode, http.StatusOK, responseBody)
+		return nil, "", err
 	}
 
 	return resp.Body, reqURL, nil
@@ -620,7 +623,7 @@ func (s *Storage) DeleteActiveTasks(ctx context.Context) ([]*logstorage.DeleteTa
 	return tasks, nil
 }
 
-// GetTenantIDs returns tenantIDs for the given start and end.
+// GetTenantIDs returns sorted tenantIDs on the [start..end] time range.
 func (s *Storage) GetTenantIDs(ctx context.Context, start, end int64) ([]logstorage.TenantID, error) {
 	return s.getTenantIDs(ctx, start, end)
 }
@@ -656,25 +659,14 @@ func (s *Storage) getTenantIDs(ctx context.Context, start, end int64) ([]logstor
 		return nil, err
 	}
 
-	// Deduplicate tenantIDs
-	m := make(map[logstorage.TenantID]struct{})
-	for _, tenantIDs := range results {
-		for _, tenantID := range tenantIDs {
-			m[tenantID] = struct{}{}
-		}
-	}
-
-	tenantIDs := make([]logstorage.TenantID, 0, len(m))
-	for tenantID := range m {
-		tenantIDs = append(tenantIDs, tenantID)
-	}
+	tenantIDs := logstorage.MergeTenantIDs(results)
 
 	return tenantIDs, nil
 }
 
 func (s *Storage) getValuesWithHits(qctx *logstorage.QueryContext, limit uint64, resetHitsOnLimitExceeded bool,
-	callback func(ctx context.Context, sn *storageNode) ([]logstorage.ValueWithHits, error)) ([]logstorage.ValueWithHits, error) {
-
+	callback func(ctx context.Context, sn *storageNode) ([]logstorage.ValueWithHits, error),
+) ([]logstorage.ValueWithHits, error) {
 	ctxWithCancel, cancel := context.WithCancel(qctx.Context)
 	defer cancel()
 
@@ -801,7 +793,7 @@ func getFirstError(errs []error, allowPartialResponse bool) error {
 	if !allowPartialResponse {
 		for _, err := range errs {
 			if err != nil {
-				return err
+				return newStatusBadGatewayError(err)
 			}
 		}
 		return nil
@@ -811,24 +803,49 @@ func getFirstError(errs []error, allowPartialResponse bool) error {
 	// or if some of the backends are improperly configured.
 	for _, err := range errs {
 		if err == nil {
-			// At least a single vlstorage returned full response.
+			// At least a single vtstorage returned full response.
 			return nil
 		}
 		if !isUnavailableBackendError(err) {
 			// Return the first error, which isn't related to the backend unavailability, to the client,
 			// since this error may point to configuration issues, which must be fixed ASAP.
 			// Hiding this error would complicate troubleshooting of improperly configured system.
-			return fmt.Errorf("the vlstorage node is available, but it returns an error, which may point to configuration issues: %w", err)
+			err = fmt.Errorf("the vtstorage node is available, but it returns an error, which may point to configuration issues: %w", err)
+			return newStatusBadGatewayError(err)
 		}
 	}
 
-	return fmt.Errorf("all the vlstorage nodes are unavailable for querying; a sample error: %w", errs[0])
+	err := fmt.Errorf("all the vtstorage nodes are unavailable for querying; a sample error: %w", errs[0])
+	return newStatusBadGatewayError(err)
+}
+
+func newStatusBadGatewayError(err error) error {
+	return &httpserver.ErrorWithStatusCode{
+		Err:        err,
+		StatusCode: http.StatusBadGateway,
+	}
 }
 
 func isUnavailableBackendError(err error) bool {
-	// It is expected that unavailable backend errors are wrapped into httpserver.ErrorWithStatusCode.
-	var es *httpserver.ErrorWithStatusCode
-	return errors.As(err, &es)
+	// It is expected that unavailable backend errors are wrapped into errUnavailableBackend
+	_, ok := errors.AsType[*errUnavailableBackend](err)
+	return ok
+}
+
+type errUnavailableBackend struct {
+	err error
+}
+
+// Unwrap returns e.Err.
+//
+// This is used by standard errors package. See https://golang.org/pkg/errors
+func (e *errUnavailableBackend) Unwrap() error {
+	return e.err
+}
+
+// Error implements error interface.
+func (e *errUnavailableBackend) Error() string {
+	return e.err.Error()
 }
 
 func unmarshalValuesWithHits(qctx *logstorage.QueryContext, src []byte) ([]logstorage.ValueWithHits, error) {

@@ -234,3 +234,60 @@ func generateResourceSpans() []*otelpb.ResourceSpans {
 		},
 	}
 }
+
+// TestSearchResponseJSON verifies the Tempo /api/search response shape:
+// startTimeUnixNano is a string-encoded uint64, as in the Tempo API and in the
+// trace-by-ID responses above. See https://github.com/grafana/tempo/blob/main/pkg/tempopb/tempo.proto
+func TestSearchResponseJSON(t *testing.T) {
+	root := spanSummary{traceID: "0a0b", spanID: "0c0d", name: "op", serviceName: "svc-a", startTimeUnixNano: 1789399903759061200, endTimeUnixNano: 1789399903948061200}
+	child := spanSummary{traceID: "0a0b", spanID: "0e0f", parentSpanID: "0c0d", name: "child", serviceName: "svc-b", startTimeUnixNano: 1789399903760000000, endTimeUnixNano: 1789399903761973500}
+	response := SearchResponse([]traceSummary{{rootSpan: root, spanSet: []spanSummary{root, child}}})
+	expect := `{
+  "traces": [
+    {
+      "traceID": "0a0b",
+      "rootServiceName": "svc-a",
+      "rootTraceName": "op",
+      "startTimeUnixNano": "1789399903759061200",
+      "durationMs": 189,
+      "spanSets": [
+        {
+          "spans": [
+            {
+              "spanID": "0c0d",
+              "startTimeUnixNano": "1789399903759061200",
+              "durationNanos": 189000000,
+              "attributes": [
+                {"key": "service.name", "value": {"stringValue": "svc-a"}},
+                {"key": "name", "value": {"stringValue": "op"}},
+                {"key": "nestedSetParent", "value": {"intValue": "-1"}}
+              ]
+            },
+            {
+              "spanID": "0e0f",
+              "startTimeUnixNano": "1789399903760000000",
+              "durationNanos": 1973500,
+              "attributes": [
+                {"key": "service.name", "value": {"stringValue": "svc-b"}},
+                {"key": "name", "value": {"stringValue": "child"}},
+                {"key": "nestedSetParent", "value": {"intValue": "0"}}
+              ]
+            }
+          ],
+          "matched": 2
+        }
+      ]
+    }
+  ]
+}`
+
+	compactResponse, compactExpect := new(bytes.Buffer), new(bytes.Buffer)
+	err1 := json.Compact(compactResponse, []byte(response))
+	err2 := json.Compact(compactExpect, []byte(expect))
+	if err1 != nil || err2 != nil {
+		t.Fatalf("got error when json.Compact: err of compacting response: %v, err of compacting expect: %v", err1, err2)
+	}
+	if compactExpect.String() != compactResponse.String() {
+		t.Fatalf("got %q; want %q", compactResponse.String(), compactExpect.String())
+	}
+}

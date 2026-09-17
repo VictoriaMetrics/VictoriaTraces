@@ -584,7 +584,7 @@ func RunQuery(qctx *logstorage.QueryContext, writeBlock logstorage.WriteDataBloc
 
 // GetFieldNames executes qctx and returns field names seen in results.
 //
-// If the filter isn't empty, then only the field names containing the filter substing are returned.
+// If the filter isn't empty, then only the field names containing the filter substring are returned.
 func GetFieldNames(qctx *logstorage.QueryContext, filter string) ([]logstorage.ValueWithHits, error) {
 	if localStorage != nil {
 		return localStorage.GetFieldNames(qctx, filter)
@@ -594,7 +594,7 @@ func GetFieldNames(qctx *logstorage.QueryContext, filter string) ([]logstorage.V
 
 // GetFieldValues executes the given qctx and returns unique values for the fieldName seen in results.
 //
-// If the filter isn't empty, then only the field values containing the filter substing are returned.
+// If the filter isn't empty, then only the field values containing the filter substring are returned.
 //
 // If limit > 0, then up to limit unique values are returned.
 func GetFieldValues(qctx *logstorage.QueryContext, fieldName, filter string, limit uint64) ([]logstorage.ValueWithHits, error) {
@@ -682,7 +682,7 @@ func DeleteActiveTasks(ctx context.Context) ([]*logstorage.DeleteTask, error) {
 	return netstorageSelect.DeleteActiveTasks(ctx)
 }
 
-// GetTenantIDs returns tenantIDs from the storage by the given start and end.
+// GetTenantIDs returns sorted tenantIDs on the [start..end] time range.
 func GetTenantIDs(ctx context.Context, start, end int64) ([]logstorage.TenantID, error) {
 	if localStorage != nil {
 		return localStorage.GetTenantIDs(ctx, start, end)

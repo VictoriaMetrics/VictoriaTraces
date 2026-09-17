@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmalertproxy"
@@ -41,6 +42,13 @@ var (
 		"Log queries with execution time exceeding this value. Zero disables slow query logging")
 	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert; see https://docs.victoriametrics.com/victoriatraces/#vmalert")
 )
+
+// InitSecretFlags registers secret flags defined under `vtselect` pkg.
+//
+// It must be called after flag.Parse and before any logging by main function of an application (e.g. victoria-traces, vtagent).
+func InitSecretFlags() {
+	flagutil.RegisterSecretFlag("vmalert.proxyURL")
+}
 
 func getDefaultMaxConcurrentRequests() int {
 	n := cgroup.AvailableCPUs()
@@ -250,19 +258,24 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 }
 
 func incRequestConcurrency(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
-	startTime := time.Now()
-	stopCh := ctx.Done()
 	select {
 	case concurrencyLimitCh <- struct{}{}:
+		// Fast path - there is a free slot in the concurrency limiter for executing the request.
 		return true
 	default:
-		// Sleep for a while until giving up. This should resolve short bursts in requests.
+		// Slow path - there are no free slots in the concurrency limiter for executing the request.
+		// Wait for up to *maxQueueDuration for the query execution.
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, *maxQueueDuration)
+		defer cancel()
+
+		startTime := time.Now()
+
 		concurrencyLimitReached.Inc()
 		select {
 		case concurrencyLimitCh <- struct{}{}:
 			return true
-		case <-stopCh:
-			switch ctx.Err() {
+		case <-ctxWithTimeout.Done():
+			switch ctxWithTimeout.Err() {
 			case context.Canceled:
 				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 				requestURI := httpserver.GetRequestURI(r)

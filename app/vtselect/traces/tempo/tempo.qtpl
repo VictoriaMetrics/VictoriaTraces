@@ -135,7 +135,7 @@
 	"traceID":{%q= summary.rootSpan.traceID %},
 	"rootServiceName":{%q= summary.rootSpan.serviceName %},
 	"rootTraceName":{%q= summary.rootSpan.name %},
-	"startTimeUnixNano":{%dl= summary.rootSpan.startTimeUnixNano %},
+	"startTimeUnixNano":{%q= strconv.FormatInt(summary.rootSpan.startTimeUnixNano, 10) %},
 	"durationMs":{% if summary.rootSpan.endTimeUnixNano > 0 && summary.rootSpan.startTimeUnixNano > 0 %}{%dl= (summary.rootSpan.endTimeUnixNano - summary.rootSpan.startTimeUnixNano) / 1e6 %}{% else %}0{% endif %},
 	"spanSets":[{%= spanSetJSON(summary.spanSet) %}]
 }
@@ -158,7 +158,8 @@
 {% func spanSummaryJson(span spanSummary) %}
 {
 	"spanID":{%q= span.spanID %},
-	"startTimeUnixNano":{%dl= span.startTimeUnixNano %},
+	"startTimeUnixNano":{%q= strconv.FormatInt(span.startTimeUnixNano, 10) %},
+	
 	"durationNanos":{% if span.endTimeUnixNano > 0 && span.startTimeUnixNano > 0 %}{%dl= span.endTimeUnixNano - span.startTimeUnixNano %}{% else %}0{% endif %},
     "attributes":[
         {"key":"service.name","value":{"stringValue":{%q= span.serviceName %}}},
