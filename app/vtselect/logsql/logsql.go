@@ -29,6 +29,7 @@ import (
 	"github.com/valyala/fastjson"
 	"github.com/valyala/quicktemplate"
 
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/tracecommon"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 )
 
@@ -1544,6 +1545,14 @@ func parseCommonArgsExt(r *http.Request, skipMaxQueryTimeRangeCheck bool) (*comm
 		}
 
 		q.AddTimeFilter(start, end)
+	}
+
+	disableLatencyOffset := false
+	if err := getBoolFromRequest(&disableLatencyOffset, r, "disable_latency_offset"); err != nil {
+		return nil, err
+	}
+	if !disableLatencyOffset {
+		q.AddTimeFilter(math.MinInt64, time.Now().Add(-*tracecommon.LatencyOffset).UnixNano())
 	}
 
 	// Initialize startAligned and endAligned
