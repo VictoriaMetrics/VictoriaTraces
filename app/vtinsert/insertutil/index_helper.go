@@ -18,21 +18,30 @@ var (
 		"Each trace ID must wait in the queue for -insert.indexFlushInterval, continuously updating its start and end times before being flushed into the index.")
 )
 
+// indexKey uniquely identifies a trace being buffered for indexing.
+//
+// traceID alone is not enough: different tenants may ingest traces with the same
+// traceID within the same flush window, so the tenantID must be part of the key
+// to avoid mixing up their index entries.
+type indexKey struct {
+	tenantID logstorage.TenantID
+	traceID  [32]byte
+}
+
 type indexEntry struct {
-	tenantID      logstorage.TenantID
 	startTimeNano int64
 	endTimeNano   int64
 }
 
 type indexWorker struct {
-	// traceIDIndexMapCur and traceIDIndexMapPrev holds the index data *indexEntry for each traceID, before they could be persisted.
+	// traceIDIndexMapCur and traceIDIndexMapPrev holds the index data indexEntry for each indexKey, before they could be persisted.
 	// it mainly tracks the start time and end time of a trace, which is keep changing before they're persisted.
 	//
-	// - The cur map can accept new traceID and indexEntry.
+	// - The cur map can accept new indexKey and indexEntry.
 	// - The prev map only serves for fast lookup of existing indexEntry.
 	mu                  sync.Mutex
-	traceIDIndexMapCur  map[[32]byte]indexEntry
-	traceIDIndexMapPrev map[[32]byte]indexEntry
+	traceIDIndexMapCur  map[indexKey]indexEntry
+	traceIDIndexMapPrev map[indexKey]indexEntry
 
 	// logMessageProcessorMap holds lmp for different tenants.
 	logMessageProcessorMap map[logstorage.TenantID]LogMessageProcessor
@@ -63,40 +72,43 @@ func pushIndexToQueue(tenantID logstorage.TenantID, traceID string, startTime, e
 // and put it to the traceIDIndex map.
 // The indexEntry should indicate the real min(startTime) and max(endTime) of a trace, and be flushed to disk later.
 func mustPushIndex(tenantID logstorage.TenantID, traceID string, startTime, endTime int64) {
-	tb := [32]byte{}
-	copy(tb[:], traceID)
+	key := indexKey{
+		tenantID: tenantID,
+		traceID:  [32]byte{},
+	}
+	copy(key.traceID[:], traceID)
 
 	// todo: need a better hashing here
-	worker := workers[int(tb[7]+tb[15]+tb[23]+tb[31])%len(workers)]
+	worker := workers[int(key.traceID[7]+key.traceID[15]+key.traceID[23]+key.traceID[31])%len(workers)]
 
 	worker.mu.Lock()
 	defer worker.mu.Unlock()
 
 	// find the (potential) existing indexEntry in both map.
 	// if found, update the startTime and endTime for this trace.
-	idxEntry, ok := worker.traceIDIndexMapCur[tb]
+	idxEntry, ok := worker.traceIDIndexMapCur[key]
 	if ok {
 		idxEntry.startTimeNano = min(startTime, idxEntry.startTimeNano)
 		idxEntry.endTimeNano = max(endTime, idxEntry.endTimeNano)
-		worker.traceIDIndexMapCur[tb] = idxEntry
+		worker.traceIDIndexMapCur[key] = idxEntry
 		return
 	}
 
-	idxEntry, ok = worker.traceIDIndexMapPrev[tb]
+	idxEntry, ok = worker.traceIDIndexMapPrev[key]
 	if ok {
 		idxEntry.startTimeNano = min(startTime, idxEntry.startTimeNano)
 		idxEntry.endTimeNano = max(endTime, idxEntry.endTimeNano)
-		worker.traceIDIndexMapPrev[tb] = idxEntry
+		worker.traceIDIndexMapPrev[key] = idxEntry
 		return
 	}
 
 	// this trace is new, compose an indexEntry and put it to the current map.
-	idxEntry = indexEntry{}
-	idxEntry.tenantID = tenantID
-	idxEntry.startTimeNano = startTime
-	idxEntry.endTimeNano = endTime
+	idxEntry = indexEntry{
+		startTimeNano: startTime,
+		endTimeNano:   endTime,
+	}
 
-	worker.traceIDIndexMapCur[tb] = idxEntry
+	worker.traceIDIndexMapCur[key] = idxEntry
 }
 
 // MustStartIndexWorker starts a single goroutine indexWorker that reads from traceIDCh and write the index entry to storage.
@@ -106,8 +118,8 @@ func MustStartIndexWorker() {
 	for i := 0; i < n; i++ {
 		workers[i] = &indexWorker{
 			mu:                     sync.Mutex{},
-			traceIDIndexMapCur:     make(map[[32]byte]indexEntry),
-			traceIDIndexMapPrev:    make(map[[32]byte]indexEntry),
+			traceIDIndexMapCur:     make(map[indexKey]indexEntry),
+			traceIDIndexMapPrev:    make(map[indexKey]indexEntry),
 			logMessageProcessorMap: make(map[logstorage.TenantID]LogMessageProcessor),
 		}
 
@@ -151,7 +163,7 @@ func (w *indexWorker) run() {
 			n := len(w.traceIDIndexMapPrev)
 
 			// drop the previous map and create a new one
-			w.traceIDIndexMapPrev = make(map[[32]byte]indexEntry, n)
+			w.traceIDIndexMapPrev = make(map[indexKey]indexEntry, n)
 
 			// swap the previous map and current map
 			w.traceIDIndexMapCur, w.traceIDIndexMapPrev = w.traceIDIndexMapPrev, w.traceIDIndexMapCur
@@ -162,19 +174,19 @@ func (w *indexWorker) run() {
 }
 
 // flushIndexInMap flush the in-memory index to log streams.
-func (w *indexWorker) flushIndexInMap(tb [32]byte, idxEntry indexEntry) bool {
-	lmp, ok := w.logMessageProcessorMap[idxEntry.tenantID]
+func (w *indexWorker) flushIndexInMap(key indexKey, idxEntry indexEntry) bool {
+	lmp, ok := w.logMessageProcessorMap[key.tenantID]
 	if !ok {
 		// init the lmp for the current tenant
 		cp := CommonParams{
-			TenantID:   idxEntry.tenantID,
+			TenantID:   key.tenantID,
 			TimeFields: []string{"_time"},
 		}
 		lmp = cp.NewLogMessageProcessor("internalinsert_index", true)
 
 		// only current goroutine can read/write this map, so mutex is not needed.
 		// consider adding a mutex if index indexWorker is scaled to multi-goroutines.
-		w.logMessageProcessorMap[idxEntry.tenantID] = lmp
+		w.logMessageProcessorMap[key.tenantID] = lmp
 	}
 
 	startTimestamp := idxEntry.startTimeNano
@@ -182,9 +194,9 @@ func (w *indexWorker) flushIndexInMap(tb [32]byte, idxEntry indexEntry) bool {
 	lmp.AddRow(startTimestamp,
 		// fields
 		[]logstorage.Field{
-			{Name: otelpb.TraceIDIndexStreamName, Value: strconv.FormatUint(xxhash.Sum64(tb[:])%otelpb.TraceIDIndexPartitionCount, 10)},
+			{Name: otelpb.TraceIDIndexStreamName, Value: strconv.FormatUint(xxhash.Sum64(key.traceID[:])%otelpb.TraceIDIndexPartitionCount, 10)},
 			{Name: "_msg", Value: "-"},
-			{Name: otelpb.TraceIDIndexFieldName, Value: string(tb[:])},
+			{Name: otelpb.TraceIDIndexFieldName, Value: string(key.traceID[:])},
 			{Name: otelpb.TraceIDIndexStartTimeFieldName, Value: strconv.FormatInt(startTimestamp, 10)},
 			{Name: otelpb.TraceIDIndexEndTimeFieldName, Value: strconv.FormatInt(endTimestamp, 10)},
 			{Name: otelpb.TraceIDIndexDuration, Value: strconv.FormatInt(endTimestamp-startTimestamp, 10)},
