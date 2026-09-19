@@ -1,5 +1,5 @@
-import { FC, useMemo, ComponentType } from "preact/compat";
-import { useNavigate } from "react-router-dom";
+import { FC, useMemo } from "preact/compat";
+import { NavLink, useNavigate } from "react-router-dom";
 import router from "../../router";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
 import { LogoTracesIcon } from "../../components/Main/Icons";
@@ -7,21 +7,19 @@ import { getCssVariable } from "../../utils/theme";
 import "./style.scss";
 import classNames from "classnames";
 import { useAppState } from "../../state/common/StateContext";
-import HeaderNav from "./HeaderNav/HeaderNav";
+import HeaderNav from "./HeaderNav";
 import SidebarHeader from "./SidebarNav/SidebarHeader";
-import HeaderControls, { ControlsProps } from "./HeaderControls/HeaderControls";
+import HeaderControls from "./HeaderControls";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import useWindowSize from "../../hooks/useWindowSize";
 
-export interface HeaderProps {
-  controlsComponent: ComponentType<ControlsProps>
-}
-const Logo = () => <LogoTracesIcon/>;
+const Logo = () => <NavLink to={router.home}><LogoTracesIcon/></NavLink>;
 
-const Header: FC<HeaderProps> = ({ controlsComponent }) => {
+const Header: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const windowSize = useWindowSize();
+  // eslint-disable-next-line @eslint-react/exhaustive-deps -- windowSize is a resize-triggered proxy dependency; window.innerWidth is read directly (not windowSize.width) so the value is correct immediately on first render, before useWindowSize's mount effect populates its state
   const displaySidebar = useMemo(() => window.innerWidth < 1000, [windowSize]);
 
   const { isDarkTheme } = useAppState();
@@ -39,11 +37,16 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
     } = {} } = getAppModeParams();
 
     return { background, color };
-  }, [primaryColor]);
+  }, [primaryColor, appModeEnable]);
 
   const navigate = useNavigate();
 
-  const onClickLogo = () => {
+  const onClickLogo = (e: MouseEvent) => {
+    const { ctrlKey, metaKey } = e;
+    const ctrlMetaKey = ctrlKey || metaKey;
+    if (ctrlMetaKey) return; // open in new tab
+
+    e.preventDefault();
     navigate({ pathname: router.home });
     window.location.reload();
   };
@@ -93,7 +96,6 @@ const Header: FC<HeaderProps> = ({ controlsComponent }) => {
       </div>
     )}
     <HeaderControls
-      controlsComponent={controlsComponent}
       displaySidebar={displaySidebar}
       isMobile={isMobile}
     />

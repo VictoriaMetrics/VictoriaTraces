@@ -1,40 +1,52 @@
-import { FC, useCallback, useEffect, useMemo, useRef, useState, JSX, RefObject } from "preact/compat";
+import { FC, useEffect, useRef, RefObject, ReactNode } from "preact/compat";
 import classNames from "classnames";
-import Popper from "../Popper/Popper";
+import Popper from "../Popper";
 import "./style.scss";
-import { DoneIcon, RefreshIcon } from "../Icons";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
-import useBoolean from "../../../hooks/useBoolean";
-import useEventListener from "../../../hooks/useEventListener";
+import AutocompleteDetailsPanel from "./AutocompleteDetailsPanel";
+import AutocompleteList from "./AutocompleteList";
+import { useAutocompleteOpen } from "./hooks/useAutocompleteOpen";
+import { useAutocompleteKeyboard } from "./hooks/useAutocompleteKeyboard";
+import { useAutocompleteOptions } from "./hooks/useAutocompleteOptions";
+import AutocompleteKeyboardHints from "./AutocompleteKeyboardHints";
+import LineLoader from "../LineLoader";
+import { WarningIcon } from "../Icons";
 
 export interface AutocompleteOptions {
   value: string;
   description?: string;
   type?: string;
-  icon?: JSX.Element
+  group?: string; // Section title used to group options in the list.
+  meta?: string; // Optional secondary text shown on the right side of the option.
+  icon?: ReactNode;
 }
 
 interface AutocompleteProps {
   value: string
   options: AutocompleteOptions[]
   anchor: RefObject<HTMLElement>
-  disabled?: boolean
   minLength?: number
   fullWidth?: boolean
   noOptionsText?: string
   selected?: string[]
   label?: string
   disabledFullScreen?: boolean
-  offset?: {top: number, left: number}
-  maxDisplayResults?: {limit: number, message?: string}
+  offset?: { top: number, left: number }
+  maxDisplayResults?: { limit: number, message?: string }
   loading?: boolean;
+  showKeyboardHints?: boolean;
   onSelect: (val: string, item: AutocompleteOptions) => void
   onOpenAutocomplete?: (val: boolean) => void
   onFoundOptions?: (val: AutocompleteOptions[]) => void
   onChangeWrapperRef?: (elementRef: RefObject<HTMLElement>) => void
 }
 
-enum FocusType {
+export type AutocompleteFocusOption = {
+  index: number,
+  type?: FocusType
+}
+
+export enum FocusType {
   mouse,
   keyboard
 }
@@ -43,7 +55,6 @@ const Autocomplete: FC<AutocompleteProps> = ({
   value,
   options,
   anchor,
-  disabled,
   minLength = 2,
   fullWidth,
   selected,
@@ -53,185 +64,82 @@ const Autocomplete: FC<AutocompleteProps> = ({
   offset,
   maxDisplayResults,
   loading,
+  showKeyboardHints = false,
   onSelect,
   onOpenAutocomplete,
   onFoundOptions,
   onChangeWrapperRef
 }) => {
   const { isMobile } = useDeviceDetect();
-  const wrapperEl = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const [focusOption, setFocusOption] = useState<{index: number, type?: FocusType}>({ index: -1 });
-  const [showMessage, setShowMessage] = useState("");
-  const [totalFound, setTotalFound] = useState(0);
+  const { openAutocomplete, closeAutocomplete } = useAutocompleteOpen({
+    value,
+    minLength,
+    onOpenAutocomplete
+  });
 
-  const {
-    value: openAutocomplete,
-    setValue: setOpenAutocomplete,
-    setFalse: handleCloseAutocomplete,
-  } = useBoolean(false);
+  const { foundOptions, warningMessage } = useAutocompleteOptions({
+    value,
+    options,
+    openAutocomplete,
+    maxDisplayResults,
+    onFoundOptions,
+  });
 
-  const foundOptions = useMemo(() => {
-    if (!openAutocomplete) return [];
-    try {
-      const regexp = new RegExp(String(value.trim()), "i");
-      const found = options.filter((item) => regexp.test(item.value));
-      const sorted = found.sort((a, b) => {
-        if (a.value.toLowerCase() === value.trim().toLowerCase()) return -1;
-        if (b.value.toLowerCase() === value.trim().toLowerCase()) return 1;
-        return (a.value.match(regexp)?.index || 0) - (b.value.match(regexp)?.index || 0);
-      });
-      setTotalFound(sorted.length);
-      setShowMessage(sorted.length > Number(maxDisplayResults?.limit) ? maxDisplayResults?.message || "" : "");
-      return maxDisplayResults?.limit ? sorted.slice(0, maxDisplayResults.limit) : sorted;
-    } catch (e) {
-      return [];
-    }
-  }, [openAutocomplete, options, value]);
+  const { focusOption, setFocusOption } = useAutocompleteKeyboard({
+    options: foundOptions,
+    selected,
+    onSelect,
+    onClose: closeAutocomplete
+  });
 
-  const hideFoundedOptions = useMemo(() => {
-    return foundOptions.length === 1 && foundOptions[0]?.value === value;
-  }, [foundOptions]);
-
-  const displayNoOptionsText = useMemo(() => {
-    return noOptionsText && !foundOptions.length;
-  }, [noOptionsText,foundOptions]);
-
-  const createHandlerSelect = (item: AutocompleteOptions) => () => {
-    if (disabled) return;
-    onSelect(item.value, item);
-    if (!selected) handleCloseAutocomplete();
-  };
-
-  const createHandlerMouseEnter = (index: number) => () => {
-    setFocusOption({ index, type: FocusType.mouse });
-  };
-
-  const handlerMouseLeave = () => {
-    setFocusOption({ index: -1 });
-  };
-
-  const scrollToValue = () => {
-    if (!wrapperEl.current || focusOption.type === FocusType.mouse) return;
-    const target = wrapperEl.current.childNodes[focusOption.index] as HTMLElement;
-    if (target?.scrollIntoView) target.scrollIntoView({ block: "center" });
-  };
-
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    const { key, ctrlKey, metaKey, shiftKey } = e;
-    const modifiers = ctrlKey || metaKey || shiftKey;
-    const hasOptions = foundOptions.length && !hideFoundedOptions;
-
-    if (key === "ArrowUp" && !modifiers && hasOptions) {
-      e.preventDefault();
-      setFocusOption(({ index }) => ({
-        index:  index <= 0 ? 0 : index - 1,
-        type: FocusType.keyboard
-      }));
-    }
-
-    if (key === "ArrowDown" && !modifiers && hasOptions) {
-      e.preventDefault();
-      const lastIndex = foundOptions.length - 1;
-      setFocusOption(({ index }) => ({
-        index: index >= lastIndex ? lastIndex : index + 1,
-        type: FocusType.keyboard
-      }));
-    }
-
-    if (key === "Enter") {
-      const item = foundOptions[focusOption.index];
-      item && onSelect(item.value, item);
-      if (!selected) handleCloseAutocomplete();
-    }
-
-    if (key === "Escape") {
-      handleCloseAutocomplete();
-    }
-  }, [focusOption, foundOptions, hideFoundedOptions, handleCloseAutocomplete, onSelect, selected]);
+  const displayNoOptionsText = Boolean(noOptionsText && !foundOptions.length);
 
   useEffect(() => {
-    setOpenAutocomplete(value.length >= minLength);
-  }, [value, options]);
+    onChangeWrapperRef?.(wrapperRef);
+  }, [onChangeWrapperRef]);
 
-  useEventListener("keydown", handleKeyDown);
-
-  useEffect(scrollToValue, [focusOption, foundOptions]);
-
-  useEffect(() => {
-    setFocusOption({ index: -1 });
-  }, [foundOptions]);
-
-  useEffect(() => {
-    onOpenAutocomplete && onOpenAutocomplete(openAutocomplete);
-  }, [openAutocomplete]);
-
-  useEffect(() => {
-    onFoundOptions && onFoundOptions(hideFoundedOptions ? [] : foundOptions);
-  }, [foundOptions, hideFoundedOptions]);
-
-  useEffect(() => {
-    onChangeWrapperRef && onChangeWrapperRef(wrapperEl);
-  }, [wrapperEl]);
+  if (!loading && !displayNoOptionsText && !foundOptions.length) return null;
 
   return (
     <Popper
       open={openAutocomplete}
       buttonRef={anchor}
       placement="bottom-left"
-      onClose={handleCloseAutocomplete}
+      onClose={closeAutocomplete}
       fullWidth={fullWidth}
       title={isMobile ? label : undefined}
       disabledFullScreen={disabledFullScreen}
       offset={offset}
     >
       <div
+        ref={wrapperRef}
         className={classNames({
           "vm-autocomplete": true,
-          "vm-autocomplete_mobile": isMobile && !disabledFullScreen,
+          "vm-autocomplete_mobile": isMobile,
         })}
-        ref={wrapperEl}
       >
-        {loading && <div className="vm-autocomplete__loader"><RefreshIcon/><span>Loading...</span></div>}
-        {displayNoOptionsText && <div className="vm-autocomplete__no-options">{noOptionsText}</div>}
-        {!hideFoundedOptions && foundOptions.map((option, i) =>
-          <div
-            className={classNames({
-              "vm-list-item": true,
-              "vm-list-item_mobile": isMobile,
-              "vm-list-item_active": i === focusOption.index,
-              "vm-list-item_multiselect": selected,
-              "vm-list-item_multiselect_selected": selected?.includes(option.value),
-              "vm-list-item_with-icon":  option.icon,
-            })}
-            id={`$autocomplete$${option.value}`}
-            key={`${i}${option.value}`}
-            onClick={createHandlerSelect(option)}
-            onMouseEnter={createHandlerMouseEnter(i)}
-            onMouseLeave={handlerMouseLeave}
-          >
-            {selected?.includes(option.value) && <DoneIcon/>}
-            <>{option.icon}</>
-            <span>{option.value}</span>
+        <div className="vm-autocomplete__content">
+          <div className="vm-autocomplete-base-panel">
+            {loading && <LineLoader/>}
+            {displayNoOptionsText && <div className="vm-autocomplete__no-options">{noOptionsText}</div>}
+            <AutocompleteList
+              options={foundOptions}
+              focusOption={focusOption}
+              selectedOptions={selected}
+              onSelect={onSelect}
+              onFocus={setFocusOption}
+              onClose={closeAutocomplete}
+            />
+            {warningMessage && (
+              <div className="vm-autocomplete__warning"><WarningIcon/>{warningMessage}</div>
+            )}
           </div>
-        )}
+          <AutocompleteDetailsPanel option={foundOptions[focusOption.index]}/>
+        </div>
+        {showKeyboardHints && !!foundOptions.length && <AutocompleteKeyboardHints/>}
       </div>
-      {showMessage && (
-        <div className="vm-autocomplete-message">
-          Shown {maxDisplayResults?.limit} results out of {totalFound}. {showMessage}
-        </div>
-      )}
-      {foundOptions[focusOption.index]?.description && (
-        <div className="vm-autocomplete-info">
-          <div className="vm-autocomplete-info__type">
-            {foundOptions[focusOption.index].type}
-          </div>
-          <div
-            className="vm-autocomplete-info__description"
-            dangerouslySetInnerHTML={{ __html: foundOptions[focusOption.index].description || "" }}
-          />
-        </div>
-      )}
     </Popper>
   );
 };
