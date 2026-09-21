@@ -5,8 +5,13 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
+	"strings"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/cespare/xxhash/v2"
 )
 
@@ -55,4 +60,39 @@ func TestStreamRowsTracker(t *testing.T) {
 	streamsCount = 1000
 	nodesCount = 9
 	f(rowsCount, streamsCount, nodesCount)
+}
+
+// TestDoRequestUsesPost checks that the requests to vtstorage go out as POST, with and without
+// a request body. vtstorage rejects every other method at the /internal/* endpoints.
+//
+// See https://github.com/VictoriaMetrics/VictoriaTraces/issues/225
+func TestDoRequestUsesPost(t *testing.T) {
+	var gotMethods []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethods = append(gotMethods, r.Method)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	ac, err := (&promauth.Options{}).NewConfig()
+	if err != nil {
+		t.Fatalf("cannot create auth config: %s", err)
+	}
+	addr := strings.TrimPrefix(server.URL, "http://")
+	s := NewStorage([]string{addr}, []*promauth.Config{ac}, []bool{false}, 1, true)
+	defer s.MustStop()
+
+	sn := s.sns[0]
+	// /internal/force_flush carries no body, and it used to go out as GET.
+	if err := sn.doRequest("/internal/force_flush", nil); err != nil {
+		t.Fatalf("cannot send the bodyless request: %s", err)
+	}
+	if err := sn.doRequest("/internal/insert", strings.NewReader("foobar")); err != nil {
+		t.Fatalf("cannot send the request with a body: %s", err)
+	}
+
+	want := []string{http.MethodPost, http.MethodPost}
+	if !reflect.DeepEqual(gotMethods, want) {
+		t.Fatalf("unexpected request methods; got %q; want %q", gotMethods, want)
+	}
 }
