@@ -33,6 +33,11 @@ var maxConcurrentRequests = flag.Int("internalselect.maxConcurrentRequests", 8, 
 
 // RequestHandler processes requests to /internal/select/*
 func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
 	startTime := time.Now()
 
 	select {
@@ -355,19 +360,6 @@ func processStreamIDsRequest(ctx context.Context, w http.ResponseWriter, r *http
 }
 
 func processDeleteRunTask(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	// This endpoint removes spans, so it must not be reachable via GET.
-	// vtselect always sends POST here, so this rejects nothing legitimate.
-	// The response is written here, since requestHandler turns every returned error into 502.
-	// See https://github.com/VictoriaMetrics/VictoriaTraces/issues/225
-	if r.Method != http.MethodPost {
-		err := &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("only POST method is allowed for %s; got %s", r.URL.Path, r.Method),
-			StatusCode: http.StatusMethodNotAllowed,
-		}
-		httpserver.Errorf(w, r, "%s", err)
-		return nil
-	}
-
 	if err := checkProtocolVersion(r, netselect.DeleteRunTaskProtocolVersion); err != nil {
 		return err
 	}

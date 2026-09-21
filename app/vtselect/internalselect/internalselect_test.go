@@ -9,38 +9,46 @@ import (
 	"testing"
 )
 
-// TestRequestHandlerDeleteRunTask_MethodNotAllowed checks that the endpoint which removes
-// spans answers 405 to every method except POST.
+// TestRequestHandlerRequiresPOST checks that the /internal/select/* and /internal/delete/*
+// endpoints answer 405 to every method except POST.
 //
 // See https://github.com/VictoriaMetrics/VictoriaTraces/issues/225
-func TestRequestHandlerDeleteRunTask_MethodNotAllowed(t *testing.T) {
+func TestRequestHandlerRequiresPOST(t *testing.T) {
 	Init()
 	defer Stop()
 
-	f := func(method string) {
+	f := func(method, path string) {
 		t.Helper()
 
-		r := httptest.NewRequest(method, "/internal/delete/run_task?filter=*", nil)
+		r := httptest.NewRequest(method, path, nil)
 		w := httptest.NewRecorder()
 		RequestHandler(context.Background(), w, r)
 
 		if w.Code != http.StatusMethodNotAllowed {
-			t.Fatalf("unexpected status code for %s request; got %d; want %d; response: %q",
-				method, w.Code, http.StatusMethodNotAllowed, w.Body.String())
+			t.Fatalf("unexpected status code for %s %s; got %d; want %d; response: %q",
+				method, path, w.Code, http.StatusMethodNotAllowed, w.Body.String())
 		}
 	}
 
-	f(http.MethodGet)
-	f(http.MethodHead)
-	f(http.MethodPut)
-	f(http.MethodDelete)
+	paths := []string{
+		"/internal/select/query",
+		"/internal/select/field_names",
+		"/internal/delete/run_task?filter=*",
+	}
+	for _, path := range paths {
+		f(http.MethodGet, path)
+		f(http.MethodHead, path)
+		f(http.MethodPut, path)
+		f(http.MethodDelete, path)
+		f(http.MethodPatch, path)
+	}
 }
 
-// TestRequestHandlerDeleteRunTask_PostPassesTheMethodCheck checks that a POST request
-// reaches the args parsing, so the method check above rejects nothing which vtselect sends.
+// TestRequestHandlerPostPassesTheMethodCheck checks that a POST request reaches the args
+// parsing, so the method check above rejects nothing which vtselect sends.
 //
 // vtselect always sends POST here, see getResponseBodyForPathAndArgs in app/vtstorage/netselect.
-func TestRequestHandlerDeleteRunTask_PostPassesTheMethodCheck(t *testing.T) {
+func TestRequestHandlerPostPassesTheMethodCheck(t *testing.T) {
 	Init()
 	defer Stop()
 

@@ -262,10 +262,8 @@ func (sn *storageNode) doRequest(path string, body io.Reader) error {
 	ctx, cancel := contextutil.NewStopChanContext(sn.s.stopCh)
 	defer cancel()
 
-	method := "GET"
-	if body != nil {
-		method = "POST"
-	}
+	// All the internal endpoints require the POST method.
+	method := "POST"
 
 	reqURL := sn.getRequestURL(path)
 	req, err := http.NewRequestWithContext(ctx, method, reqURL, body)

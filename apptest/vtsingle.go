@@ -91,7 +91,7 @@ func StartVtsingle(instance string, flags []string, cli *Client) (*Vtsingle, err
 func (app *Vtsingle) ForceFlush(t *testing.T) {
 	t.Helper()
 
-	_, statusCode := app.cli.Get(t, app.forceFlushURL)
+	_, statusCode := app.cli.Post(t, app.forceFlushURL, "", nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}
@@ -101,7 +101,7 @@ func (app *Vtsingle) ForceFlush(t *testing.T) {
 func (app *Vtsingle) ForceMerge(t *testing.T) {
 	t.Helper()
 
-	_, statusCode := app.cli.Get(t, app.forceMergeURL)
+	_, statusCode := app.cli.Post(t, app.forceMergeURL, "", nil)
 	if statusCode != http.StatusOK {
 		t.Fatalf("unexpected status code: got %d, want %d", statusCode, http.StatusOK)
 	}

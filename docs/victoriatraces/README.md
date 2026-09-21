@@ -293,7 +293,7 @@ at April 18, 2025 UTC. This allows flexible data management.
 
 For example, old per-day data is automatically and quickly deleted according to the provided [retention policy](#retention) by removing the corresponding per-day subdirectory (partition).
 
-VictoriaTraces supports dynamic attach and detach of per-day partitions, by using the following HTTP API endpoints:
+VictoriaTraces supports dynamic attach and detach of per-day partitions, by using the following HTTP API endpoints. All of them must be called with the `POST` method:
 
 - `/internal/partition/attach?name=YYYYMMDD` - attaches the partition directory with the given name `YYYYMMDD` to VictoriaTraces,
   so it becomes visible for querying and can be used for data ingestion.

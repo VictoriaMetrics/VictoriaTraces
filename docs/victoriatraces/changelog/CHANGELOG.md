@@ -12,6 +12,11 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+**Update note:** the `/internal/force_flush`, `/internal/force_merge`, `/internal/log_new_streams` and `/internal/partition/*` HTTP endpoints now require the `POST` method. Update any scripts or automation which call these endpoints via `GET`. An unknown `/internal/*` path with a non-POST method now returns `405` instead of `404`.
+
+* SECURITY: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): accept only `POST` requests at the `/delete/run_task` endpoint. This endpoint removes spans, and a `GET` request needs no body, so a [server-side request forgery](https://en.wikipedia.org/wiki/Server-side_request_forgery) on any host with access to VictoriaTraces could destroy the stored spans with a plain URL fetch. See [#225](https://github.com/VictoriaMetrics/VictoriaTraces/issues/225).
+* SECURITY: require the `POST` method for all the `/internal/*` HTTP endpoints in order to prevent GET-based [SSRF](https://en.wikipedia.org/wiki/Server-side_request_forgery) attacks. See the related [#225](https://github.com/VictoriaMetrics/VictoriaTraces/issues/225).
+
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return `startTimeUnixNano` as a JSON string in the Tempo `/api/search` response. Previously it was a JSON number, which broke clients that decode the field as a string. Thank @clain23 for [the pull request #256](https://github.com/VictoriaMetrics/VictoriaTraces/pull/256).
 
 ## [v0.11.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.11.1)
@@ -22,7 +27,6 @@ Released at 2026-09-16
 
 * FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.51.0 to v1.52.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.51.0...v1.52.0).
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): properly handle HTTP/2 handshake requests (`PRI *`) from clients such as the Grafana Tempo datasource to eliminate unnecessary warning logs.
-* SECURITY: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): accept only `POST` requests at `/delete/run_task` and `/internal/delete/run_task`. These endpoints remove spans, and a `GET` request needs no body, so a server-side request forgery on any host with access to VictoriaTraces could destroy the stored spans with a plain URL fetch. Other HTTP methods now return `405 Method Not Allowed`. See [this issue #225](https://github.com/VictoriaMetrics/VictoriaTraces/issues/225).
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtstorage in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): create index correctly for different tenants when they receive trace with the same `trace_id` at the same flush period. Thank @MuNeNiCK for [the bug report #255](https://github.com/VictoriaMetrics/VictoriaTraces/issues/255).
 
