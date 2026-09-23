@@ -319,7 +319,7 @@ See also [hidden fields](https://docs.victoriametrics.com/victorialogs/querying/
 
 ## Search Latency
 
-Most query APIs have a latency of `-search.latencyOffset` (default `30s`). This lets VictoriaTraces wait for complete traces and build trace index entries. 
+Most query APIs apply a search latency offset of `30s` by default, configured via `-search.latencyOffset`. This lets VictoriaTraces wait for complete traces and build trace index entries.
 
 It is unavoidable for Jaeger and Tempo APIs, but can be omitted for LogsQL APIs if you want to explore raw data sooner by adding the `disable_latency_offset=true` query argument. 
 
