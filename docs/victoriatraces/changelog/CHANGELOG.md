@@ -20,6 +20,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 * FEATURE: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): apply the latency offset (`-search.latencyOffset`, default `30s`) to most of the LogsQL APIs except the live-tailing API. Previously, only the Jaeger and Tempo APIs had this latency offset. The latency offset for LogsQL APIs can be disabled via the `disable_latency_offset=true` query argument.
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return `startTimeUnixNano` as a JSON string in the Tempo `/api/search` response. Previously it was a JSON number, which broke clients that decode the field as a string. Thank @clain23 for [the pull request #256](https://github.com/VictoriaMetrics/VictoriaTraces/pull/256).
+* BUGFIX: vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): apply `-search.allowPartialResponse` for Tempo and Jaeger query APIs. Previously the flag affected only LogsQL query handlers, so Tempo and Jaeger requests still failed when a queried `vtstorage` node was unavailable. See [this issue #157](https://github.com/VictoriaMetrics/VictoriaTraces/issues/157).
 
 ## [v0.11.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.11.1)
 
