@@ -316,3 +316,11 @@ http://<victoria-traces>:10428/select/jaeger?hidden_fields_filters=resource_attr
 This will hide resource attribute `telemetry.sdk.name` in the Jaeger APIs.
 
 See also [hidden fields](https://docs.victoriametrics.com/victorialogs/querying/#hidden-fields) in VictoriaLogs for more examples and restrictions.
+
+## Search Latency
+
+Most query APIs apply a search latency offset of `30s` by default, configured via `-search.latencyOffset`. This lets VictoriaTraces wait for complete traces and build trace index entries.
+
+It is unavoidable for Jaeger and Tempo APIs, but can be omitted for LogsQL APIs if you want to explore raw data sooner by adding the `disable_latency_offset=true` query argument. 
+
+The only exception is the live-tailing API, which has no search latency by default and also accepts the `disable_latency_offset=false` query argument if needed.
