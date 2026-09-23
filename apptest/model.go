@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/query"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
@@ -73,6 +74,12 @@ type JaegerQuerier interface {
 	JaegerAPITraces(t *testing.T, params JaegerQueryParam, opts QueryOpts) *JaegerAPITracesResponse
 	JaegerAPITrace(t *testing.T, traceID string, opts QueryOpts) *JaegerAPITraceResponse
 	JaegerAPIDependencies(t *testing.T, params JaegerDependenciesParam, opts QueryOpts) *JaegerAPIDependenciesResponse
+
+	JaegerAPIV3Services(t *testing.T, opts QueryOpts) *JaegerAPIV3ServicesResponse
+	JaegerAPIV3Operations(t *testing.T, serviceName string, opts QueryOpts) *JaegerAPIV3OperationsResponse
+	JaegerAPIV3Traces(t *testing.T, params JaegerV3QueryParam, opts QueryOpts) *JaegerAPIV3TracesResponse
+	JaegerAPIV3Trace(t *testing.T, traceID string, opts QueryOpts) *JaegerAPIV3TracesResponse
+	JaegerAPIV3TraceSummaries(t *testing.T, params JaegerV3QueryParam, opts QueryOpts) *JaegerAPIV3TraceSummariesResponse
 }
 
 type LogsQLQuerier interface {
@@ -363,5 +370,222 @@ func NewLogsQLQueryResponse(t *testing.T, s string) *LogsQLQueryResponse {
 		res.LogLines = append(res.LogLines, string(normalizedLine))
 	}
 
+	return res
+}
+
+// JaegerV3QueryParam is a helper structure for building the query args of the
+// Jaeger /api/v3/traces API.
+type JaegerV3QueryParam struct {
+	ServiceName   string
+	OperationName string
+	Attributes    map[string]string
+	DurationMin   time.Duration
+	DurationMax   time.Duration
+	StartTimeMin  time.Time
+	StartTimeMax  time.Time
+	SearchDepth   int
+}
+
+// asURLValues adds non-empty Jaeger v3 query params as URL values.
+//
+// Unlike the v1 API, the time range is passed as RFC3339 timestamps.
+func (jqp *JaegerV3QueryParam) asURLValues() url.Values {
+	uv := make(url.Values)
+	if len(jqp.ServiceName) > 0 {
+		uv.Add("query.serviceName", jqp.ServiceName)
+	}
+	if len(jqp.OperationName) > 0 {
+		uv.Add("query.operationName", jqp.OperationName)
+	}
+	if len(jqp.Attributes) > 0 {
+		b, _ := json.Marshal(jqp.Attributes)
+		uv.Add("query.attributes", string(b))
+	}
+	if jqp.DurationMin > 0 {
+		uv.Add("query.durationMin", jqp.DurationMin.String())
+	}
+	if jqp.DurationMax > 0 {
+		uv.Add("query.durationMax", jqp.DurationMax.String())
+	}
+	if !jqp.StartTimeMin.IsZero() {
+		uv.Add("query.startTimeMin", jqp.StartTimeMin.Format(time.RFC3339Nano))
+	}
+	if !jqp.StartTimeMax.IsZero() {
+		uv.Add("query.startTimeMax", jqp.StartTimeMax.Format(time.RFC3339Nano))
+	}
+	if jqp.SearchDepth > 0 {
+		uv.Add("query.searchDepth", strconv.Itoa(jqp.SearchDepth))
+	}
+	return uv
+}
+
+// JaegerAPIV3ServicesResponse is an in-memory representation of the
+// /select/jaeger/api/v3/services response.
+type JaegerAPIV3ServicesResponse struct {
+	Services []string `json:"services"`
+}
+
+// JaegerAPIV3OperationsResponse is an in-memory representation of the
+// /select/jaeger/api/v3/operations response.
+type JaegerAPIV3OperationsResponse struct {
+	Operations []JaegerV3Operation `json:"operations"`
+}
+
+// JaegerV3Operation is a single entry of the /api/v3/operations response.
+type JaegerV3Operation struct {
+	Name     string `json:"name"`
+	SpanKind string `json:"spanKind"`
+}
+
+// JaegerAPIV3TracesResponse is an in-memory representation of the
+// /select/jaeger/api/v3/traces and /select/jaeger/api/v3/traces/<trace_id> responses.
+//
+// The types below mirror OTLP/JSON instead of reusing the otelpb structs, so that the test
+// verifies the encoding written by the API rather than sharing it.
+type JaegerAPIV3TracesResponse struct {
+	Result JaegerV3TracesData `json:"result"`
+	Error  *JaegerV3Error     `json:"error"`
+}
+
+// JaegerV3Error is the error shape returned by the Jaeger v3 API.
+type JaegerV3Error struct {
+	HTTPCode int    `json:"httpCode"`
+	Message  string `json:"message"`
+}
+
+// JaegerV3TracesData is the OTLP TracesData message.
+type JaegerV3TracesData struct {
+	ResourceSpans []JaegerV3ResourceSpans `json:"resourceSpans"`
+}
+
+// JaegerV3ResourceSpans is the OTLP ResourceSpans message.
+type JaegerV3ResourceSpans struct {
+	Resource   JaegerV3Resource     `json:"resource"`
+	ScopeSpans []JaegerV3ScopeSpans `json:"scopeSpans"`
+}
+
+// JaegerV3Resource is the OTLP Resource message.
+type JaegerV3Resource struct {
+	Attributes []JaegerV3KeyValue `json:"attributes"`
+}
+
+// JaegerV3ScopeSpans is the OTLP ScopeSpans message.
+type JaegerV3ScopeSpans struct {
+	Scope JaegerV3Scope  `json:"scope"`
+	Spans []JaegerV3Span `json:"spans"`
+}
+
+// JaegerV3Scope is the OTLP InstrumentationScope message.
+type JaegerV3Scope struct {
+	Name       string             `json:"name"`
+	Version    string             `json:"version"`
+	Attributes []JaegerV3KeyValue `json:"attributes"`
+}
+
+// JaegerV3Span is the OTLP Span message.
+type JaegerV3Span struct {
+	TraceID           string             `json:"traceId"`
+	SpanID            string             `json:"spanId"`
+	TraceState        string             `json:"traceState"`
+	ParentSpanID      string             `json:"parentSpanId"`
+	Flags             uint32             `json:"flags"`
+	Name              string             `json:"name"`
+	Kind              int                `json:"kind"`
+	StartTimeUnixNano string             `json:"startTimeUnixNano"`
+	EndTimeUnixNano   string             `json:"endTimeUnixNano"`
+	Attributes        []JaegerV3KeyValue `json:"attributes"`
+	Status            JaegerV3Status     `json:"status"`
+}
+
+// JaegerV3Status is the OTLP Status message.
+type JaegerV3Status struct {
+	Message string `json:"message"`
+	Code    int    `json:"code"`
+}
+
+// JaegerV3KeyValue is the OTLP KeyValue message.
+type JaegerV3KeyValue struct {
+	Key   string           `json:"key"`
+	Value JaegerV3AnyValue `json:"value"`
+}
+
+// JaegerV3AnyValue is the OTLP AnyValue message.
+//
+// Only the string case is covered, since every attribute is stored as a string.
+type JaegerV3AnyValue struct {
+	StringValue string `json:"stringValue"`
+}
+
+// NewJaegerAPIV3ServicesResponse is a test helper function that creates a new
+// instance of JaegerAPIV3ServicesResponse by unmarshalling a json string.
+func NewJaegerAPIV3ServicesResponse(t *testing.T, s string) *JaegerAPIV3ServicesResponse {
+	t.Helper()
+
+	res := &JaegerAPIV3ServicesResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", s, err)
+	}
+	return res
+}
+
+// NewJaegerAPIV3OperationsResponse is a test helper function that creates a new
+// instance of JaegerAPIV3OperationsResponse by unmarshalling a json string.
+func NewJaegerAPIV3OperationsResponse(t *testing.T, s string) *JaegerAPIV3OperationsResponse {
+	t.Helper()
+
+	res := &JaegerAPIV3OperationsResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", s, err)
+	}
+	return res
+}
+
+// NewJaegerAPIV3TracesResponse is a test helper function that creates a new
+// instance of JaegerAPIV3TracesResponse by unmarshalling a json string.
+func NewJaegerAPIV3TracesResponse(t *testing.T, s string) *JaegerAPIV3TracesResponse {
+	t.Helper()
+
+	res := &JaegerAPIV3TracesResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", s, err)
+	}
+	return res
+}
+
+// JaegerAPIV3TraceSummariesResponse is an in-memory representation of the
+// /select/jaeger/api/v3/trace-summaries response.
+type JaegerAPIV3TraceSummariesResponse struct {
+	Summaries []JaegerV3TraceSummary `json:"summaries"`
+}
+
+// JaegerV3TraceSummary is a single entry of the /api/v3/trace-summaries response.
+type JaegerV3TraceSummary struct {
+	TraceID              string                   `json:"traceId"`
+	RootServiceName      string                   `json:"rootServiceName"`
+	RootOperationName    string                   `json:"rootOperationName"`
+	MinStartTimeUnixNano string                   `json:"minStartTimeUnixNano"`
+	MaxEndTimeUnixNano   string                   `json:"maxEndTimeUnixNano"`
+	SpanCount            int                      `json:"spanCount"`
+	ErrorSpanCount       int                      `json:"errorSpanCount"`
+	OrphanSpanCount      int                      `json:"orphanSpanCount"`
+	Services             []JaegerV3ServiceSummary `json:"services"`
+}
+
+// JaegerV3ServiceSummary holds the span counts of a single service within a trace.
+type JaegerV3ServiceSummary struct {
+	Name           string `json:"name"`
+	SpanCount      int    `json:"spanCount"`
+	ErrorSpanCount int    `json:"errorSpanCount"`
+}
+
+// NewJaegerAPIV3TraceSummariesResponse is a test helper function that creates a new
+// instance of JaegerAPIV3TraceSummariesResponse by unmarshalling a json string.
+func NewJaegerAPIV3TraceSummariesResponse(t *testing.T, s string) *JaegerAPIV3TraceSummariesResponse {
+	t.Helper()
+
+	res := &JaegerAPIV3TraceSummariesResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", s, err)
+	}
 	return res
 }
