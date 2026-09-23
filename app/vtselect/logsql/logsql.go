@@ -668,7 +668,10 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 	liveTailRequests.Inc()
 	defer liveTailRequests.Dec()
 
-	ca, err := parseCommonArgsExt(r, true)
+	// Live tailing only serves newly ingested logs, so the latency offset
+	// (which hides recently-ingested data) is disabled here by default.
+	// Users can still opt back in via disable_latency_offset=false.
+	ca, err := parseCommonArgsExt(r, true, true)
 	if err != nil {
 		httpserver.Errorf(w, r, "%s", err)
 		return
@@ -1457,7 +1460,7 @@ func (ca *commonArgs) updatePerQueryStatsMetrics() {
 }
 
 func parseCommonArgs(r *http.Request) (*commonArgs, error) {
-	return parseCommonArgsExt(r, false)
+	return parseCommonArgsExt(r, false, false)
 }
 
 // parseCommonArgsExt parses commonArgs from r.
@@ -1465,7 +1468,10 @@ func parseCommonArgs(r *http.Request) (*commonArgs, error) {
 // If skipMaxQueryTimeRangeCheck is set, then the query time range isn't limited by -search.maxQueryTimeRange.
 // This is used by live tailing, since it processes only newly ingested logs
 // and doesn't scan historical data even if the query contains a wide time filter.
-func parseCommonArgsExt(r *http.Request, skipMaxQueryTimeRangeCheck bool) (*commonArgs, error) {
+//
+// defaultDisableLatencyOffset is used as the default value for the disable_latency_offset query arg
+// when it isn't set explicitly by the caller. It's required as true mostly for live-tailing API.
+func parseCommonArgsExt(r *http.Request, skipMaxQueryTimeRangeCheck, defaultDisableLatencyOffset bool) (*commonArgs, error) {
 	// Extract tenantID
 	tenantID, err := logstorage.GetTenantIDFromRequest(r)
 	if err != nil {
@@ -1547,7 +1553,7 @@ func parseCommonArgsExt(r *http.Request, skipMaxQueryTimeRangeCheck bool) (*comm
 		q.AddTimeFilter(start, end)
 	}
 
-	disableLatencyOffset := false
+	disableLatencyOffset := defaultDisableLatencyOffset
 	if err := getBoolFromRequest(&disableLatencyOffset, r, "disable_latency_offset"); err != nil {
 		return nil, err
 	}
