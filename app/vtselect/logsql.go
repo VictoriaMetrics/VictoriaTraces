@@ -174,14 +174,6 @@ func deleteHandler(w http.ResponseWriter, r *http.Request, path string) {
 	switch path {
 	case "/delete/run_task":
 		deleteRunTaskRequests.Inc()
-		// This endpoint removes spans, so it must not be reachable via GET.
-		// Otherwise a server-side request forgery on any host with access to vtselect
-		// can destroy the stored spans with a plain URL fetch.
-		// See https://github.com/VictoriaMetrics/VictoriaTraces/issues/225
-		if r.Method != http.MethodPost {
-			http.Error(w, fmt.Sprintf("Only POST method is allowed for %s. Got %s.", path, r.Method), http.StatusMethodNotAllowed)
-			return
-		}
 		processDeleteRunTaskRequest(ctx, w, r)
 	case "/delete/stop_task":
 		deleteStopTaskRequests.Inc()
@@ -195,6 +187,11 @@ func deleteHandler(w http.ResponseWriter, r *http.Request, path string) {
 }
 
 func processDeleteRunTaskRequest(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, fmt.Sprintf("Only POST method is allowed; got %s.", r.Method), http.StatusMethodNotAllowed)
+		return
+	}
+
 	tenantID, err := logstorage.GetTenantIDFromRequest(r)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain tenantID: %s", err)
