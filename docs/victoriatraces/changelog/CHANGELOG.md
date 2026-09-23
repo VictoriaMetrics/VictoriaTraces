@@ -12,6 +12,11 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+**Update note:** the `/internal/force_merge`, `/internal/force_flush`, `/internal/log_new_streams` and `/internal/partition/*` HTTP endpoints now require the `POST` method. Update any scripts or automation calling these endpoints via `GET` to use `POST`.
+
+* SECURITY: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): restrict the `/delete/run_task` endpoint to the `POST` method only in order to prevent some [SSRF](https://en.wikipedia.org/wiki/Server-side_request_forgery)-based log deletion attacks. See [this issue #225](https://github.com/VictoriaMetrics/VictoriaTraces/issues/225). Thank @Vandit1604 for [the pull request #236](https://github.com/VictoriaMetrics/VictoriaTraces/pull/236).
+* SECURITY: require the `POST` method for the `/internal/force_merge`, `/internal/force_flush`, `/internal/log_new_streams` and `/internal/partition/*` HTTP endpoints in order to prevent GET-based [SSRF](https://en.wikipedia.org/wiki/Server-side_request_forgery) attacks. See [this issue #225](https://github.com/VictoriaMetrics/VictoriaTraces/issues/225). Thank @Vandit1604 for [the pull request #236](https://github.com/VictoriaMetrics/VictoriaTraces/pull/236).
+
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return `startTimeUnixNano` as a JSON string in the Tempo `/api/search` response. Previously it was a JSON number, which broke clients that decode the field as a string. Thank @clain23 for [the pull request #256](https://github.com/VictoriaMetrics/VictoriaTraces/pull/256).
 
 ## [v0.11.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.11.1)

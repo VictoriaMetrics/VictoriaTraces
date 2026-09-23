@@ -31,7 +31,7 @@ var (
 	TraceMaxTags = flag.Int("search.maxTags", 1000, "The maximum number of tags (including service name, span name) that can be returned in a single search request. "+
 		"This limit applies to Jaeger’s /api/services, /api/services/*/operations APIs, and various Tempo tag-related APIs.")
 
-	LatencyOffset = flag.Duration("search.latencyOffset", 30*time.Second, "The time when a trace become visible in query results after the collection. see -insert.traceMaxDuration as well. (default 30s)")
+	LatencyOffset = flag.Duration("search.latencyOffset", 30*time.Second, "The time when a trace become visible in query results after the collection. see -insert.indexFlushInterval as well.")
 
 	// deprecated flags. preserve here for backward compatibility. should be removed in future version.
 	_ = flag.Uint64("search.traceMaxServiceNameList", 1000, "Deprecated, see -search.maxTags.")
