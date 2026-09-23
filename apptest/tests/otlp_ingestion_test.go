@@ -36,7 +36,7 @@ func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQue
 	// ingest data via /insert/opentelemetry/v1/traces
 	sut.OTLPHTTPExportTraces(t, req, at.QueryOpts{})
 	sut.ForceFlush(t)
-	time.Sleep(2 * time.Second) // index will be created after -insert.traceMaxDuration (2s in integration test)
+	time.Sleep(2 * time.Second) // index will be created after -insert.indexFlushInterval (2s in integration test)
 
 	// verify
 	assertFunc()
@@ -64,7 +64,7 @@ func testOTLPgRPCIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWrit
 	// ingest data via /insert/opentelemetry/v1/traces
 	sut.OTLPgRPCExportTraces(t, req, at.QueryOpts{})
 	sut.ForceFlush(t)
-	time.Sleep(2 * time.Second) // index will be created after -insert.traceMaxDuration (2s in integration test)
+	time.Sleep(2 * time.Second) // index will be created after -insert.indexFlushInterval (2s in integration test)
 
 	// verify
 	assertFunc()

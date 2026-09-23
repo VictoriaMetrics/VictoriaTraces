@@ -60,7 +60,7 @@ func TestSingleDeleteRunTaskRequiresPost(t *testing.T) {
 	}
 	sut.OTLPHTTPExportTraces(t, req, at.QueryOpts{})
 	sut.ForceFlush(t)
-	time.Sleep(2 * time.Second) // index will be created after -insert.traceMaxDuration (2s in integration test)
+	time.Sleep(2 * time.Second) // index will be created after -insert.indexFlushInterval (2s in integration test)
 
 	tc.Assert(&at.AssertOptions{
 		Msg: "the span was not ingested, so the delete checks below would prove nothing",

@@ -45,7 +45,7 @@ func testOTLPIngestion(tc *at.TestCase, vtagent at.OTLPTracesWriter, vtsingles [
 
 	// ingest data via /insert/opentelemetry/v1/traces
 	vtagent.OTLPHTTPExportTraces(t, req, at.QueryOpts{})
-	time.Sleep(3 * time.Second) // index will be created after -insert.traceMaxDuration (2s in integration test)
+	time.Sleep(3 * time.Second) // index will be created after -insert.indexFlushInterval (2s in integration test)
 
 	// verify
 	qFunc()
