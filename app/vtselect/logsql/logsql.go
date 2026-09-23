@@ -3,7 +3,6 @@ package logsql
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"math"
@@ -29,6 +28,7 @@ import (
 	"github.com/valyala/fastjson"
 	"github.com/valyala/quicktemplate"
 
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/searchutil"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/tracecommon"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 )
@@ -36,10 +36,6 @@ import (
 var (
 	maxQueryTimeRange = flagutil.NewExtendedDuration("search.maxQueryTimeRange", "0", "The maximum time range, which can be set in the query sent to querying APIs. "+
 		"Queries with bigger time ranges are rejected. See https://docs.victoriametrics.com/victorialogs/querying/#resource-usage-limits")
-
-	allowPartialResponseFlag = flag.Bool("search.allowPartialResponse", false, "Whether to allow returning partial responses when some of vtstorage nodes "+
-		"from the -storageNode list are unavailable for querying. This flag works only for cluster setup of VictoriaLogs. "+
-		"See https://docs.victoriametrics.com/victorialogs/querying/#partial-responses")
 
 	maxQueryLen = flagutil.NewBytes("search.maxQueryLen", 16*1024, "The maximum query length in bytes, which can be passed to /select/* endpoints")
 )
@@ -1601,8 +1597,8 @@ func parseCommonArgsExt(r *http.Request, skipMaxQueryTimeRangeCheck, defaultDisa
 		}
 	}
 
-	allowPartialResponse := *allowPartialResponseFlag
-	if err := getBoolFromRequest(&allowPartialResponse, r, "allow_partial_response"); err != nil {
+	allowPartialResponse, err := searchutil.GetAllowPartialResponse(r)
+	if err != nil {
 		return nil, err
 	}
 

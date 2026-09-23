@@ -286,7 +286,7 @@ Here's a response example:
 
 ## Hidden fields
 
-All the [querying APIs at VictoriaTraces](https://docs.victoriametrics.com/victorialogs/querying/#http-api) accept optional `hidden_fields_filters` query arg,
+All the [querying APIs at VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/querying/#http-api) accept optional `hidden_fields_filters` query arg,
 which can be used for hiding the specific [attributes](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model), also known as the [fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#other-fields) in VictoriaLogs/VictoriaTraces data model, during query execution.
 These attributes become invisible during query execution.
 
@@ -316,6 +316,20 @@ http://<victoria-traces>:10428/select/jaeger?hidden_fields_filters=resource_attr
 This will hide resource attribute `telemetry.sdk.name` in the Jaeger APIs.
 
 See also [hidden fields](https://docs.victoriametrics.com/victorialogs/querying/#hidden-fields) in VictoriaLogs for more examples and restrictions.
+
+## Partial responses
+
+[VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/) returns `502 Bad Gateway` response if some of the configured `vtstorage` nodes are unavailable.
+This guarantees consistent query responses. There are practical cases where it is preferred to return partial responses (which may be inconsistent) if some of `vtstorage` nodes
+are unavailable in the cluster. This can be done by the following ways:
+
+- To pass `-search.allowPartialResponse` command-line flag to `vtselect`.
+- To pass `allow_partial_response=1` query arg to [HTTP querying APIs](https://docs.victoriametrics.com/victoriatraces/querying/#http-api).
+  This option overrides the `-search.allowPartialResponse` command-line flag.
+- To pass `allow_partial_response` option to the query on LogsQL APIs according to [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#query-options).
+  This option overrides the `allow_partial_response=1` query arg.
+
+See [high availability docs for VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/#high-availability) for more details.
 
 ## Search Latency
 
