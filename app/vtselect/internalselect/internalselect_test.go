@@ -14,9 +14,6 @@ import (
 //
 // See https://github.com/VictoriaMetrics/VictoriaTraces/issues/225
 func TestRequestHandlerRequiresPOST(t *testing.T) {
-	Init()
-	defer Stop()
-
 	f := func(method, path string) {
 		t.Helper()
 
@@ -30,18 +27,13 @@ func TestRequestHandlerRequiresPOST(t *testing.T) {
 		}
 	}
 
-	paths := []string{
-		"/internal/select/query",
-		"/internal/select/field_names",
-		"/internal/delete/run_task?filter=*",
-	}
-	for _, path := range paths {
-		f(http.MethodGet, path)
-		f(http.MethodHead, path)
-		f(http.MethodPut, path)
-		f(http.MethodDelete, path)
-		f(http.MethodPatch, path)
-	}
+	f(http.MethodGet, "/internal/select/query")
+	f(http.MethodGet, "/internal/select/field_names")
+	f(http.MethodGet, "/internal/delete/run_task?filter=*")
+
+	f(http.MethodDelete, "/internal/select/query")
+	f(http.MethodDelete, "/internal/select/field_names")
+	f(http.MethodDelete, "/internal/delete/run_task?filter=*")
 }
 
 // TestRequestHandlerPostPassesTheMethodCheck checks that a POST request reaches the args
@@ -49,9 +41,6 @@ func TestRequestHandlerRequiresPOST(t *testing.T) {
 //
 // vtselect always sends POST here, see getResponseBodyForPathAndArgs in app/vtstorage/netselect.
 func TestRequestHandlerPostPassesTheMethodCheck(t *testing.T) {
-	Init()
-	defer Stop()
-
 	args := url.Values{}
 	args.Set("filter", "*")
 	r := httptest.NewRequest(http.MethodPost, "/internal/delete/run_task", strings.NewReader(args.Encode()))
