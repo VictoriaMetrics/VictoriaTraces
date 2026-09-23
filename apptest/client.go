@@ -38,14 +38,14 @@ func (c *Client) CloseConnections() {
 // the response body and status code to the caller.
 func (c *Client) Get(t *testing.T, url string) (string, int) {
 	t.Helper()
-	return c.do(t, http.MethodGet, url, "", nil)
+	return c.Do(t, http.MethodGet, url, "", nil)
 }
 
 // Post sends a HTTP POST request, returns
 // the response body and status code to the caller.
 func (c *Client) Post(t *testing.T, url, contentType string, data []byte) (string, int) {
 	t.Helper()
-	return c.do(t, http.MethodPost, url, contentType, data)
+	return c.Do(t, http.MethodPost, url, contentType, data)
 }
 
 // PostForm sends a HTTP POST request containing the POST-form data, returns
@@ -59,12 +59,12 @@ func (c *Client) PostForm(t *testing.T, url string, data url.Values) (string, in
 // to the caller.
 func (c *Client) Delete(t *testing.T, url string) (string, int) {
 	t.Helper()
-	return c.do(t, http.MethodDelete, url, "", nil)
+	return c.Do(t, http.MethodDelete, url, "", nil)
 }
 
-// do prepares a HTTP request, sends it to the server, receives the response
+// Do prepares a HTTP request, sends it to the server, receives the response
 // from the server, returns the response body and status code to the caller.
-func (c *Client) do(t *testing.T, method, url, contentType string, data []byte) (string, int) {
+func (c *Client) Do(t *testing.T, method, url, contentType string, data []byte) (string, int) {
 	t.Helper()
 
 	req, err := http.NewRequest(method, url, bytes.NewReader(data))
