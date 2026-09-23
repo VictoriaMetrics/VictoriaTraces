@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
@@ -67,8 +68,13 @@ func TestStreamRowsTracker(t *testing.T) {
 //
 // See https://github.com/VictoriaMetrics/VictoriaTraces/issues/225
 func TestDoRequestUsesPost(t *testing.T) {
-	var gotMethods []string
+	var (
+		gotMethods []string
+		wg         sync.WaitGroup
+	)
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer wg.Done()
 		gotMethods = append(gotMethods, r.Method)
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -84,13 +90,16 @@ func TestDoRequestUsesPost(t *testing.T) {
 
 	sn := s.sns[0]
 	// /internal/force_flush carries no body, and it used to go out as GET.
+	wg.Add(1)
 	if err := sn.doRequest("/internal/force_flush", nil); err != nil {
 		t.Fatalf("cannot send the bodyless request: %s", err)
 	}
+	wg.Add(1)
 	if err := sn.doRequest("/internal/insert", strings.NewReader("foobar")); err != nil {
 		t.Fatalf("cannot send the request with a body: %s", err)
 	}
 
+	wg.Wait()
 	want := []string{http.MethodPost, http.MethodPost}
 	if !reflect.DeepEqual(gotMethods, want) {
 		t.Fatalf("unexpected request methods; got %q; want %q", gotMethods, want)
