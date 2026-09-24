@@ -1,26 +1,40 @@
-import { useCallback, useEffect, useRef, useState } from "preact/compat";
-import dayjs from "dayjs";
+import { useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { getLogsqlQueryUrl } from "../../../../api/logsql";
 import { parseLineToJSON } from "../../../../utils/json";
+import { nanosToIsoString } from "../../../../utils/time";
 import { useAppState } from "../../../../state/common/StateContext";
 import { useTenant } from "../../../../hooks/useTenant";
-import { HeatmapGrid, HeatmapStatsRow, buildHeatmapStatsQuery, makeEmptyGrid, parseHeatmapRows } from "./heatmapQuery";
+import {
+  HeatmapStatsRow,
+  buildHeatmapErrorsQuery,
+  buildHeatmapTracesQuery,
+  getMaxCount,
+  makeEmptyMatrix,
+  parseHeatmapRows,
+} from "./heatmapQuery";
 
 export type { HeatmapGrid } from "./heatmapQuery";
+
+const EMPTY_MATRIX = makeEmptyMatrix();
 
 export function useHeatmapAggregation() {
   const { serverUrl } = useAppState();
   const tenant = useTenant();
 
-  const [grid, setGrid] = useState<HeatmapGrid>(makeEmptyGrid);
+  const [counts, setCounts] = useState<number[][]>(EMPTY_MATRIX);
+  const [errors, setErrors] = useState<number[][]>(EMPTY_MATRIX);
   const [isLoading, setIsLoading] = useState(false);
+  const [isErrorsLoading, setIsErrorsLoading] = useState(false);
   const [error, setError] = useState<string>();
   const abortControllerRef = useRef(new AbortController());
+
+  const maxCount = useMemo(() => getMaxCount(counts), [counts]);
+  const grid = useMemo(() => ({ counts, errors, maxCount }), [counts, errors, maxCount]);
 
   useEffect(() => () => abortControllerRef.current.abort(), []);
 
   const fetchHeatmap = useCallback(async (
-    query: string, startNs: bigint, endNs: bigint, extraParams?: URLSearchParams
+    query: string, startNs: bigint, endNs: bigint, extraFilters: string[] = []
   ) => {
     const trimmed = query.trim();
     if (!trimmed) return;
@@ -31,53 +45,50 @@ export function useHeatmapAggregation() {
     const { signal } = controller;
 
     setIsLoading(true);
+    setIsErrorsLoading(true);
     setError(undefined);
+    setErrors(EMPTY_MATRIX);
 
-    try {
-      const url = getLogsqlQueryUrl(serverUrl);
-      const startIso = dayjs(Number(startNs / 1_000_000n)).toISOString();
-      const endIso = dayjs(Number(endNs / 1_000_000n)).toISOString();
+    const load = async (
+      heatmapQuery: string,
+      setMatrix: (matrix: number[][]) => void,
+      setLoading: (isLoading: boolean) => void,
+    ) => {
+      try {
+        // No `limit` here: the table's row limit must not truncate the set stats is computed over.
+        const response = await fetch(getLogsqlQueryUrl(serverUrl), {
+          signal,
+          method: "POST",
+          headers: {
+            ...tenant,
+            Accept: "application/stream+json",
+          },
+          body: new URLSearchParams({
+            query: heatmapQuery,
+            start: nanosToIsoString(startNs),
+            end: nanosToIsoString(endNs),
+          }),
+        });
 
-      // No `limit` here: this is a full-range aggregation via `stats`, and the
-      // table's row limit must not truncate the set stats is computed over.
-      const body = new URLSearchParams({
-        query: buildHeatmapStatsQuery(trimmed, startNs, endNs),
-        start: startIso,
-        end: endIso,
-      });
-      extraParams?.forEach((value, key) => body.append(key, value));
+        const text = await response.text();
+        if (!response.ok) throw new Error(text);
 
-      const response = await fetch(url, {
-        signal,
-        method: "POST",
-        headers: {
-          ...tenant,
-          Accept: "application/stream+json",
-        },
-        body,
-      });
-
-      const text = await response.text();
-      if (!response.ok) {
-        setError(text);
-        setGrid(makeEmptyGrid());
-        return;
+        const rows = text.split("\n").map(parseLineToJSON).filter(Boolean) as HeatmapStatsRow[];
+        setMatrix(parseHeatmapRows(rows, startNs, endNs));
+      } catch (e) {
+        if (signal.aborted) return;
+        setError(e instanceof Error ? e.message : String(e));
+        setMatrix(EMPTY_MATRIX);
+      } finally {
+        if (abortControllerRef.current === controller) setLoading(false);
       }
+    };
 
-      const rows = text.split("\n").map(parseLineToJSON).filter(Boolean) as HeatmapStatsRow[];
-      setGrid(parseHeatmapRows(rows, startNs, endNs));
-    } catch (e) {
-      if (e instanceof Error && e.name !== "AbortError") {
-        setError(String(e));
-        setGrid(makeEmptyGrid());
-        console.error(e);
-      }
-    } finally {
-      if (abortControllerRef.current === controller) {
-        setIsLoading(false);
-      }
-    }
+    await Promise.all([
+      load(buildHeatmapTracesQuery(trimmed, extraFilters, startNs, endNs), setCounts, setIsLoading),
+      load(buildHeatmapErrorsQuery(trimmed, extraFilters, startNs, endNs), setErrors, setIsErrorsLoading),
+    ]);
   }, [serverUrl, tenant]);
 
-  return { grid, isLoading, error, fetchHeatmap };
+  return { grid, isLoading, isErrorsLoading, error, fetchHeatmap };
 }

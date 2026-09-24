@@ -1,4 +1,4 @@
-import dayjs from "dayjs";
+import { nanosToIsoString } from "../../../utils/time";
 import {
   ApiError,
   AttributeValue,
@@ -112,17 +112,59 @@ export function buildDurationClause(minValue: string, maxValue: string): string 
   return parts.join(" AND ");
 }
 
-export function excludePartialTraces(filterQuery: string, startNs: bigint, endNs: bigint): string {
-  const trimmed = filterQuery.trim();
-  const startIso = dayjs(Number(startNs / 1_000_000n)).toISOString();
-  const endIso = dayjs(Number(endNs / 1_000_000n)).toISOString();
+// Mirrors the backend's -search.traceMaxDurationWindow default.
+const TRACE_MAX_DURATION_WINDOW_NS = 60_000_000_000n;
 
-  return `${trimmed} AND trace_id:in(`
-    + `options(ignore_global_time_filter=true) ${trimmed} AND _time:<${endIso} `
-    + "| stats by (trace_id) min(_time) as trace_start "
-    + `| trace_start:>=${startIso} `
-    + "| fields trace_id"
+const QUOTES = new Set(["\"", "'", "`"]);
+const OPEN_BRACKETS = new Set(["(", "[", "{"]);
+const CLOSE_BRACKETS = new Set([")", "]", "}"]);
+
+export function splitFiltersAndPipes(query: string): { filters: string; pipes: string } {
+  let quote = "";
+  let depth = 0;
+
+  for (let i = 0; i < query.length; i++) {
+    const char = query[i];
+    if (quote) {
+      if (char === "\\") i++;
+      else if (char === quote) quote = "";
+    } else if (QUOTES.has(char)) {
+      quote = char;
+    } else if (OPEN_BRACKETS.has(char)) {
+      depth++;
+    } else if (CLOSE_BRACKETS.has(char)) {
+      depth--;
+    } else if (char === "|" && depth === 0) {
+      return { filters: query.slice(0, i).trim(), pipes: query.slice(i).trim() };
+    }
+  }
+
+  return { filters: query.trim(), pipes: "" };
+}
+
+function joinFiltersAndPipes(filters: string, pipes: string): string {
+  return pipes ? `${filters} ${pipes}` : filters;
+}
+
+export function addFilterClause(query: string, clause: string): string {
+  if (!clause) return query.trim();
+  const { filters, pipes } = splitFiltersAndPipes(query);
+  return joinFiltersAndPipes(`(${filters || "*"}) AND ${clause}`, pipes);
+}
+
+// Keeps only traces without matching spans shortly before startNs, i.e. traces that started within the period.
+export function excludePartialTraces(filterQuery: string, startNs: bigint): string {
+  const { filters, pipes } = splitFiltersAndPipes(filterQuery);
+  const filterExpr = `(${filters || "*"})`;
+  const lookbackIso = nanosToIsoString(startNs - TRACE_MAX_DURATION_WINDOW_NS);
+  const startIso = nanosToIsoString(startNs);
+
+  const query = `${filterExpr} AND NOT trace_id:in(`
+    + `options(ignore_global_time_filter=true) ${filterExpr} AND _time:[${lookbackIso}, ${startIso}) `
+    + "| uniq by (trace_id)"
     + ")";
+
+  return joinFiltersAndPipes(query, pipes);
 }
 
 // Converts a [lowUs, highUs) duration range (as bucketed by the heatmap) into the same
