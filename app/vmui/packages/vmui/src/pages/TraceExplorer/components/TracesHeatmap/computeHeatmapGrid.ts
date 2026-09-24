@@ -19,7 +19,7 @@ export function formatDurationRange(lowUs: number, highUs: number): string {
 }
 
 /** Inverse of rowToDurationRangeUs: which band a single duration falls into, matching the
- * same `duration:>=X AND duration:<Y` conditions buildHeatmapStatsQuery sends the server. */
+ * same bands the heatmap query computes on the server. */
 export function durationUsToRow(durationUs: number, boundariesUs: number[]): number {
   const row = boundariesUs.findIndex(boundary => durationUs < boundary);
   return row === -1 ? boundariesUs.length : row;
@@ -53,7 +53,7 @@ export function columnToTimeRangeUs(
   return [periodStartUs + col * cellSpan, periodStartUs + (col + 1) * cellSpan];
 }
 
-/** Same step math buildHeatmapStatsQuery sends the server (integer nanoseconds, exact). */
+/** Same step math the heatmap query sends the server (integer nanoseconds, exact). */
 export function computeHeatmapTimeStepNs(periodStartNs: bigint, periodEndNs: bigint, columns: number): bigint {
   const interval = (periodEndNs - periodStartNs) / BigInt(columns);
   return interval > 0n ? interval : 1n;
@@ -66,10 +66,8 @@ export function computeHeatmapTimeStepNs(periodStartNs: bigint, periodEndNs: big
  * periodStartNs, so a selection built from this always reconstructs precisely the set of
  * columns it visually covers - no floating-point rounding can drop a boundary row.
  *
- * This does NOT reproduce the server's own bucket edges (VictoriaLogs aligns `_time:step`
- * buckets to absolute Unix epoch, not to periodStartNs), but it doesn't need to: what
- * matters for a selection is only that it's self-consistent with the column a row was
- * counted into, which it is by construction.
+ * The server buckets `_time` with an offset of periodStartNs modulo stepNs, so these are
+ * also the exact server-side bucket edges.
  */
 export function columnToTimeRangeNs(
   col: number,

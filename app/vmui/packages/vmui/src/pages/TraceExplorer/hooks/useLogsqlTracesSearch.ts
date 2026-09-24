@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "preact/compat";
-import dayjs from "dayjs";
+import { nanosToIsoString } from "../../../utils/time";
 import { getLogsqlQueryUrl } from "../../../api/logsql";
 import { parseLineToJSON } from "../../../utils/json";
 import { useAppState } from "../../../state/common/StateContext";
@@ -86,11 +86,11 @@ export function useLogsqlTracesSearch() {
 
     try {
       const url = getLogsqlQueryUrl(serverUrl);
-      const startIso = dayjs(Number(startNs / 1_000_000n)).toISOString();
-      const endIso = dayjs(Number(endNs / 1_000_000n)).toISOString();
+      const startIso = nanosToIsoString(startNs);
+      const endIso = nanosToIsoString(endNs);
 
       const body = new URLSearchParams({
-        query: excludePartialTraces(query, startNs, endNs),
+        query: excludePartialTraces(query, startNs),
         limit: `${limit}`,
         start: startIso,
         end: endIso,

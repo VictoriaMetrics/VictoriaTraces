@@ -43,18 +43,17 @@ export function useExtraFilters() {
 
   const extraFilters = useMemo(() => parseExtraFilters(searchParams), [searchParams]);
 
-  const extraParams = useMemo(() => {
-    const params = new URLSearchParams();
+  const extraClauses = useMemo(() => {
     const valuesByField = new Map<string, string[]>();
     extraFilters.forEach(f => {
       valuesByField.set(f.field, [...(valuesByField.get(f.field) || []), f.value]);
     });
-    valuesByField.forEach((values, field) => {
-      const clause = buildClauseForField(field, values);
-      if (clause) params.append(EXTRA_FILTERS_KEY, clause);
-    });
-    return params;
+    return Array.from(valuesByField, ([field, values]) => buildClauseForField(field, values)).filter(Boolean);
   }, [extraFilters]);
+
+  const extraParams = useMemo(() => {
+    return new URLSearchParams(extraClauses.map(clause => [EXTRA_FILTERS_KEY, clause]));
+  }, [extraClauses]);
 
   const updateFilters = useCallback((updater: (current: ExtraFilter[]) => ExtraFilter[]) => {
     setSearchParams(prev => serializeExtraFilters(prev, updater(parseExtraFilters(prev))));
@@ -91,5 +90,5 @@ export function useExtraFilters() {
     extraFilters.filter(f => f.field === field).map(f => f.value)
   ), [extraFilters]);
 
-  return { extraFilters, extraParams, toggleFilter, addFilter, removeFilter, setFieldValue, selectedValues };
+  return { extraFilters, extraClauses, extraParams, toggleFilter, addFilter, removeFilter, setFieldValue, selectedValues };
 }

@@ -21,7 +21,7 @@ import LineLoader from "../../components/Main/LineLoader";
 import ApiErrorAlert from "./components/ApiErrorAlert";
 import { addQueryToHistoryStorage } from "../../components/QueryHistory/utils";
 import { DurationRequest } from "./hooks/useFiltersSidebarState";
-import { buildDurationClause, formatDurationRangeForInput } from "./utils";
+import { addFilterClause, buildDurationClause, formatDurationRangeForInput } from "./utils";
 import { nanosToIsoString } from "../../utils/time";
 
 const noop = () => {};
@@ -36,7 +36,7 @@ const TraceExplorer: FC = () => {
   const { isVisible: isFiltersSidebarVisible, setVisible: setFiltersSidebarVisible } = useFiltersSidebarVisible();
 
   const { query, setQuery } = useTraceQueryState();
-  const { extraFilters, extraParams, removeFilter, selectedValues } = useExtraFilters();
+  const { extraFilters, extraClauses, extraParams, removeFilter, selectedValues } = useExtraFilters();
   const extraFiltersKey = useMemo(
     () => extraFilters.map(f => `${f.field}::${f.value}`).sort().join("|"),
     [extraFilters]
@@ -57,7 +57,7 @@ const TraceExplorer: FC = () => {
   } = useLogsqlTracesSearch();
   const {
     grid: heatmapGrid,
-    isLoading: isHeatmapLoading, error: heatmapError, fetchHeatmap,
+    isLoading: isHeatmapLoading, isErrorsLoading: isHeatmapErrorsLoading, error: heatmapError, fetchHeatmap,
   } = useHeatmapAggregation();
 
   // A heatmap rectangle selection filters the table only (extra time+duration bounds on
@@ -68,6 +68,7 @@ const TraceExplorer: FC = () => {
   } = useLogsqlTracesSearch();
   const [heatmapSelection, setHeatmapSelection] = useState<HeatmapSelectionRange | null>(null);
   const [durationRequest, setDurationRequest] = useState<DurationRequest | null>(null);
+  const [committedQuery, setCommittedQuery] = useState(query);
 
   const displayedTraces = heatmapSelection ? previewTraces : traces;
   const displayedSpansByTraceId = heatmapSelection ? previewSpansByTraceId : spansByTraceId;
@@ -85,16 +86,18 @@ const TraceExplorer: FC = () => {
     if (!preserveSelection) setSelectedTraceId("");
     // eslint-disable-next-line @eslint-react/set-state-in-effect -- called from run-triggering effects below; clears any heatmap selection before a new query executes
     setHeatmapSelection(null);
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- called from run-triggering effects below
+    setCommittedQuery(queryToRun);
     addQueryToHistoryStorage(queryToRun);
     search(queryToRun, period.start, period.end, limit, extraParams);
-    fetchHeatmap(queryToRun, period.start, period.end, extraParams);
-  }, [query, period, limit, extraParams, search, fetchHeatmap, setSelectedTraceId]);
+    fetchHeatmap(queryToRun, period.start, period.end, extraClauses);
+  }, [query, period, limit, extraParams, extraClauses, search, fetchHeatmap, setSelectedTraceId]);
 
   useEffect(() => {
     if (!heatmapSelection) return;
     const { min, max } = formatDurationRangeForInput(heatmapSelection.durationLowUs, heatmapSelection.durationHighUs);
     const extraClause = buildDurationClause(min, max);
-    const combinedQuery = extraClause ? `${query.trim()} AND ${extraClause}` : query.trim();
+    const combinedQuery = addFilterClause(query, extraClause);
     searchPreview(combinedQuery, heatmapSelection.timeLowNs, heatmapSelection.timeHighNs, limit, extraParams);
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- intentionally reacts only to a new heatmap selection; `query`/`limit` are read as of that moment (already reset to null by handleRun whenever a fresh query runs), and `searchPreview` is stable per useLogsqlTracesSearch's own deps
   }, [heatmapSelection]);
@@ -158,7 +161,7 @@ const TraceExplorer: FC = () => {
     >
       {isFiltersSidebarVisible && (
         <FiltersSidebar
-          query={query}
+          query={committedQuery}
           onClose={() => setFiltersSidebarVisible(false)}
           durationRequest={durationRequest}
         />
@@ -192,6 +195,7 @@ const TraceExplorer: FC = () => {
           <TracesHeatmap
             grid={heatmapGrid}
             isLoading={isHeatmapLoading}
+            isErrorsLoading={isHeatmapErrorsLoading}
             error={heatmapError}
             periodStart={period.start}
             periodEnd={period.end}

@@ -11,7 +11,8 @@ const DEFAULT_QUERY = "*";
 export const useTraceQueryState = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const query = searchParams.get(TRACE_QUERY_URL_PARAMS.QUERY) || DEFAULT_QUERY;
+  const rawQuery = searchParams.get(TRACE_QUERY_URL_PARAMS.QUERY);
+  const query = rawQuery === null ? DEFAULT_QUERY : rawQuery;
   const traceId = searchParams.get(TRACE_QUERY_URL_PARAMS.TRACE_ID) || "";
 
   const setParam = useCallback((key: string, value: string | null) => {
@@ -24,8 +25,12 @@ export const useTraceQueryState = () => {
   }, [setSearchParams]);
 
   const setQuery = useCallback((value: string) => {
-    setParam(TRACE_QUERY_URL_PARAMS.QUERY, value || null);
-  }, [setParam]);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set(TRACE_QUERY_URL_PARAMS.QUERY, value);
+      return next;
+    });
+  }, [setSearchParams]);
 
   const setTraceId = useCallback((value: string) => {
     setParam(TRACE_QUERY_URL_PARAMS.TRACE_ID, value || null);

@@ -48,6 +48,7 @@ export interface HighlightedTrace {
 export interface TracesHeatmapProps {
   grid: HeatmapGrid;
   isLoading: boolean;
+  isErrorsLoading?: boolean;
   error?: string;
   periodStart: bigint;
   periodEnd: bigint;
@@ -148,6 +149,7 @@ function computeVisibleRowRange(minDurationUs: number, maxDurationUs: number): [
 const TracesHeatmap: FC<TracesHeatmapProps> = ({
   grid,
   isLoading,
+  isErrorsLoading,
   error,
   periodStart,
   periodEnd,
@@ -179,11 +181,11 @@ const TracesHeatmap: FC<TracesHeatmapProps> = ({
 
   const visibleCounts = useMemo(
     () => grid.counts.map(colCounts => colCounts.slice(rowWindowMin, rowWindowMax + 1)),
-    [grid, rowWindowMin, rowWindowMax]
+    [grid.counts, rowWindowMin, rowWindowMax]
   );
   const visibleErrors = useMemo(
     () => grid.errors.map(colErrors => colErrors.slice(rowWindowMin, rowWindowMax + 1)),
-    [grid, rowWindowMin, rowWindowMax]
+    [grid.errors, rowWindowMin, rowWindowMax]
   );
   const hasErrorCells = useMemo(
     () => visibleErrors.some(colErrors => colErrors.some(count => count > HEATMAP_ERROR_CELL_THRESHOLD)),
@@ -264,7 +266,7 @@ const TracesHeatmap: FC<TracesHeatmapProps> = ({
     setDragStart(null);
     // eslint-disable-next-line @eslint-react/set-state-in-effect -- intentional reset of stale selection when the underlying grid/window changes, see comment above
     setDragCurrent(null);
-  }, [grid, rowWindowMin, rowWindowMax]);
+  }, [grid.counts, rowWindowMin, rowWindowMax]);
 
   const getBucketAt = (e: MouseEvent): Bucket | null => {
     const canvas = canvasRef.current;
@@ -430,7 +432,7 @@ const TracesHeatmap: FC<TracesHeatmapProps> = ({
     <div
       className={classNames("vm-traces-heatmap", { "vm-traces-heatmap_loading": isLoading })}
     >
-      {isLoading && <LineLoader/>}
+      {(isLoading || isErrorsLoading) && <LineLoader/>}
       <div
         className="vm-traces-heatmap__canvas-wrapper"
         ref={wrapperRef}
