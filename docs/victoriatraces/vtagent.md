@@ -1,6 +1,6 @@
 ---
 title: vtagent
-description: "Trace span agent for VictoriaTraces. Accepts spans from OTLP exporters and replicates them to multiple instances, with on-disk buffering."
+description: "Trace span collection agent for VictoriaTraces. Accepts spans in the OpenTelemetry protocol (OTLP) and replicates them to multiple remote storages, with on-disk buffering."
 weight: 4
 menu:
   docs:
