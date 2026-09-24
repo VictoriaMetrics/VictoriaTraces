@@ -1,6 +1,16 @@
 import "@testing-library/jest-dom";
 import "./constants/dayjsPlugins";
 
+Object.defineProperty(window, "localStorage", {
+  writable: true,
+  value: {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+    clear: () => {},
+  },
+});
+
 Object.defineProperty(window, "matchMedia", {
   writable: true,
   value: vi.fn().mockImplementation(query => ({

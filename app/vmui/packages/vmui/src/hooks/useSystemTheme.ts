@@ -2,7 +2,7 @@ import { useEffect, useState } from "preact/compat";
 import { isSystemDark } from "../utils/theme";
 
 const useThemeDetector = () => {
-  const [isDarkTheme, setIsDarkTheme] = useState(isSystemDark());
+  const [isDarkTheme, setIsDarkTheme] = useState(() => isSystemDark());
 
   const mqListener = ((e: MediaQueryListEvent) => {
     setIsDarkTheme(e.matches);

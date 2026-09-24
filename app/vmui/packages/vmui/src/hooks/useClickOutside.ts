@@ -17,7 +17,7 @@ const useClickOutside = <T extends HTMLElement = HTMLElement>(
     }
 
     handler(event); // Call the handler only if the click is outside of the element passed.
-  }, [ref, handler]);
+  }, [ref, handler, preventRef]);
 
   useEventListener("mouseup", listener);
   useEventListener("touchstart", listener);

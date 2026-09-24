@@ -1,6 +1,6 @@
 import { FC, useCallback, useEffect, createPortal, ReactNode, MouseEvent } from "preact/compat";
 import { CloseIcon } from "../Icons";
-import Button from "../Button/Button";
+import Button from "../Button";
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
@@ -10,6 +10,7 @@ import useEventListener from "../../../hooks/useEventListener";
 interface ModalProps {
   title?: string
   children: ReactNode
+  footer?: ReactNode
   onClose: () => void
   className?: string
   isOpen?: boolean
@@ -18,9 +19,10 @@ interface ModalProps {
 const Modal: FC<ModalProps> = ({
   title,
   children,
+  footer,
   onClose,
   className,
-  isOpen = true
+  isOpen = true,
 }) => {
   const { isMobile } = useDeviceDetect();
   const navigate = useNavigate();
@@ -29,7 +31,7 @@ const Modal: FC<ModalProps> = ({
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     if (!isOpen) return;
     if (e.key === "Escape") onClose();
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -40,14 +42,15 @@ const Modal: FC<ModalProps> = ({
       navigate(location, { replace: true });
       onClose();
     }
-  }, [isOpen, location, onClose]);
+  }, [isOpen, location, onClose, navigate]);
 
   const handleDisplayModal = () => {
     if (!isOpen) return;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     return () => {
-      document.body.style.overflow = "auto";
+      document.body.style.overflow = previousOverflow;
     };
   };
 
@@ -75,12 +78,13 @@ const Modal: FC<ModalProps> = ({
               {title}
             </div>
           )}
-          <div className="vm-modal-header__close">
+          <div className="vm-modal-content-header__close">
             <Button
               variant="text"
+              color="gray"
               size="small"
               onClick={onClose}
-              ariaLabel="close"
+              aria-label="close"
             >
               <CloseIcon/>
             </Button>
@@ -93,6 +97,11 @@ const Modal: FC<ModalProps> = ({
         >
           {children}
         </div>
+        {footer && (
+          <div className="vm-modal-content-footer">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   ), document.body);

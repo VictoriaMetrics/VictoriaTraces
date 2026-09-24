@@ -24,7 +24,7 @@ const useSearchParamsFromObject = () => {
     } else {
       navigate(`?${searchParams.toString()}`, { replace: true });
     }
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, setSearchParams]);
 
   return {
     setSearchParamsFromKeys

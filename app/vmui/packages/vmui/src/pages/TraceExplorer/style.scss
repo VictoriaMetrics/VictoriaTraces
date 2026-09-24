@@ -1,0 +1,36 @@
+@use "src/styles/variables" as *;
+
+.vm-trace-explorer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 100%;
+  gap: $padding-medium;
+
+  &_with-sidebar {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  &-content {
+    display: flex;
+    flex-direction: column;
+    gap: $padding-medium;
+    min-width: 0;
+  }
+}
+
+.vm-trace-explorer-traces-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  font-size: $font-size-small;
+
+  &-table {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+
+    &_loading {
+      opacity: 0.6;
+    }
+  }
+}

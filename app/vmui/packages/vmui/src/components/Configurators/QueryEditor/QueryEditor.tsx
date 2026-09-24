@@ -1,9 +1,9 @@
 import { FC, useEffect, useRef, useState, RefObject } from "preact/compat";
 import { ErrorTypes } from "../../../types";
-import TextField, { TextFieldKeyboardEvent } from "../../Main/TextField/TextField";
+import TextField, { TextFieldKeyboardEvent } from "../../Main/TextField";
 import "./style.scss";
 import { QueryStats } from "../../../api/types";
-import { AutocompleteOptions } from "../../Main/Autocomplete/Autocomplete";
+import { AutocompleteOptions } from "../../Main/Autocomplete";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { useQueryState } from "../../../state/query/QueryStateContext";
 import debounce from "lodash.debounce";
@@ -55,13 +55,13 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
   const [caretPositionAutocomplete, setCaretPositionAutocomplete] = useState<[number, number]>([0, 0]);
   const [caretPositionInput, setCaretPositionInput] = useState<[number, number]>([0, 0]);
-  const autocompleteAnchorEl = useRef<HTMLInputElement>(null);
+  const autocompleteAnchorElRef = useRef<HTMLInputElement>(null);
 
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const debouncedSetShowAutocomplete = useRef(debounce(setShowAutocomplete, 500)).current;
 
   if (stats) {
-    label = `${label} (${stats.executionTimeMsec || 0}ms)`;
+    label = `${label} (${stats.executionTimeMs || 0}ms)`;
   }
 
   const handleSelect = (val: string, caretPosition: number) => {
@@ -112,18 +112,20 @@ const QueryEditor: FC<QueryEditorProps> = ({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- syncs to the external autocompleteQuick context flag; handleChangeFoundOptions overrides it independently afterwards
     setOpenAutocomplete(!!AutocompleteEl && autocompleteQuick);
-  }, [autocompleteQuick]);
+  }, [autocompleteQuick, AutocompleteEl]);
 
   useEffect(() => {
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- immediately hides before the debounced re-show below; requires a timer, can't be computed during render
     setShowAutocomplete(false);
     debouncedSetShowAutocomplete(caretPositionAutocomplete.every(Boolean));
-  }, [caretPositionAutocomplete]);
+  }, [caretPositionAutocomplete, debouncedSetShowAutocomplete]);
 
   return (
     <div
       className="vm-query-editor"
-      ref={autocompleteAnchorEl}
+      ref={autocompleteAnchorElRef}
     >
       <TextField
         value={value}
@@ -141,7 +143,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
       {autocomplete && AutocompleteEl && (
         <AutocompleteEl
           value={value}
-          anchorEl={autocompleteAnchorEl}
+          anchorEl={autocompleteAnchorElRef}
           caretPosition={caretPositionAutocomplete}
           hasHelperText={Boolean(error)}
           includeFunctions={includeFunctions}

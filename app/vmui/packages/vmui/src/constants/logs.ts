@@ -1,27 +1,24 @@
-import { DATE_TIME_FORMAT } from "./date";
+// LogsQL is one shared query language across VictoriaLogs and VictoriaTraces,
+// so this URL intentionally points at the VictoriaLogs docs domain.
+export const LOGSQL_DOCS_URL = "https://docs.victoriametrics.com/victorialogs/logsql/";
 
-export const LOGS_ENTRIES_LIMIT = 50;
-export const LOGS_BARS_VIEW = 100;
-export const LOGS_LIMIT_HITS = 5;
+// Multitenancy is documented on the VictoriaLogs docs site; no VictoriaTraces-specific
+// page exists for it, so this intentionally points at the VictoriaLogs docs domain too.
+export const VICTORIALOGS_DOCS_URL = "https://docs.victoriametrics.com/victorialogs";
 
-// "Ungrouped" is a string that is used as a value for the "groupBy" parameter.
-export const WITHOUT_GROUPING = "Ungrouped";
+export const TRACES_DEFAULT_LIMIT = 5000;
+export const TRACES_MAX_LIMIT = 10000;
 
-// Default values for the logs configurators.
-export const LOGS_GROUP_BY = "_stream";
-export const LOGS_DISPLAY_FIELDS = "_msg";
-export const LOGS_DATE_FORMAT = `${DATE_TIME_FORMAT}.SSS`;
-
-// URL parameters for the logs page.
-export const LOGS_URL_PARAMS = {
-  GROUP_BY: "groupBy",
-  DISPLAY_FIELDS: "displayFields",
-  NO_WRAP_LINES: "noWrapLines",
-  COMPACT_GROUP_HEADER: "compactGroupHeader",
-  DATE_FORMAT: "dateFormat",
+// URL parameters for the traces page.
+export const TRACES_URL_PARAMS = {
+  LIMIT: "limit",
   ROWS_PER_PAGE: "rows_per_page",
+  COLUMNS: "columns",
 };
 
 // Maximum values for the logs autocomplete.
 export const MAX_QUERY_FIELDS = 1;
 export const MAX_QUERIES_HISTORY = 25;
+
+// Default fields for the table.
+export const DEFAULT_COMMON_FIELDS = ["_time", "_msg" ];

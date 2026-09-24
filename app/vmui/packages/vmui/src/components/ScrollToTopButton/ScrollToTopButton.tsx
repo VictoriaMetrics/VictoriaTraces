@@ -1,6 +1,6 @@
 import { FC, useEffect, useState, useCallback } from "preact/compat";
-import Button from "../Main/Button/Button";
-import Tooltip from "../Main/Tooltip/Tooltip";
+import Button from "../Main/Button";
+import Tooltip from "../Main/Tooltip";
 import { ScrollToTopIcon } from "../Main/Icons";
 import classNames from "classnames";
 import "./style.scss";
@@ -16,6 +16,7 @@ const ScrollToTopButton: FC<ScrollToTopButtonProps> = ({ className }) => {
     const scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
     const visibleHeightThreshold = window.innerHeight;
 
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- reads the initial scroll position from the DOM on mount; there's no render-time source for it
     setIsVisible(scrollPosition > visibleHeightThreshold);
   };
 
@@ -47,7 +48,7 @@ const ScrollToTopButton: FC<ScrollToTopButtonProps> = ({ className }) => {
           variant="contained"
           color="primary"
           onClick={scrollToTop}
-          ariaLabel="Scroll to top"
+          aria-label="Scroll to top"
           startIcon={<ScrollToTopIcon />}
         />
       </Tooltip>

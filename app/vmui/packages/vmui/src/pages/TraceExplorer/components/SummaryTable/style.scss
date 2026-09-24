@@ -1,0 +1,13 @@
+@use "src/styles/variables" as *;
+
+.vm-trace-info-drawer-summary {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: $padding-medium;
+  margin: 0;
+  padding: 0;
+}
+
+.vm-trace-info-drawer-summary__label {
+  color: var(--text-muted);
+}
