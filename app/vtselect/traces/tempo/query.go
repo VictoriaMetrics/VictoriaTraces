@@ -192,7 +192,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 	var traceIDListLock sync.Mutex
 	var startTimeLock sync.Mutex
 	traceIDList := make([]string, 0, limit)
-	maxStartTimeStr := endTime.Format(time.RFC3339)
+	maxStartTimeStr := endTime.UTC().Format(time.RFC3339)
 
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctx)
