@@ -74,6 +74,17 @@ received spans.
 `vtagent` maintains independent buffers for each `-remoteWrite.url`, so the collected spans are delivered to the remaining available VictoriaTraces instances
 in a timely manner when some of the VictoriaTraces instances are unavailable.
 
+## SRV URLs
+
+`vtagent` supports [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) hostname resolution in the `-remoteWrite.url` command-line flag when the hostname starts with `srv+` prefix.
+For example, the following command instructs `vtagent` to send the data to the TCP address obtained from the `victoria-traces` SRV record:
+
+```sh
+/path/to/vtagent-prod -remoteWrite.url=http://srv+victoria-traces/insert/native
+```
+
+If SRV lookup returns multiple targets, `vtagent` randomly chooses a target per every new connection to the remote storage.
+
 ## Advanced usage
 
 `vtagent` can be fine-tuned with various command-line flags. Run `./vtagent -help` in order to see the full list of these flags with their descriptions and default values:
