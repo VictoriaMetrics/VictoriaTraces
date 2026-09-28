@@ -1,10 +1,7 @@
-import { FC, useCallback } from "preact/compat";
-import { getAppModeEnable } from "../../../utils/app-mode";
-import Button from "../Button/Button";
-import { KeyboardIcon } from "../Icons";
-import Modal from "../Modal/Modal";
+import { FC, ReactNode, useCallback } from "preact/compat";
+import Modal from "../Modal";
 import "./style.scss";
-import Tooltip from "../Tooltip/Tooltip";
+import Tooltip from "../Tooltip";
 import keyList from "./constants/keyList";
 import { isMacOs } from "../../../utils/detect-device";
 import useBoolean from "../../../hooks/useBoolean";
@@ -12,10 +9,14 @@ import useEventListener from "../../../hooks/useEventListener";
 
 const title = "Shortcut keys";
 const isMac = isMacOs();
-const keyOpenHelp = isMac ? "Cmd + /" : "F1";
+const keyOpenHelp = isMac ? "F1 or Cmd + /" : "F1";
 
-const ShortcutKeys: FC<{ showTitle?: boolean }> = ({ showTitle }) => {
-  const appModeEnable = getAppModeEnable();
+type Props = {
+  children?: ReactNode
+  withHotkey?: boolean
+}
+
+const ShortcutKeys: FC<Props> = ({ children, withHotkey = true }) => {
 
   const {
     value: openList,
@@ -24,31 +25,22 @@ const ShortcutKeys: FC<{ showTitle?: boolean }> = ({ showTitle }) => {
   } = useBoolean(false);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!withHotkey) return;
+    const openOnF1 = e.key === "F1";
     const openOnMac = isMac && e.key === "/" && e.metaKey;
-    const openOnOther = !isMac && e.key === "F1" && !e.metaKey;
-    if (openOnMac || openOnOther) {
-      handleOpen();
-    }
-  }, [handleOpen]);
+    if (openOnF1 || openOnMac) handleOpen();
+  }, [handleOpen, withHotkey]);
 
   useEventListener("keydown", handleKeyDown);
 
   return <>
     <Tooltip
-      open={showTitle === true ? false : undefined}
-      title={`${title} (${keyOpenHelp})`}
+      title={withHotkey ? `${title} (${keyOpenHelp})` : title}
       placement="bottom-center"
     >
-      <Button
-        className={appModeEnable ? "" : "vm-header-button"}
-        variant="contained"
-        color="primary"
-        startIcon={<KeyboardIcon/>}
-        onClick={handleOpen}
-        ariaLabel={title}
-      >
-        {showTitle && title}
-      </Button>
+      <div onClick={handleOpen}>
+        {children}
+      </div>
     </Tooltip>
 
     {openList && (
@@ -62,17 +54,14 @@ const ShortcutKeys: FC<{ showTitle?: boolean }> = ({ showTitle }) => {
               className="vm-shortcuts-section"
               key={section.title}
             >
-              {section.readMore && (
-                <div className="vm-shortcuts-section__read-more">{section.readMore}</div>
-              )}
               <h3 className="vm-shortcuts-section__title">
                 {section.title}
               </h3>
               <div className="vm-shortcuts-section-list">
-                {section.list.map((l, i) => (
+                {section.list.map((l) => (
                   <div
                     className="vm-shortcuts-section-list-item"
-                    key={`${section.title}_${i}`}
+                    key={l.description}
                   >
                     <div className="vm-shortcuts-section-list-item__key">
                       {l.keys}

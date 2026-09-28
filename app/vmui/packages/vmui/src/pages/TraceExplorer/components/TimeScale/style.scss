@@ -1,0 +1,125 @@
+@use "src/styles/variables" as *;
+
+.vm-time-scale {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  font-size: $font-size-extra-small;
+}
+
+/* Horizontal axis line, spanning the padded content box exactly so it starts/ends flush
+   with the first/last tick. */
+.vm-time-scale__axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--border-strong);
+  pointer-events: none;
+}
+
+/* Short vertical tick crossing the axis line (half above, half below). */
+.vm-time-scale__tick {
+  position: absolute;
+  top: 50%;
+  width: 1px;
+  height: 20%;
+  transform: translate(-50%, -50%);
+  background: var(--border-strong);
+  pointer-events: none;
+}
+
+.vm-time-scale__tick-label {
+  position: absolute;
+  top: 16px;
+  left: 0;
+  line-height: 1;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: var(--color-text-secondary);
+}
+
+.vm-time-scale__span-wrapper {
+  position: absolute;
+  inset: 0;
+}
+
+.vm-time-scale__bar {
+  border-radius: 3px;
+  min-width: 2px;
+  position: absolute;
+  top: 50%;
+  height: 36%;
+  transform: translateY(-50%);
+}
+
+.vm-time-scale__rpc {
+  position: absolute;
+  top: 45%;
+  height: 11%;
+  z-index: 1;
+}
+
+.vm-time-scale__critical-path {
+  position: absolute;
+  top: 45%;
+  height: 11%;
+  z-index: 2;
+  overflow: visible;
+}
+
+.vm-time-scale__critical-path::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.vm-time-scale__label {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: $font-size-extra-small;
+  line-height: 1em;
+  white-space: nowrap;
+}
+
+.vm-time-scale__log-marker {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background-color: var(--color-warning);
+  cursor: pointer;
+  font: inherit;
+  transform: translate(-50%, -50%);
+}
+
+.vm-time-scale__log-marker:hover {
+  background-color: var(--color-primary);
+  transform: translate(-50%, -50%) scale(1.3);
+  transition: transform 0.3s ease;
+}
+
+.vm-time-scale__log-marker_error {
+  background-color: var(--color-error);
+}
+
+.vm-time-scale__log-marker_selected {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* Larger, easier-to-click variant for the standalone events-mode timeline, where
+   markers are sparser and directly interactive rather than a dense row decoration. */
+.vm-time-scale__log-marker_large {
+  width: 10px;
+  height: 10px;
+  border: 2px solid var(--color-background-body);
+}

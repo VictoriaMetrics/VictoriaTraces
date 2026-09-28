@@ -1,0 +1,15 @@
+@use "src/styles/variables" as *;
+
+.vm-trace-timeline-viewer {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  border-radius: $border-radius-medium;
+  box-shadow: var(--box-shadow);
+  overflow-y: auto;
+}
+
+.vm-trace-timeline-viewer__rows {
+  display: flex;
+  flex-direction: column;
+}

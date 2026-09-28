@@ -1,0 +1,112 @@
+import { FC, useRef, useState } from "preact/compat";
+import { useSearchParams } from "react-router-dom";
+import { useFetchAccountIds } from "./hooks/useFetchAccountIds";
+import TenantsSelect from "./TenantsSelect";
+import TenantsFields from "./TenantsFields";
+import Button from "../../../Main/Button";
+import classNames from "classnames";
+import Tooltip from "../../../Main/Tooltip";
+import useDeviceDetect from "../../../../hooks/useDeviceDetect";
+import useBoolean from "../../../../hooks/useBoolean";
+import Popper from "../../../Main/Popper";
+import { ArrowDownIcon, StorageIcon } from "../../../Main/Icons";
+import "./style.scss";
+import "../../TimeRangeSettings/ExecutionControls/style.scss";
+
+export type TenantType = {
+  accountId: string;
+  projectId: string;
+}
+
+const Tenants: FC = () => {
+  const { accountIds } = useFetchAccountIds();
+  const { isMobile } = useDeviceDetect();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const accountId = searchParams.get("accountID") || "0";
+  const projectId = searchParams.get("projectID") || "0";
+  const tenantId = `${accountId}:${projectId}`;
+
+  const buttonRef = useRef<HTMLDivElement>(null);
+  const [search, setSearch] = useState("");
+
+  const {
+    value: openPopup,
+    toggle: toggleOpenPopup,
+    setFalse: handleClosePopup,
+  } = useBoolean(false);
+
+  const isValidTenantId = (value?: string) => value === undefined || /^\d+$/.test(value);
+
+  const onChange = ({ accountId, projectId }: Partial<TenantType>) => {
+    if (!isValidTenantId(accountId) || !isValidTenantId(projectId)) return;
+    if (accountId) searchParams.set("accountID", accountId);
+    if (projectId) searchParams.set("projectID", projectId);
+    setSearchParams(searchParams);
+    handleClosePopup();
+  };
+
+  const childrenProps = {
+    tenantId,
+    accountIds,
+    accountId,
+    projectId,
+    search,
+    onSearch: setSearch,
+    onChange,
+  };
+
+  return (
+    <div className="vm-tenant-input">
+      <Tooltip title="Define Tenant ID if you need request to another storage">
+        <div ref={buttonRef}>
+          {isMobile ? (
+            <div
+              className="vm-mobile-option"
+              onClick={toggleOpenPopup}
+            >
+              <span className="vm-mobile-option__icon"><StorageIcon/></span>
+              <div className="vm-mobile-option-text">
+                <span className="vm-mobile-option-text__label">Tenant ID</span>
+                <span className="vm-mobile-option-text__value">{tenantId}</span>
+              </div>
+              <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
+            </div>
+          ) : (
+            <Button
+              className="vm-header-button"
+              variant="contained"
+              color="primary"
+              fullWidth
+              startIcon={<StorageIcon/>}
+              endIcon={(
+                <div
+                  className={classNames({
+                    "vm-execution-controls-buttons__arrow": true,
+                    "vm-execution-controls-buttons__arrow_open": openPopup,
+                  })}
+                >
+                  <ArrowDownIcon/>
+                </div>
+              )}
+              onClick={toggleOpenPopup}
+            >
+              {tenantId}
+            </Button>
+          )}
+        </div>
+      </Tooltip>
+      <Popper
+        open={openPopup}
+        placement="bottom-right"
+        onClose={handleClosePopup}
+        buttonRef={buttonRef}
+        title={isMobile ? "Define Tenant ID" : undefined}
+      >
+        {accountIds.length ? <TenantsSelect {...childrenProps}/> : <TenantsFields {...childrenProps}/>}
+      </Popper>
+    </div>
+  );
+};
+
+export default Tenants;

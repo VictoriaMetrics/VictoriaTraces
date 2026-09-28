@@ -1,5 +1,5 @@
 import { ContextType } from "./types";
-import { FunctionIcon } from "../../../Main/Icons";
+import { SuggestFunctionIcon } from "../../../Main/Icons";
 
 const docsUrl = "https://docs.victoriametrics.com/victorialogs/logsql";
 const classLink = "vm-link vm-link_colored";
@@ -124,6 +124,6 @@ export const pipeList = [
 ].map(item => ({
   ...item,
   type: ContextType.PipeName,
-  icon: <FunctionIcon/>,
+  icon: <SuggestFunctionIcon/>,
   description: prepareDescription(item.description),
 }));

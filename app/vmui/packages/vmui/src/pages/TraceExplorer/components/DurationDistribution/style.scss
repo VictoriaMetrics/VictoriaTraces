@@ -1,0 +1,83 @@
+@use "src/styles/variables" as *;
+
+.vm-trace-info-drawer-duration {
+  &__caption {
+    padding: $padding-small;
+    color: $color-text-secondary;
+    font-size: $font-size-small;
+
+    strong {
+      color: $color-text;
+      font-weight: 600;
+    }
+  }
+
+  &__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    color: $color-text-secondary;
+
+    svg {
+      width: 1em;
+    }
+  }
+
+  &__bars {
+    display: flex;
+    align-items: stretch;
+    gap: 1px;
+    height: 40px;
+    padding: $padding-small $padding-small 0;
+  }
+
+  &__bar {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    background-color: rgba($color-dodger-blue, var(--bar-intensity, 0.08));
+    border-radius: 1px;
+
+    &_current {
+      &:after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: 100%;
+        transform: translateX(-50%);
+        margin-bottom: 3px;
+        border-left: 3px solid transparent;
+        border-right: 3px solid transparent;
+        border-top: 4px solid $color-warning;
+      }
+    }
+  }
+
+  &__tooltip-row {
+    display: flex;
+    align-items: baseline;
+    gap: $padding-small;
+  }
+
+  &__tooltip-row + &__tooltip-row {
+    margin-top: 2px;
+  }
+
+  &__tooltip-label {
+    color: $color-text-disabled;
+  }
+
+  &__tooltip-value {
+    margin-left: auto;
+    font-weight: 600;
+  }
+
+  &__range {
+    display: flex;
+    justify-content: space-between;
+    padding: $padding-tiny $padding-small $padding-small;
+    color: $color-text-secondary;
+    font-size: $font-size-extra-small;
+  }
+}

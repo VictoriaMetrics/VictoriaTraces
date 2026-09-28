@@ -10,7 +10,6 @@ export const useQuickAutocomplete = () => {
   }, [queryDispatch]);
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    /** @see AUTOCOMPLETE_QUICK_KEY */
     const { code, ctrlKey, altKey } = e;
     if (code === "Space" && (ctrlKey || altKey)) {
       e.preventDefault();

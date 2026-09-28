@@ -5,11 +5,11 @@
     position: relative;
     display: flex;
     align-items: center;
-    padding: 8px 0 8px $padding-global;
+    padding: $padding-small 0 $padding-small $padding-global;
     cursor: pointer;
     border: $border-divider;
-    border-radius: $border-radius-small;
-    min-height: 40px;
+    border-radius: $border-radius-medium;
+    min-height: 36px;
 
     &-content {
       display: flex;
@@ -54,7 +54,7 @@
           background-color: transparent;
           border-radius: $border-radius-small;
           transition: background-color 200ms ease-in-out;
-          padding: 4px;
+          padding: $padding-tiny;
 
           &:hover {
             background-color: rgba($color-black, 0.1);
@@ -73,8 +73,8 @@
       padding: 0;
       border: none;
       z-index: 2;
-      min-width: 100px;
       flex-grow: 1;
+      width: 100%;
       background-color: transparent;
       color: $color-text;
 

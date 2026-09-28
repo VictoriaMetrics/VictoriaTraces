@@ -59,8 +59,8 @@
 
       &__prev,
       &__next {
-        margin: -8px;
-        padding: 8px;
+        margin: -$padding-small;
+        padding: $padding-small;
         cursor: pointer;
         transition: opacity 200ms ease-in-out;
 
@@ -143,7 +143,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 8px 16px;
+      padding: $padding-small $padding-large;
       border-radius: $border-radius-medium;
       cursor: pointer;
       transition: color 200ms ease, background-color 300ms ease-in-out;

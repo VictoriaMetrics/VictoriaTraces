@@ -1,131 +1,144 @@
-import { useState, useMemo } from "preact/compat";
-import classNames from "classnames";
-import { ArrowDropDownIcon, CopyIcon, DoneIcon } from "../Main/Icons";
+import { useState, useMemo, useRef, useEffect } from "preact/compat";
 import { getComparator, stableSort } from "./helpers";
-import Tooltip from "../Main/Tooltip/Tooltip";
-import Button from "../Main/Button/Button";
-import { useEffect } from "preact/compat";
-import useCopyToClipboard from "../../hooks/useCopyToClipboard";
+import { OrderDir } from "../../types";
+import TableHeaderCell from "./TableHeaderCell";
+import TableCell from "./TableCell";
+import TableCellActions from "./TableCell/TableCellActions";
+import TableRow from "./TableRow";
+import "./style.scss";
+import { useTableColumnPrefs } from "./hooks/useTableColumnPrefs";
+import { Size, useResizeObserver } from "../../hooks/useResizeObserver";
+import { useDebounceCallback } from "../../hooks/useDebounceCallback";
+import { ColumnKey, TableProps } from "./types";
+import { useDragColumn } from "./hooks/useDragColumn";
 
-type OrderDir = "asc" | "desc"
+const DEFAULT_COLUMN_WIDTH = 150;
+const ACTIONS_COLUMN_WIDTH = 24;
 
-interface TableProps<T> {
-  rows: T[];
-  columns: { title?: string, key: keyof Partial<T>, className?: string }[];
-  defaultOrderBy: keyof T;
-  copyToClipboard?: keyof T;
-  defaultOrderDir?: OrderDir;
-  // TODO: Remove when pagination is implemented on the backend.
-  paginationOffset: {
-    startIndex: number;
-    endIndex: number;
-  }
-}
+const Table = <T extends object>({
+  tableId,
+  rows,
+  columns,
+  defaultOrder,
+  isActiveRow,
+  rowClassName,
+  onClickRow,
+  actionsRender,
+  paginationOffset,
+  applyViewColumns = () => {
+  },
+}: TableProps<T>) => {
+  const { getColumnPrefs, updateColumnPref } = useTableColumnPrefs(tableId);
 
-const Table = <T extends object>({ rows, columns, defaultOrderBy, defaultOrderDir, copyToClipboard, paginationOffset }: TableProps<T>) => {
-  const handleCopyToClipboard = useCopyToClipboard();
+  const draggableKeys = columns.filter(col => col.options.draggable).map(col => String(col.key));
 
-  const [orderBy, setOrderBy] = useState<keyof T>(defaultOrderBy);
-  const [orderDir, setOrderDir] = useState<OrderDir>(defaultOrderDir || "desc");
-  const [copied, setCopied] = useState<number | null>(null);
-
-  // const sortedList = useMemo(() => stableSort(rows as [], getComparator(orderDir, orderBy)),
-  //   [rows, orderBy, orderDir]);
-  // TODO: Remove when pagination is implemented on the backend.
-  const sortedList = useMemo(() => {
-    const { startIndex, endIndex } = paginationOffset;
-    return stableSort(rows as [], getComparator(orderDir, orderBy)).slice(startIndex, endIndex);
-  }, [rows, orderBy, orderDir, paginationOffset]);
-
-  const createSortHandler = (key: keyof T) => () => {
-    setOrderDir((prev) => prev === "asc" && orderBy === key ? "desc" : "asc");
-    setOrderBy(key);
-  };
-
-  const createCopyHandler = (copyValue:  string | number, rowIndex: number) => async () => {
-    if (copied === rowIndex) return;
-    try {
-      await handleCopyToClipboard(String(copyValue));
-      setCopied(rowIndex);
-    } catch (e) {
-      console.error(e);
+  const dragController = useDragColumn({
+    axis: "x" as "x" | "y",
+    arr: draggableKeys,
+    onChange: (nextKeys: string[]) => {
+      let i = 0;
+      const draggableSet = new Set(draggableKeys);
+      const merged = columns.map(col => {
+        const key = String(col.key);
+        return draggableSet.has(key) ? nextKeys[i++] : key;
+      });
+      applyViewColumns({ type: "replace", columnKeys: merged });
     }
-  };
+  });
+
+  const [orderBy, setOrderBy] = useState<ColumnKey<T>>(defaultOrder?.key || columns[0]?.key);
+  const [orderDir, setOrderDir] = useState<OrderDir>(defaultOrder?.dir || "desc");
 
   useEffect(() => {
-    if (copied === null) return;
-    const timeout = setTimeout(() => setCopied(null), 2000);
-    return () => clearTimeout(timeout);
-  }, [copied]);
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- resets sort state to the default (or first column) when defaultOrder/columns change externally
+    setOrderBy(defaultOrder?.key || columns[0]?.key);
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- resets sort state to the default (or first column) when defaultOrder/columns change externally
+    setOrderDir(defaultOrder?.dir || "desc");
+  }, [defaultOrder?.key, defaultOrder?.dir, columns]);
+
+  const sortedList = useMemo(() => {
+    const [startIndex, endIndex] = paginationOffset;
+    return stableSort<T>(rows, getComparator(orderDir, orderBy)).slice(startIndex, endIndex);
+  }, [rows, orderBy, orderDir, paginationOffset]);
+
+  const sortPack = useMemo(() => ({
+    key: orderBy,
+    dir: orderDir,
+    onChange: (key: ColumnKey<T>, orderDir: OrderDir) => {
+      setOrderDir(orderDir);
+      setOrderBy(key);
+    },
+  }), [orderBy, orderDir]);
+
+  const tableRef = useRef<HTMLTableElement>(null);
+  const [size, setSize] = useState<Size>({ width: 0, height: 0 });
+  const onResizeTable = useDebounceCallback(setSize, 60);
+  useResizeObserver({ ref: tableRef, onResize: onResizeTable });
+  const hasCustomWidths = columns.some(col => getColumnPrefs(col.key)?.width != null);
+  const tableStyle = hasCustomWidths ? {
+    tableLayout: "fixed" as const,
+    width: `${columns.reduce((sum, col) => sum + (getColumnPrefs(col.key)?.width ?? DEFAULT_COLUMN_WIDTH), 0)
+      + (actionsRender ? ACTIONS_COLUMN_WIDTH : 0)}px`,
+  } : undefined;
+
+  const tableBody = useMemo(() => sortedList.map((row, rowIndex) => (
+    <TableRow
+      // eslint-disable-next-line @eslint-react/no-array-index-key -- Table<T> is generic with no guaranteed unique row id from callers; rowIndex is stable within the current sorted+paginated slice
+      key={rowIndex}
+      isActive={isActiveRow && isActiveRow(row as T)}
+      className={rowClassName?.(row as T)}
+      onClick={(e) => onClickRow && onClickRow(row as T, e)}
+    >
+      {columns.map((col) => (
+        <TableCell
+          key={String(col.key)}
+          column={col}
+          columnPrefs={getColumnPrefs(col.key)}
+          row={row as T}
+          rowIdx={rowIndex}
+        />
+      ))}
+
+      {actionsRender && (
+        <TableCellActions
+          row={row as T}
+          actionsRender={actionsRender}
+        />
+      )}
+    </TableRow>
+  )), [sortedList, columns, isActiveRow, rowClassName, onClickRow, actionsRender, getColumnPrefs]);
 
   return (
-    <table className="vm-table">
-      <thead className="vm-table-header">
-        <tr className="vm-table__row vm-table__row_header">
-          {columns.map((col) => (
-            <th
-              className="vm-table-cell vm-table-cell_header vm-table-cell_sort"
-              onClick={createSortHandler(col.key)}
-              key={String(col.key)}
-            >
-              <div className="vm-table-cell__content">
-                <div>
-                  {String(col.title || col.key)}
-                </div>
-                <div
-                  className={classNames({
-                    "vm-table__sort-icon": true,
-                    "vm-table__sort-icon_active": orderBy === col.key,
-                    "vm-table__sort-icon_desc": orderDir === "desc" && orderBy === col.key
-                  })}
-                >
-                  <ArrowDropDownIcon/>
-                </div>
-              </div>
-            </th>
-          ))}
-          {copyToClipboard && <th className="vm-table-cell vm-table-cell_header"/>}
-        </tr>
-      </thead>
-      <tbody className="vm-table-body">
-        {sortedList.map((row, rowIndex) => (
-          <tr
-            className="vm-table__row"
-            key={rowIndex}
-          >
-            {columns.map((col) => (
-              <td
-                className={classNames({
-                  "vm-table-cell": true,
-                  [`${col.className}`]: col.className
-                })}
-                key={String(col.key)}
-              >
-                {row[col.key] || "-"}
-              </td>
+    <div className="vm-table-scroll">
+      <table
+        className="vm-table"
+        ref={tableRef}
+        style={tableStyle}
+      >
+        <thead className="vm-table-header">
+          <TableRow variant="header">
+            {columns.map((column, idx) => (
+              <TableHeaderCell
+                key={column.key}
+                idx={idx}
+                column={column}
+                sort={sortPack}
+                prefs={getColumnPrefs(column.key)}
+                containerSize={size}
+                dragController={dragController}
+                applyViewColumns={applyViewColumns}
+                onChangePref={updateColumnPref}
+              />
             ))}
-            {copyToClipboard && (
-              <td className="vm-table-cell vm-table-cell_right">
-                {row[copyToClipboard] && (
-                  <div className="vm-table-cell__content">
-                    <Tooltip title={copied === rowIndex ? "Copied" : "Copy row"}>
-                      <Button
-                        variant="text"
-                        color={copied === rowIndex ? "success" : "gray"}
-                        size="small"
-                        startIcon={copied === rowIndex ? <DoneIcon/> : <CopyIcon/>}
-                        onClick={createCopyHandler(row[copyToClipboard], rowIndex)}
-                        ariaLabel="copy row"
-                      />
-                    </Tooltip>
-                  </div>
-                )}
-              </td>
-            )}
-          </tr>
-        ))}
-      </tbody>
-    </table>
+
+            {actionsRender && <th className="vm-table-cell vm-table-cell-header vm-table-cell_actions"/>}
+          </TableRow>
+        </thead>
+        <tbody className="vm-table-body">
+          {tableBody}
+        </tbody>
+      </table>
+    </div>
   );
 };
 

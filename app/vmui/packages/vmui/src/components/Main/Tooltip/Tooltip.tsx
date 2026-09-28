@@ -1,12 +1,13 @@
-import { FC, useEffect, useMemo, useRef, useState, Fragment, createPortal, ReactNode } from "preact/compat";
+import { FC, useCallback, useEffect, useMemo, useRef, useState, Fragment, createPortal, ReactNode } from "preact/compat";
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface TooltipProps {
   children: ReactNode
   title: ReactNode
-  offset?: {top?: number, left?: number}
+  offset?: { top?: number, left?: number }
   open?: boolean
+  disabled?: boolean
   placement?: "bottom-right" | "bottom-left" | "top-left" | "top-right" | "top-center" | "bottom-center"
 }
 
@@ -14,6 +15,7 @@ const Tooltip: FC<TooltipProps> = ({
   children,
   title,
   open,
+  disabled = false,
   placement = "bottom-center",
   offset = { top: 6, left: 0 }
 }) => {
@@ -29,6 +31,7 @@ const Tooltip: FC<TooltipProps> = ({
 
   useEffect(() => {
     if (!popperRef.current || !isOpen) return;
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- measures the popper DOM node after it mounts/opens; size is unknown until layout happens
     setPopperSize({
       width: popperRef.current.clientWidth,
       height: popperRef.current.clientHeight
@@ -45,7 +48,7 @@ const Tooltip: FC<TooltipProps> = ({
     // @ts-ignore
     const buttonEl = buttonRef?.current?.base as HTMLElement;
 
-    if (!buttonEl|| !isOpen) return {};
+    if (!buttonEl || !isOpen) return {};
     const buttonPos = buttonEl.getBoundingClientRect();
     const position = { top: 0, left: 0 };
 
@@ -56,7 +59,7 @@ const Tooltip: FC<TooltipProps> = ({
     const offsetTop = offset?.top || 0;
     const offsetLeft = offset?.left || 0;
 
-    position.left = buttonPos.left - ((popperSize.width - buttonPos.width)/2) + offsetLeft;
+    position.left = buttonPos.left - ((popperSize.width - buttonPos.width) / 2) + offsetLeft;
     position.top = buttonPos.height + buttonPos.top + offsetTop;
 
     if (needAlignRight) position.left = buttonPos.right - popperSize.width;
@@ -80,26 +83,37 @@ const Tooltip: FC<TooltipProps> = ({
     if (position.left < 0) position.left = 20;
 
     return position;
-  },[buttonRef, placement, isOpen, popperSize]);
+  }, [buttonRef, placement, isOpen, popperSize, offset?.top, offset?.left]);
 
-  const handleMouseEnter = () => {
+  const handleMouseEnter = useCallback(() => {
     if (typeof open === "boolean") return;
     setIsOpen(true);
-  };
+  }, [open]);
 
   const handleMouseLeave = () => {
     setIsOpen(false);
   };
 
   useEffect(() => {
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- syncs internal isOpen state with the controlled `open` prop
     if (typeof open === "boolean") setIsOpen(open);
   }, [open]);
+
+  useEffect(() => {
+    if (disabled) {
+      // eslint-disable-next-line @eslint-react/set-state-in-effect -- forces tooltip closed when disabled becomes true
+      setIsOpen(false);
+    } else if (typeof open === "boolean") {
+      // eslint-disable-next-line @eslint-react/set-state-in-effect -- syncs internal isOpen state with the controlled `open` prop
+      setIsOpen(open);
+    }
+  }, [disabled, open]);
 
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     const nodeEl = buttonRef?.current?.base as HTMLElement;
-    if (!nodeEl) return;
+    if (!nodeEl || disabled) return;
     nodeEl.addEventListener("mouseenter", handleMouseEnter);
     nodeEl.addEventListener("mouseleave", handleMouseLeave);
 
@@ -107,7 +121,7 @@ const Tooltip: FC<TooltipProps> = ({
       nodeEl.removeEventListener("mouseenter", handleMouseEnter);
       nodeEl.removeEventListener("mouseleave", handleMouseLeave);
     };
-  }, [buttonRef]);
+  }, [buttonRef, disabled, handleMouseEnter]);
 
   return (
     <>
@@ -117,7 +131,7 @@ const Tooltip: FC<TooltipProps> = ({
         {children}
       </Fragment>
 
-      {!isMobile && isOpen && createPortal((
+      {!isMobile && isOpen && !disabled && createPortal((
         <div
           className="vm-tooltip"
           ref={popperRef}

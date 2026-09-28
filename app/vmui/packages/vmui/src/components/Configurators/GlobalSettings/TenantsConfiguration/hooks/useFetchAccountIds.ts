@@ -2,12 +2,13 @@ import { useAppState } from "../../../../../state/common/StateContext";
 import { useEffect, useMemo, useState } from "preact/compat";
 import { ErrorTypes } from "../../../../../types";
 import { getAccountIds } from "../../../../../api/accountId";
-import { getAppModeEnable, getAppModeParams } from "../../../../../utils/app-mode";
-import { getTenantIdFromUrl } from "../../../../../utils/tenants";
+
+type TenantId = {
+  account_id: number;
+  project_id: number;
+}
 
 export const useFetchAccountIds = () => {
-  const { useTenantID } = getAppModeParams();
-  const appModeEnable = getAppModeEnable();
   const { serverUrl } = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -15,24 +16,16 @@ export const useFetchAccountIds = () => {
   const [accountIds, setAccountIds] = useState<string[]>([]);
 
   const fetchUrl = useMemo(() => getAccountIds(serverUrl), [serverUrl]);
-  const isServerUrlWithTenant = useMemo(() => !!getTenantIdFromUrl(serverUrl), [serverUrl]);
-  const preventFetch = appModeEnable ? !useTenantID : !isServerUrlWithTenant;
 
   useEffect(() => {
-    if (preventFetch) return;
     const fetchData = async () => {
       setIsLoading(true);
       try {
         const response = await fetch(fetchUrl);
-        const resp = await response.json();
-        const data = (resp.data || []) as string[];
-        setAccountIds(data.sort((a, b) => a.localeCompare(b)));
-
-        if (response.ok) {
-          setError(undefined);
-        } else {
-          setError(`${resp.errorType}\r\n${resp?.error}`);
-        }
+        const resp = await response.json() as TenantId[];
+        const tenants = resp.map(({ account_id, project_id }) => `${account_id}:${project_id}`);
+        setAccountIds(tenants.sort((a, b) => a.localeCompare(b)));
+        setError(undefined);
       } catch (e) {
         if (e instanceof Error) {
           setError(`${e.name}: ${e.message}`);

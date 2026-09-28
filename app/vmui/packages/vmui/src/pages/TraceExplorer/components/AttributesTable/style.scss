@@ -1,0 +1,62 @@
+@use "src/styles/variables" as *;
+
+.vm-trace-attributes {
+  display: flex;
+  flex-direction: column;
+  column-gap: $padding-small;
+  background: var(--color-background-block);
+}
+
+.vm-trace-attributes__row {
+  display: flex;
+  align-items: center;
+  gap: $padding-small;
+  padding: $padding-tiny 0;
+}
+
+.vm-trace-attributes__key-icon {
+  display: inline-flex;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  color: var(--text-muted);
+}
+
+.vm-trace-attributes__key-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.vm-trace-attributes__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.vm-trace-attributes__key {
+  color: var(--color-text-secondary);
+  white-space: pre;
+}
+
+.vm-trace-attributes__value {
+  overflow: hidden;
+  min-width: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vm-trace-attributes__copy-icon,
+.vm-trace-attributes__copy-icon:hover {
+  background-color: transparent;
+  border: none;
+  color: inherit;
+  overflow: hidden;
+  flex: none;
+  font-size: 13px;
+}
+
+.vm-trace-attributes__row:not(:hover) .vm-trace-attributes__copy-icon {
+  visibility: hidden;
+}

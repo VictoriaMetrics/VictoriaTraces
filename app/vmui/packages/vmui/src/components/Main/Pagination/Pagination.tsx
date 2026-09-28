@@ -3,6 +3,9 @@ import { FC, useMemo } from "preact/compat";
 import classNames from "classnames";
 import "./style.scss";
 
+const ELLIPSIS_START = "ellipsis-start";
+const ELLIPSIS_END = "ellipsis-end";
+
 interface PaginationProps {
   currentPage: number;
   totalItems: number;
@@ -18,14 +21,14 @@ const Pagination: FC<PaginationProps> = ({
   onPageChange,
   maxVisiblePages = 10
 }) => {
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const totalPages = itemsPerPage > 0 ? Math.ceil(totalItems / itemsPerPage) : 1;
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
     onPageChange(page);
   };
 
   const pages = useMemo(() => {
-    const pages = [];
+    const pages: (number | typeof ELLIPSIS_START | typeof ELLIPSIS_END)[] = [];
     if (totalPages <= maxVisiblePages) {
       for (let i = 1; i <= totalPages; i++) {
         pages.push(i);
@@ -37,7 +40,7 @@ const Pagination: FC<PaginationProps> = ({
       if (startPage > 1) {
         pages.push(1);
         if (startPage > 2) {
-          pages.push("...");
+          pages.push(ELLIPSIS_START);
         }
       }
 
@@ -47,7 +50,7 @@ const Pagination: FC<PaginationProps> = ({
 
       if (endPage < totalPages) {
         if (endPage < totalPages - 1) {
-          pages.push("...");
+          pages.push(ELLIPSIS_END);
         }
         pages.push(totalPages);
       }
@@ -76,18 +79,18 @@ const Pagination: FC<PaginationProps> = ({
       >
         <ArrowDownIcon/>
       </button>
-      {pages.map((page, index) => (
+      {pages.map((page) => (
         <button
-          key={index}
+          key={page}
           onClick={handleClickPage(page)}
           className={classNames({
             "vm-pagination__page": true,
             "vm-pagination__page_active": currentPage === page,
-            "vm-pagination__page_disabled": page === "..."
+            "vm-pagination__page_disabled": typeof page !== "number"
           })}
-          disabled={page === "..."}
+          disabled={typeof page !== "number"}
         >
-          {page}
+          {typeof page === "number" ? page : "..."}
         </button>
       ))}
       <button

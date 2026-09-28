@@ -8,7 +8,7 @@ export const baseContrastColors = [
   "#e38f0f",
   "#3d811a",
   "#ffea00",
-  "#2d2d2d",
+  "#00acc1",
   "#da42a6",
   "#a44e0c",
 ];
@@ -37,7 +37,7 @@ export const getColorFromString = (text: string): string => {
 
   let b = 1;
   let d = 0;
-  let f = 1;
+  let f: number;
 
   if (text.length > 0) {
     for (let i = 0; i < text.length; i++) {

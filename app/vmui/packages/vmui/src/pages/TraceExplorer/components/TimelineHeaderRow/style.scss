@@ -1,0 +1,72 @@
+@use "src/styles/variables" as *;
+
+.vm-timeline-header-row {
+  background: var(--color-background-block);
+
+  /* box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15); */
+  color: var(--color-text);
+  height: 56px;
+  line-height: 56px;
+  position: sticky;
+  top: 0;
+  width: 100%;
+  z-index: 4;
+}
+
+.vm-timeline-header-row__name-column {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  column-gap: $padding-tiny;
+  padding: 0 $padding-small;
+}
+
+.vm-timeline-header-row__name-column .vm-text-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.vm-timeline-header-row__search-toggle {
+  flex-shrink: 0;
+}
+
+.vm-timeline-header-row__title {
+  flex: 1;
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vm-timeline-header-row__title-label {
+  color: var(--color-text-secondary);
+  margin-right: 0.4em;
+}
+
+.vm-timeline-header-row__selected-span {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.vm-timeline-header-row__selected-span svg {
+  width: 0.85em;
+  height: 0.85em;
+}
+
+.vm-timeline-header-row__selected-span-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vm-timeline-header-row__resize-handle {
+  position: relative;
+  flex: none;
+}
+
+.vm-timeline-header-row__ticks-column {
+  padding: 0 30px;
+  overflow: hidden;
+}
