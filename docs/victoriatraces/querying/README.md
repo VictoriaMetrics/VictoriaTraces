@@ -30,14 +30,14 @@ See more details in [tag filter examples](#tags-filter-examples).
 
 ## Web UI
 
-VictoriaTraces provides Web UI for trace spans [querying](https://docs.victoriametrics.com/victorialogs/logsql/) and exploration
-at `http://<victoria-traces>:10428/select/vmui`.
+VictoriaTraces provides a Web UI for trace exploration at `http://<victoria-traces>:10428/select/vmui`.
 
-There are three modes of displaying query results:
+There are two query types you can switch between by clicking the top-left dropdown:
 
-- `Group` - results are displayed as a table with rows grouped by [stream fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields).
-- `Table` - displays query results as a table.
-- `JSON` - displays raw JSON response from `/select/logsql/query` HTTP API.
+- Trace Explorer: explore traces using various conditions or flexible [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).
+- TraceID: explore a trace by its `TraceID`.
+
+Visit our [VictoriaTraces playground](https://play-vtraces.victoriametrics.com/) to try it out.
 
 ## HTTP API
 
