@@ -214,11 +214,11 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
      Trace spans with timestamps older than now-retentionPeriod are automatically deleted; trace spans with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/victoriatraces/#retention ; see also -retention.maxDiskSpaceUsageBytes and -retention.maxDiskUsagePercent
      The following optional suffixes are supported: s (second), h (hour), d (day), w (week), M (month), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
   -search.allowPartialResponse
-     Whether to allow returning partial responses when some of vtstorage nodes from the -storageNode list are unavailable for querying. This flag works only for cluster setup of VictoriaLogs. See https://docs.victoriametrics.com/victorialogs/querying/#partial-responses
+     Whether to allow returning partial responses when some of vtstorage nodes from the -storageNode list are unavailable for querying. This flag works only for cluster setup of VictoriaTraces. See https://docs.victoriametrics.com/victoriatraces/querying/#partial-responses
   -search.fieldsLookbehind duration
      The default time range of searching for normal fields (tags and attributes).It affects various Tempo tag-related APIs. (default 2h0m0s)
   -search.latencyOffset duration
-     The time when a trace become visible in query results after the collection. see -insert.traceMaxDuration as well. (default 30s) (default 30s)
+     The time when a trace become visible in query results after the collection. see -insert.indexFlushInterval as well. (default 30s)
   -search.logSlowQueryDuration duration
      Log queries with execution time exceeding this value. Zero disables slow query logging (default 5s)
   -search.maxConcurrentRequests int
