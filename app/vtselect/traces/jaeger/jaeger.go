@@ -48,6 +48,9 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 	httpserver.EnableCORS(w, r)
 	startTime := time.Now()
 	path := r.URL.Path
+	if strings.HasPrefix(path, "/select/jaeger/api/v3/") {
+		return requestHandlerV3(ctx, w, r)
+	}
 	if path == "/select/jaeger/api/services" {
 		jaegerServicesRequests.Inc()
 		processGetServicesRequest(ctx, w, r)
@@ -360,13 +363,21 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 		}
 	}
 
-	attributesFilter := make(map[string]string, len(p.Attributes))
-	// some special fields in the OpenTelemetry span will be treated as span attributes/tags
-	// in query result, so they should be converted to proper filters correspondingly.
-	// e.g.: `otel.status_description` attribute in query result could be:
-	// 1. retrieved from `span_attr:otel.status_description` field directly.
-	// 2. converted from `status_message` field for Jaeger API.
-	for k, v := range p.Attributes {
+	p.Attributes = toStorageAttributeFilter(p.Attributes)
+
+	return p, nil
+}
+
+// toStorageAttributeFilter converts Jaeger tags to the field names used in storage.
+//
+// Some special fields in the OpenTelemetry span will be treated as span attributes/tags
+// in query result, so they should be converted to proper filters correspondingly.
+// e.g.: `otel.status_description` attribute in query result could be:
+// 1. retrieved from `span_attr:otel.status_description` field directly.
+// 2. converted from `status_message` field for Jaeger API.
+func toStorageAttributeFilter(attributes map[string]string) map[string]string {
+	attributesFilter := make(map[string]string, len(attributes))
+	for k, v := range attributes {
 		// convert to OpenTelemetry field name in storage.
 		if field, ok := spanAttributeMap[k]; ok {
 			// 2 special cases that need to converted value as well.
@@ -383,9 +394,7 @@ func parseJaegerTraceQueryParam(_ context.Context, r *http.Request) (*query.Trac
 			attributesFilter[otelpb.SpanAttrPrefixField+k] = v
 		}
 	}
-	p.Attributes = attributesFilter
-
-	return p, nil
+	return attributesFilter
 }
 
 // hashProcess generate hash result for a process according to its tags.

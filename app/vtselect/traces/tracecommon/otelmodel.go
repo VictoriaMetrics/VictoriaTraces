@@ -1,15 +1,14 @@
-package tempo
+package tracecommon
 
 import (
 	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vtselect/traces/tracecommon"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
-func rowsToResourceSpans(rows []*tracecommon.Row) ([]*otelpb.ResourceSpans, error) {
+func RowsToResourceSpans(rows []*Row) ([]*otelpb.ResourceSpans, error) {
 	// group data by service.name first
 	result := make([]*otelpb.ResourceSpans, 0, len(rows))
 	for _, row := range rows {
