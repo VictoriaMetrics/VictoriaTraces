@@ -107,6 +107,12 @@ func TestParseQuery(t *testing.T) {
 
 	// Regex match operator `=~` must become LogsQL `~` (not `=~`).
 	f(`{resource.host.name =~ "kimi-k2-a.*"}`, `"resource_attr:host.name":~"kimi-k2-a.*"`)
+
+	// unscoped attributes read the span attribute if present, and the resource attribute otherwise.
+	f(`{.istio.cluster_id = "c1"}`, `("span_attr:istio.cluster_id":* and "span_attr:istio.cluster_id":=c1 or "span_attr:istio.cluster_id":"" and "resource_attr:istio.cluster_id":=c1)`)
+	f(`{.service.name = "x" && .istio.cluster_id = "c1"}`, `{"resource_attr:service.name"=x} and ("span_attr:istio.cluster_id":* and "span_attr:istio.cluster_id":=c1 or "span_attr:istio.cluster_id":"" and "resource_attr:istio.cluster_id":=c1)`)
+	f(`{.foo !~ "a.*"}`, `("span_attr:foo":* and "span_attr:foo":!~"a.*" or "span_attr:foo":"" and "resource_attr:foo":!~"a.*")`)
+	f(`{.foo != nil}`, `("span_attr:foo":* and "span_attr:foo":* or "span_attr:foo":"" and "resource_attr:foo":*)`)
 }
 
 // TestParseQueryInvalid asserts that malformed inputs return an error
