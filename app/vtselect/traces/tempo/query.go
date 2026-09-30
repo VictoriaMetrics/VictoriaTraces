@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 	vtstoragecommon "github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/common"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/timeutil"
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/traceql"
 )
 
@@ -192,7 +193,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 	var traceIDListLock sync.Mutex
 	var startTimeLock sync.Mutex
 	traceIDList := make([]string, 0, limit)
-	maxStartTimeStr := endTime.UTC().Format(time.RFC3339)
+	maxStartTimeStr := timeutil.FormatUTC(endTime, time.RFC3339Nano)
 
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctx)
@@ -236,7 +237,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 
 		// found enough trace_id, return directly
 		if len(traceIDList) == limit {
-			maxStartTime, err := time.Parse(time.RFC3339, maxStartTimeStr)
+			maxStartTime, err := time.Parse(time.RFC3339Nano, maxStartTimeStr)
 			if err != nil {
 				return nil, maxStartTime, err
 			}
@@ -260,7 +261,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 		return nil, time.Time{}, err
 	}
 
-	maxStartTime, err := time.Parse(time.RFC3339, maxStartTimeStr)
+	maxStartTime, err := time.Parse(time.RFC3339Nano, maxStartTimeStr)
 	if err != nil {
 		return nil, maxStartTime, err
 	}
@@ -365,7 +366,7 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 			// this could be the old format index, which records trace ID and the approximate timestamp only.
 			// to transform this into new format (start time & end time), use [t-traceWindow, t+traceWindow].
 			// this code should be deprecated in the future.
-			timestamp, _ := time.Parse(time.RFC3339, timeStr)
+			timestamp, _ := time.Parse(time.RFC3339Nano, timeStr)
 			return timestamp.Add(-*tracecommon.TraceMaxDurationWindow), timestamp.Add(*tracecommon.TraceMaxDurationWindow), nil
 		}
 
