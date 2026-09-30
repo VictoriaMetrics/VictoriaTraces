@@ -31,9 +31,10 @@ type app struct {
 }
 
 // appOptions holds the optional configuration of an app, such as default flags
-// to set and things to extract from the app's log.
+// to set, extra environment variables and things to extract from the app's log.
 type appOptions struct {
 	defaultFlags map[string]string
+	env          []string
 	extractREs   []*regexp.Regexp
 	wait         bool
 }
@@ -54,6 +55,7 @@ func startApp(instance string, binary string, flags []string, opts *appOptions) 
 	flags = setDefaultFlags(flags, opts.defaultFlags)
 
 	cmd := exec.Command(binary, flags...)
+	cmd.Env = append(os.Environ(), opts.env...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, nil, err

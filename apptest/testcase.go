@@ -167,7 +167,15 @@ func (tc *TestCase) MustStartDefaultVtsingle() *Vtsingle {
 func (tc *TestCase) MustStartVtsingle(instance string, flags []string) *Vtsingle {
 	tc.t.Helper()
 
-	app, err := StartVtsingle(instance, flags, tc.cli)
+	return tc.MustStartVtsingleWithEnv(instance, flags, nil)
+}
+
+// MustStartVtsingleWithEnv is like MustStartVtsingle, but also passes the given
+// environment variables, such as TZ, to the vtsingle process.
+func (tc *TestCase) MustStartVtsingleWithEnv(instance string, flags, env []string) *Vtsingle {
+	tc.t.Helper()
+
+	app, err := StartVtsingle(instance, flags, env, tc.cli)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}
