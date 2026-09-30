@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): apply correct time‑range filter and return proper traces from Jaeger and Tempo search APIs when VictoriaTraces runs in a non‑UTC time zone. Previously, searches could return fewer traces or empty results due to incorrect time‑zone conversion for the time‑range filter, especially for time zones west of UTC such as `TZ=America/New_York`, which impacted the end‑time boundary. See [issue #260](https://github.com/VictoriaMetrics/VictoriaTraces/issues/260). Thank @Vandit1604 for [pull request #262](https://github.com/VictoriaMetrics/VictoriaTraces/pull/262).
+
 ## [v0.12.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.12.0)
 
 Released at 2026-09-29
@@ -26,7 +28,6 @@ Released at 2026-09-29
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return `startTimeUnixNano` as a JSON string in the Tempo `/api/search` response. Previously it was a JSON number, which broke clients that decode the field as a string. Thank @clain23 for [the pull request #256](https://github.com/VictoriaMetrics/VictoriaTraces/pull/256).
 * BUGFIX: vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): apply `-search.allowPartialResponse` for Tempo and Jaeger query APIs. Previously the flag affected only LogsQL query handlers, so Tempo and Jaeger requests still failed when a queried `vtstorage` node was unavailable. See [this issue #157](https://github.com/VictoriaMetrics/VictoriaTraces/issues/157).
-* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return all the matching traces from the Jaeger and Tempo search APIs when VictoriaTraces runs with a time zone west of UTC, such as `TZ=America/New_York`. Previously the search could return fewer traces or an empty result. See [this issue #260](https://github.com/VictoriaMetrics/VictoriaTraces/issues/260).
 
 ## [v0.11.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.11.1)
 
