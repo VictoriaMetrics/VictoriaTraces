@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support unscoped attributes in TraceQL queries for the Tempo search API. Previously such queries always returned empty results. See [this issue #198](https://github.com/VictoriaMetrics/VictoriaTraces/issues/198).
+
 ## [v0.12.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.12.0)
 
 Released at 2026-09-29

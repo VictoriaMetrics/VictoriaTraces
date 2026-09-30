@@ -111,6 +111,15 @@ func (fc *filterCommon) String() string {
 		return otelpb.ParentSpanIDField + `:=""`
 	}
 
+	// Unscoped attribute `.foo` reads the span attribute if the span has it, and the resource attribute otherwise,
+	// `.service.name` is mapped to the resource stream field below.
+	if attr, ok := strings.CutPrefix(fc.fieldName, "."); ok && fc.fieldName != ".service.name" {
+		spanFilter := filterCommon{fieldName: "span." + attr, op: fc.op, value: fc.value}
+		resourceFilter := filterCommon{fieldName: "resource." + attr, op: fc.op, value: fc.value}
+		spanField := quoteFieldNameIfNeeded(otelpb.SpanAttrPrefixField + attr)
+		return "(" + spanField + ":* and " + spanFilter.String() + " or " + spanField + `:"" and ` + resourceFilter.String() + ")"
+	}
+
 	// TraceQL's `attr = nil` / `attr != nil` map to LogsQL's empty-value and
 	// any-value filters respectively — the canonical forms per
 	// https://docs.victoriametrics.com/victorialogs/logsql/#empty-value-filter
