@@ -18,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
 	vtstoragecommon "github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/common"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
-	"github.com/VictoriaMetrics/VictoriaTraces/lib/timeutil"
 )
 
 // TraceQueryParam is the parameters for querying a batch of traces.
@@ -279,7 +278,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 	var startTimeLock sync.Mutex
 
 	traceIDList := make([]string, 0, limit)
-	maxStartTimeStr := timeutil.FormatUTC(endTime, time.RFC3339Nano)
+	maxStartTimeNs := endTime.UnixNano()
 
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctx)
@@ -302,8 +301,8 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 			case "_time":
 				startTimeLock.Lock()
 				for _, v := range columns[i].Values {
-					if v < maxStartTimeStr {
-						maxStartTimeStr = strings.Clone(v)
+					if ns, ok := logstorage.TryParseTimestampRFC3339Nano(v); ok && ns < maxStartTimeNs {
+						maxStartTimeNs = ns
 					}
 				}
 				startTimeLock.Unlock()
@@ -323,11 +322,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 
 		// found enough trace_id, return directly
 		if len(traceIDList) == limit {
-			maxStartTime, err := time.Parse(time.RFC3339Nano, maxStartTimeStr)
-			if err != nil {
-				return nil, maxStartTime, err
-			}
-			return checkTraceIDList(traceIDList), maxStartTime, nil
+			return checkTraceIDList(traceIDList), time.Unix(0, maxStartTimeNs), nil
 		}
 
 		// not enough trace_id, clear the result, extend the time range and try again.
@@ -347,12 +342,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 		return nil, time.Time{}, err
 	}
 
-	maxStartTime, err := time.Parse(time.RFC3339Nano, maxStartTimeStr)
-	if err != nil {
-		return nil, maxStartTime, err
-	}
-
-	return checkTraceIDList(traceIDList), maxStartTime, nil
+	return checkTraceIDList(traceIDList), time.Unix(0, maxStartTimeNs), nil
 }
 
 // findTraceIDTimeSplitTimeRange try to search from {trace_id_idx_stream="xx"} stream, which contains
