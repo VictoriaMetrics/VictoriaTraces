@@ -164,15 +164,7 @@ func (tc *TestCase) MustStartDefaultVtsingle() *Vtsingle {
 
 // MustStartVtsingle is a test helper function that starts an instance of
 // vtsingle and fails the test if the app fails to start.
-func (tc *TestCase) MustStartVtsingle(instance string, flags []string) *Vtsingle {
-	tc.t.Helper()
-
-	return tc.MustStartVtsingleWithEnv(instance, flags, nil)
-}
-
-// MustStartVtsingleWithEnv is like MustStartVtsingle, but also passes the given
-// environment variables, such as TZ, to the vtsingle process.
-func (tc *TestCase) MustStartVtsingleWithEnv(instance string, flags, env []string) *Vtsingle {
+func (tc *TestCase) MustStartVtsingle(instance string, flags []string, env ...string) *Vtsingle {
 	tc.t.Helper()
 
 	app, err := StartVtsingle(instance, flags, env, tc.cli)
@@ -185,10 +177,10 @@ func (tc *TestCase) MustStartVtsingleWithEnv(instance string, flags, env []strin
 
 // MustStartVtagent is a test helper function that starts an instance of
 // vtagent and fails the test if the app fails to start.
-func (tc *TestCase) MustStartVtagent(instance string, remoteWriteURLs, flags []string) *Vtagent {
+func (tc *TestCase) MustStartVtagent(instance string, remoteWriteURLs, flags []string, env ...string) *Vtagent {
 	tc.t.Helper()
 
-	app, err := StartVtagent(instance, remoteWriteURLs, flags, tc.cli)
+	app, err := StartVtagent(instance, remoteWriteURLs, flags, env, tc.cli)
 	if err != nil {
 		tc.t.Fatalf("Could not start %s: %v", instance, err)
 	}

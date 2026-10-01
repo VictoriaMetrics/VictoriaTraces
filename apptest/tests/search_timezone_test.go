@@ -10,18 +10,18 @@ import (
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
-// TestSingleSearchTracesNonUTCTimezone verifies that Jaeger and Tempo trace search return traces older than
-// -search.traceMaxDurationWindow when VictoriaTraces runs in a time zone west of UTC.
+// TestSingleSearchTracesNonUTCTimezone verifies that Jaeger and Tempo trace search return correct traces
+// when VictoriaTraces runs in a time zone other than UTC.
 //
 // See https://github.com/VictoriaMetrics/VictoriaTraces/issues/260
 func TestSingleSearchTracesNonUTCTimezone(t *testing.T) {
 	tc := at.NewTestCase(t)
 	defer tc.Stop()
 
-	sut := tc.MustStartVtsingleWithEnv("vtsingle", []string{
+	sut := tc.MustStartVtsingle("vtsingle", []string{
 		"-storageDataPath=" + tc.Dir() + "/vtsingle",
 		"-retentionPeriod=100y",
-	}, []string{"TZ=America/New_York"})
+	}, []string{"TZ=America/New_York"}...)
 
 	serviceName := "testSearchTimezoneService"
 	spanTime := time.Now().Add(-2 * time.Hour)
