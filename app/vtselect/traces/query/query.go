@@ -278,7 +278,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 	var startTimeLock sync.Mutex
 
 	traceIDList := make([]string, 0, limit)
-	maxStartTimeStr := endTime.Format(time.RFC3339)
+	maxStartTimeNs := endTime.UnixNano()
 
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctx)
@@ -301,8 +301,8 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 			case "_time":
 				startTimeLock.Lock()
 				for _, v := range columns[i].Values {
-					if v < maxStartTimeStr {
-						maxStartTimeStr = strings.Clone(v)
+					if ns, ok := logstorage.TryParseTimestampRFC3339Nano(v); ok && ns < maxStartTimeNs {
+						maxStartTimeNs = ns
 					}
 				}
 				startTimeLock.Unlock()
@@ -322,11 +322,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 
 		// found enough trace_id, return directly
 		if len(traceIDList) == limit {
-			maxStartTime, err := time.Parse(time.RFC3339, maxStartTimeStr)
-			if err != nil {
-				return nil, maxStartTime, err
-			}
-			return checkTraceIDList(traceIDList), maxStartTime, nil
+			return checkTraceIDList(traceIDList), time.Unix(0, maxStartTimeNs), nil
 		}
 
 		// not enough trace_id, clear the result, extend the time range and try again.
@@ -346,12 +342,7 @@ func findTraceIDsSplitTimeRange(ctx context.Context, q *logstorage.Query, cp *tr
 		return nil, time.Time{}, err
 	}
 
-	maxStartTime, err := time.Parse(time.RFC3339, maxStartTimeStr)
-	if err != nil {
-		return nil, maxStartTime, err
-	}
-
-	return checkTraceIDList(traceIDList), maxStartTime, nil
+	return checkTraceIDList(traceIDList), time.Unix(0, maxStartTimeNs), nil
 }
 
 // findTraceIDTimeSplitTimeRange try to search from {trace_id_idx_stream="xx"} stream, which contains
@@ -438,7 +429,7 @@ func findTraceIDTimeSplitTimeRange(ctx context.Context, q *logstorage.Query, cp 
 			// this could be the old format index, which records trace ID and the approximate timestamp only.
 			// to transform this into new format (start time & end time), use [t-traceWindow, t+traceWindow].
 			// this code should be deprecated in the future.
-			timestamp, _ := time.Parse(time.RFC3339, timeStr)
+			timestamp, _ := time.Parse(time.RFC3339Nano, timeStr)
 			return timestamp.Add(-*tracecommon.TraceMaxDurationWindow), timestamp.Add(*tracecommon.TraceMaxDurationWindow), nil
 		}
 

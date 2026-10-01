@@ -265,6 +265,30 @@ func NewJaegerAPITracesResponse(t *testing.T, s string) *JaegerAPITracesResponse
 	return res
 }
 
+// TempoAPISearchResponse is an in-memory representation of the
+// /select/tempo/api/search response.
+type TempoAPISearchResponse struct {
+	Traces []TempoTraceSummary `json:"traces"`
+}
+
+// TempoTraceSummary is the structure of an item in the `traces` field of the
+// /select/tempo/api/search response.
+type TempoTraceSummary struct {
+	TraceID string `json:"traceID"`
+}
+
+// NewTempoAPISearchResponse is a test helper function that creates a new
+// instance of TempoAPISearchResponse by unmarshalling a json string.
+func NewTempoAPISearchResponse(t *testing.T, s string) *TempoAPISearchResponse {
+	t.Helper()
+
+	res := &TempoAPISearchResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", s, err)
+	}
+	return res
+}
+
 // NewJaegerAPITraceResponse is a test helper function that creates a new
 // instance of JaegerAPITraceResponse by unmarshalling a json string.
 func NewJaegerAPITraceResponse(t *testing.T, s string) *JaegerAPITraceResponse {

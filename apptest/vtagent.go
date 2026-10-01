@@ -29,8 +29,9 @@ type Vtagent struct {
 // StartVtagent starts an instance of Vtagent with the given flags.
 // It also sets the default flags and populates the app instance state with
 // values extracted from the application log (such as httpListenAddr).
-func StartVtagent(instance string, remoteWriteURLs, flags []string, cli *Client) (*Vtagent, error) {
+func StartVtagent(instance string, remoteWriteURLs, flags, env []string, cli *Client) (*Vtagent, error) {
 	app, stderrExtracts, err := startApp(instance, "../../bin/vtagent-race", flags, &appOptions{
+		env: env,
 		defaultFlags: map[string]string{
 			"-httpListenAddr":            "127.0.0.1:0",
 			"-otlpGRPCListenAddr":        "127.0.0.1:0",
