@@ -33,7 +33,8 @@ type Vtsingle struct {
 	jaegerAPITraceURL        string
 	jaegerAPIDependenciesURL string
 
-	tempoAPISearchURL string
+	tempoAPISearchURL     string
+	tempoAPISearchTagsURL string
 
 	logsQLQueryURL string
 
@@ -84,7 +85,8 @@ func StartVtsingle(instance string, flags, env []string, cli *Client) (*Vtsingle
 		jaegerAPITraceURL:        fmt.Sprintf("http://%s/select/jaeger/api/traces/%%s", stderrExtracts[1]),
 		jaegerAPIDependenciesURL: fmt.Sprintf("http://%s/select/jaeger/api/dependencies", stderrExtracts[1]),
 
-		tempoAPISearchURL: fmt.Sprintf("http://%s/select/tempo/api/search", stderrExtracts[1]),
+		tempoAPISearchURL:     fmt.Sprintf("http://%s/select/tempo/api/search", stderrExtracts[1]),
+		tempoAPISearchTagsURL: fmt.Sprintf("http://%s/select/tempo/api/v2/search/tags", stderrExtracts[1]),
 
 		logsQLQueryURL: fmt.Sprintf("http://%s/select/logsql/query", stderrExtracts[1]),
 
@@ -176,6 +178,20 @@ func (app *Vtsingle) TempoAPISearch(t *testing.T, q string, start, end time.Time
 	}
 	res, _ := app.cli.Get(t, app.tempoAPISearchURL+"?"+uv.Encode())
 	return NewTempoAPISearchResponse(t, res)
+}
+
+// TempoAPISearchTags is a test helper function that lists attribute names of the given scope
+// by sending an HTTP GET request to /select/tempo/api/v2/search/tags Vtsingle endpoint.
+func (app *Vtsingle) TempoAPISearchTags(t *testing.T, scope string, start, end time.Time) *TempoAPISearchTagsResponse {
+	t.Helper()
+
+	uv := url.Values{
+		"scope": {scope},
+		"start": {strconv.FormatInt(start.Unix(), 10)},
+		"end":   {strconv.FormatInt(end.Unix(), 10)},
+	}
+	res, _ := app.cli.Get(t, app.tempoAPISearchTagsURL+"?"+uv.Encode())
+	return NewTempoAPISearchTagsResponse(t, res)
 }
 
 // JaegerAPIDependencies is a test helper function that queries for the dependencies.

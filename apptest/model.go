@@ -289,6 +289,41 @@ func NewTempoAPISearchResponse(t *testing.T, s string) *TempoAPISearchResponse {
 	return res
 }
 
+// TempoAPISearchTagsResponse is an in-memory representation of the
+// /select/tempo/api/v2/search/tags response.
+type TempoAPISearchTagsResponse struct {
+	Scopes []TempoTagScope `json:"scopes"`
+}
+
+// TempoTagScope is the structure of an item in the `scopes` field of the
+// /select/tempo/api/v2/search/tags response.
+type TempoTagScope struct {
+	Name string   `json:"name"`
+	Tags []string `json:"tags"`
+}
+
+// Tags returns the tag names of the given scope.
+func (r *TempoAPISearchTagsResponse) Tags(scope string) []string {
+	for _, s := range r.Scopes {
+		if s.Name == scope {
+			return s.Tags
+		}
+	}
+	return nil
+}
+
+// NewTempoAPISearchTagsResponse is a test helper function that creates a new
+// instance of TempoAPISearchTagsResponse by unmarshalling a json string.
+func NewTempoAPISearchTagsResponse(t *testing.T, s string) *TempoAPISearchTagsResponse {
+	t.Helper()
+
+	res := &TempoAPISearchTagsResponse{}
+	if err := json.Unmarshal([]byte(s), res); err != nil {
+		t.Fatalf("could not unmarshal query response data=\n%s\n: %v", s, err)
+	}
+	return res
+}
+
 // NewJaegerAPITraceResponse is a test helper function that creates a new
 // instance of JaegerAPITraceResponse by unmarshalling a json string.
 func NewJaegerAPITraceResponse(t *testing.T, s string) *JaegerAPITraceResponse {
