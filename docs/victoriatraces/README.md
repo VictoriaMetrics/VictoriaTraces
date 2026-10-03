@@ -62,7 +62,9 @@ Run `make package-victoria-traces`. It builds `victoriametrics/victoria-traces:<
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in the repository.
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package-victoria-traces`.
 
-The base docker image is [alpine](https://hub.docker.com/_/alpine) but it is possible to use any other base image
+The base docker image is [distroless](https://github.com/GoogleContainerTools/distroless), which doesn't contain a shell.
+It is recommended to use  [`kubectl debug`](https://kubernetes.io/docs/reference/kubectl/generated/kubectl_debug/) for debugging running containers in Kubernetes.
+It is possible to use any other base image
 by setting it via `<ROOT_IMAGE>` environment variable.
 For example, the following command builds the image on top of [scratch](https://hub.docker.com/_/scratch) image:
 
