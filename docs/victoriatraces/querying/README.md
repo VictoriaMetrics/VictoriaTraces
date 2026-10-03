@@ -284,6 +284,30 @@ Here's a response example:
 {"series":[{"labels":[{"key":"name","value":{"stringValue":"GET"}}],"samples":[{"timestampMs":"1783567368000","value":346},{"timestampMs":"1783567404000","value":28.166666666666668}],"exemplars":[{"labels":[{"key":"trace:id","value":{"stringValue":"fca92157fc0d84fdaa960f9bc83634f8"}},{"key":"span:id","value":{"stringValue":"38546d070ac097e8"}}],"value":346,"timestampMs":"1783567368000"}]}],"metrics":{"inspectedBytes":"0","inspectedTraces":0,"totalJobs":0,"completedJobs":0},"status":"COMPLETE"}
 ```
 
+## Querying tenants
+
+VictoriaTraces provides `/select/tenant_ids?start=<start>&end=<end>` endpoint, which returns [tenant ids](https://docs.victoriametrics.com/victoriatraces/#multitenancy)
+for the ingested trace spans on the given `[<start> ... <end>)` time range.
+Use `http://<vtselect>:10471/select/tenant_ids` for [cluster](https://docs.victoriametrics.com/victoriatraces/cluster/).
+
+The `<start>` and `<end>` args can contain values in [any supported format](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#timestamp-formats).
+If `<start>` is missing, then it equals the minimum timestamp across stored spans.
+If `<end>` is missing, then it equals the maximum timestamp across stored spans.
+
+This endpoint must be called with empty `AccountID` request header, otherwise it returns `403 Forbidden`.
+This prevents clients with access to a single tenant from discovering other tenants.
+Enforce the `AccountID` header at `vmauth` side as described in [modifying HTTP headers in vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/#modifying-http-headers).
+
+```sh
+curl http://<victoria-traces>:10428/select/tenant_ids
+```
+
+Here's a response example:
+
+```json
+[{"account_id":0,"project_id":0},{"account_id":3,"project_id":5}]
+```
+
 ## Hidden fields
 
 All the [querying APIs at VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/querying/#http-api) accept optional `hidden_fields_filters` query arg,
@@ -292,7 +316,7 @@ These attributes become invisible during query execution.
 
 This functionality is useful for restricting access to certain span attributes with sensitive information for the particular authorized users.
 The `hidden_fields_filters` query arg can be attached to the request by auth proxy such as [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/)
-according to [these docs](https://docs.victoriametrics.com/victoriametrics/vmauth/#enforcing-query-args), and by Grafana if set in datasource URL.
+as described in [enforcing query args in vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/#enforcing-query-args), and by Grafana if set in datasource URL.
 
 VictoriaTraces accepts the following formats for the `hidden_fields_filters` query arg:
 
@@ -326,7 +350,7 @@ are unavailable in the cluster. This can be done by the following ways:
 - To pass `-search.allowPartialResponse` command-line flag to `vtselect`.
 - To pass `allow_partial_response=1` query arg to [HTTP querying APIs](https://docs.victoriametrics.com/victoriatraces/querying/#http-api).
   This option overrides the `-search.allowPartialResponse` command-line flag.
-- To pass `allow_partial_response` option to the query on LogsQL APIs according to [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#query-options).
+- To pass `allow_partial_response` option to the query on LogsQL APIs according to [LogsQL query options](https://docs.victoriametrics.com/victorialogs/logsql/#query-options).
   This option overrides the `allow_partial_response=1` query arg.
 
 See [high availability docs for VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/#high-availability) for more details.
