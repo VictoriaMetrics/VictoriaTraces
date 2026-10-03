@@ -20,7 +20,7 @@ VictoriaTraces provides the following prominent features:
 - It accepts trace spans in the popular [OpenTelemetry protocol](https://opentelemetry.io/docs/specs/otel/protocol/)(OTLP).
 - It provides [Jaeger Query Service JSON APIs](https://www.jaegertracing.io/docs/2.6/apis/#internal-http-json)
   to integrate with [Grafana](https://grafana.com/docs/grafana/latest/datasources/jaeger/) or [Jaeger Frontend](https://www.jaegertracing.io/docs/2.6/frontend-ui/).
-- It supports alerting - see [these docs](https://docs.victoriametrics.com/victoriatraces/vmalert/).
+- It supports alerting - see [alerting with traces](https://docs.victoriametrics.com/victoriatraces/vmalert/).
 
 If you want to play with the VictoriaTraces demo, simply go to our [VictoriaTraces playground](https://play-vtraces.victoriametrics.com/) or [Grafana playground](https://play-grafana.victoriametrics.com/explore) to query and visualize the traces.
 
@@ -109,8 +109,8 @@ This schema outlines how to configure a High Availability (HA) setup using Victo
 
 VictoriaTraces exposes internal metrics in Prometheus exposition format at `http://<victoria-traces>:10428/metrics` page.
 It is recommended to set up monitoring of these metrics via VictoriaMetrics
-(see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
-vmagent (see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
+(see [how to scrape Prometheus exporters](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
+vmagent (see [how to collect metrics in Prometheus format](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
 
 We recommend installing Grafana dashboard for [VictoriaTraces single-node](https://grafana.com/grafana/dashboards/24136) or [cluster](https://grafana.com/grafana/dashboards/24134).
 
@@ -178,7 +178,7 @@ cloud provider, or third-party tools. Note that the snapshot must be **consisten
 
 By default, VictoriaTraces stores trace data with timestamps in the time range `[now-7d, now]`, while dropping data outside the given time range.
 E.g. it uses the retention of 7 days. The retention can be configured with `-retentionPeriod` command-line flag.
-This flag accepts values starting from `1d` (one day) up to `100y` (100 years). See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
+This flag accepts values starting from `1d` (one day) up to `100y` (100 years). See [time durations in Prometheus](https://prometheus.io/docs/prometheus/latest/querying/basics/#float-literals-and-time-durations)
 for the supported duration formats.
 
 For example, the following command starts VictoriaTraces with the retention of 8 weeks:
@@ -204,7 +204,7 @@ rate(vt_rows_dropped_total[5m]) > 0
 
 By default, VictoriaTraces doesn't accept trace spans with timestamps bigger than `now+2d`, e.g. 2 days in the future.
 If you need accepting trace spans with bigger timestamps, then specify the desired "future retention" via `-futureRetention` command-line flag.
-This flag accepts values starting from `1d`. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
+This flag accepts values starting from `1d`. See [time durations in Prometheus](https://prometheus.io/docs/prometheus/latest/querying/basics/#float-literals-and-time-durations)
 for the supported duration formats.
 
 For example, the following command starts VictoriaTraces, which accepts trace spans with timestamps up to a year in the future:
@@ -304,7 +304,7 @@ VictoriaTraces supports dynamic attach and detach of per-day partitions, by usin
 
 These endpoints can be protected from unauthorized access via `-partitionManageAuthKey` [command-line flag](#list-of-command-line-flags).
 
-These endpoints can be used for building a flexible per-partition backup / restore schemes as described [in these docs](#backup-and-restore).
+These endpoints can be used for building a flexible per-partition backup / restore schemes as described in [backup and restore](#backup-and-restore).
 
 These endpoints can be used also for setting up automated multi-tier storage schemes where recently ingested data is stored to VictoriaTraces instances
 with fast NVMe (SSD) disks, while historical data is gradually migrated to VictoriaTraces instances with slower, but bigger and less expensive HDD disks.
