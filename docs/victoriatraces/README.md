@@ -338,6 +338,8 @@ and [querying](https://docs.victoriametrics.com/victoriatraces/querying/) via `A
 
 If `AccountID` and/or `ProjectID` request headers aren't set, then the default `0` value is used.
 
+The list of tenants with ingested data can be obtained via [`/select/tenant_ids` endpoint](https://docs.victoriametrics.com/victoriatraces/querying/#querying-tenants).
+
 VictoriaTraces has very low overhead for per-tenant management, so it is OK to have thousands of tenants in a single VictoriaTraces instance.
 
 VictoriaTraces doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/victoriametrics/vmauth/) or similar tools for per-tenant authorization.
