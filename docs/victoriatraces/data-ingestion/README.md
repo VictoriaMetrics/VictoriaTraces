@@ -11,7 +11,7 @@ sitemap:
 
 ## HTTP APIs
 
-### Opentelemetry API
+### OpenTelemetry API
 
 VictoriaTraces provides the following API for OpenTelemetry data ingestion:
 
