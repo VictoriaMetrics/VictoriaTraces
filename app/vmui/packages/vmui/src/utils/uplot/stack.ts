@@ -22,7 +22,8 @@ function stack(data: AlignedData, omit: (i: number) => boolean) {
       ],
     });
 
-  bands = bands.filter(b => b.series[1] > -1);
+  // The last stacked series has no series above it (findIndex gives -1); such a band is not a valid pair
+  bands = bands.filter(b => b.series[0] > -1 && b.series[1] > -1);
 
   return {
     data: [data[0]].concat(data2) as AlignedData,

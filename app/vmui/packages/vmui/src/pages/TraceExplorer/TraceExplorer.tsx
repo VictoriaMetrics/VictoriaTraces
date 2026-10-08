@@ -14,15 +14,19 @@ import FiltersSidebar from "./components/FiltersSidebar";
 import ExtraFiltersPanel from "./components/ExtraFiltersPanel";
 import { DURATION_MAX_FIELD, DURATION_MIN_FIELD, useExtraFilters } from "./hooks/useExtraFilters";
 import { useFiltersSidebarVisible } from "./hooks/useFiltersSidebarVisible";
-import TracesHeatmap, { HeatmapSelectionRange } from "./components/TracesHeatmap";
-import { useHeatmapAggregation } from "./components/TracesHeatmap/useHeatmapAggregation";
+import { HeatmapSelectionRange } from "./components/TracesHeatmap";
 import TraceInfoDrawer from "./components/TraceInfoDrawer";
 import LineLoader from "../../components/Main/LineLoader";
 import ApiErrorAlert from "./components/ApiErrorAlert";
 import { addQueryToHistoryStorage } from "../../components/QueryHistory/utils";
 import { DurationRequest } from "./hooks/useFiltersSidebarState";
-import { addFilterClause, buildDurationClause, formatDurationRangeForInput } from "./utils";
+import { addFilterClause, buildDurationClause, buildExcludeClause, formatDurationRangeForInput } from "./utils";
 import { nanosToIsoString } from "../../utils/time";
+import ChartModeToggle from "./components/ChartModeToggle";
+import { TRACE_CHARTS, TraceChartRun } from "./charts";
+import { TraceExplorerChartContextValue, TraceExplorerChartProvider } from "./charts/TraceExplorerChartContext";
+import { useChartMode } from "./hooks/useChartMode";
+import { HitsFilterMode } from "../../components/Chart/BarHitsChart/types";
 
 const noop = () => {};
 
@@ -34,9 +38,10 @@ const TraceExplorer: FC = () => {
   const { executeQueryTrigger } = useQueryState();
   const navigate = useNavigate();
   const { isVisible: isFiltersSidebarVisible, setVisible: setFiltersSidebarVisible } = useFiltersSidebarVisible();
+  const [activeChartId, setActiveChartId] = useChartMode(TRACE_CHARTS);
 
   const { query, setQuery } = useTraceQueryState();
-  const { extraFilters, extraClauses, extraParams, removeFilter, selectedValues } = useExtraFilters();
+  const { extraFilters, extraClauses, extraParams, addFilter, removeFilter, selectedValues } = useExtraFilters();
   const extraFiltersKey = useMemo(
     () => extraFilters.map(f => `${f.field}::${f.value}`).sort().join("|"),
     [extraFilters]
@@ -55,10 +60,6 @@ const TraceExplorer: FC = () => {
     traces, spansByTraceId,
     isLoading: isSearchLoading, error: searchError, search,
   } = useLogsqlTracesSearch();
-  const {
-    grid: heatmapGrid,
-    isLoading: isHeatmapLoading, isErrorsLoading: isHeatmapErrorsLoading, error: heatmapError, fetchHeatmap,
-  } = useHeatmapAggregation();
 
   // A heatmap rectangle selection filters the table only (extra time+duration bounds on
   // top of the existing query) — the heatmap chart itself keeps showing the unfiltered picture.
@@ -69,6 +70,9 @@ const TraceExplorer: FC = () => {
   const [heatmapSelection, setHeatmapSelection] = useState<HeatmapSelectionRange | null>(null);
   const [durationRequest, setDurationRequest] = useState<DurationRequest | null>(null);
   const [committedQuery, setCommittedQuery] = useState(query);
+  // Snapshot of the last committed run; chart panels fetch their own data from it.
+  const [chartRun, setChartRun] = useState<TraceChartRun | null>(null);
+  const runCounterRef = useRef(0);
 
   const displayedTraces = heatmapSelection ? previewTraces : traces;
   const displayedSpansByTraceId = heatmapSelection ? previewSpansByTraceId : spansByTraceId;
@@ -90,8 +94,28 @@ const TraceExplorer: FC = () => {
     setCommittedQuery(queryToRun);
     addQueryToHistoryStorage(queryToRun);
     search(queryToRun, period.start, period.end, limit, extraParams);
-    fetchHeatmap(queryToRun, period.start, period.end, extraClauses);
-  }, [query, period, limit, extraParams, extraClauses, search, fetchHeatmap, setSelectedTraceId]);
+    runCounterRef.current += 1;
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- called from run-triggering effects below; hands chart panels the run to load
+    setChartRun({
+      id: runCounterRef.current,
+      query: queryToRun,
+      startNs: period.start,
+      endNs: period.end,
+      extraClauses,
+    });
+  }, [query, period, limit, extraParams, extraClauses, search, setSelectedTraceId]);
+
+  const handleApplyFieldFilter = useCallback((field: string, value: string, mode: HitsFilterMode) => {
+    if (mode === "include") {
+      addFilter(field, value);
+      return;
+    }
+    const nextQuery = addFilterClause(query, buildExcludeClause(field, value));
+    setQuery(nextQuery);
+    // preserveSelection: a second URL update in the same tick (clearing trace_id) would be computed from
+    // stale search params and drop the query just written by setQuery.
+    handleRun(nextQuery, true);
+  }, [query, addFilter, setQuery, handleRun]);
 
   useEffect(() => {
     if (!heatmapSelection) return;
@@ -120,6 +144,20 @@ const TraceExplorer: FC = () => {
       return next;
     });
   }, [setFiltersSidebarVisible, getUrlParams, setSearchParams]);
+
+  const chartContext = useMemo<TraceExplorerChartContextValue>(() => ({
+    heatmap: {
+      minDurationUs,
+      maxDurationUs,
+      highlightedTrace: selectedTrace ? {
+        startTimeUs: selectedTrace.startTime,
+        durationUs: selectedTrace.duration,
+      } : null,
+      onSelectionChange: setHeatmapSelection,
+      onCommitSelection: handleCommitHeatmapSelection,
+    },
+    applyFieldFilter: handleApplyFieldFilter,
+  }), [minDurationUs, maxDurationUs, selectedTrace, handleCommitHeatmapSelection, handleApplyFieldFilter]);
 
   useEffect(() => {
     refreshPeriod();
@@ -192,22 +230,31 @@ const TraceExplorer: FC = () => {
         </div>
 
         <div className="vm-trace-explorer-traces-body">
-          <TracesHeatmap
-            grid={heatmapGrid}
-            isLoading={isHeatmapLoading}
-            isErrorsLoading={isHeatmapErrorsLoading}
-            error={heatmapError}
-            periodStart={period.start}
-            periodEnd={period.end}
-            minDurationUs={minDurationUs}
-            maxDurationUs={maxDurationUs}
-            highlightedTrace={selectedTrace ? {
-              startTimeUs: selectedTrace.startTime,
-              durationUs: selectedTrace.duration,
-            } : null}
-            onSelectionChange={setHeatmapSelection}
-            onCommitSelection={handleCommitHeatmapSelection}
+          <ChartModeToggle
+            charts={TRACE_CHARTS}
+            activeId={activeChartId}
+            onChange={setActiveChartId}
           />
+          {/* Inactive charts stay mounted (hidden) so their data survives tab switches; they load the run lazily. */}
+          <TraceExplorerChartProvider value={chartContext}>
+            {TRACE_CHARTS.map(chart => {
+              const isActive = chart.id === activeChartId;
+              return (
+                <div
+                  key={chart.id}
+                  className={classNames({
+                    "vm-trace-explorer-chart": true,
+                    "vm-trace-explorer-chart_hidden": !isActive,
+                  })}
+                >
+                  <chart.Component
+                    run={chartRun}
+                    isActive={isActive}
+                  />
+                </div>
+              );
+            })}
+          </TraceExplorerChartProvider>
           <div
             className={classNames("vm-trace-explorer-traces-body-table", "vm-block", {
               "vm-trace-explorer-traces-body-table_loading": heatmapSelection ? isPreviewLoading : isSearchLoading,
