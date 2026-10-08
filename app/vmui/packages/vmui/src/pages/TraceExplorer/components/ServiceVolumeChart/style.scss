@@ -1,0 +1,23 @@
+@use "src/styles/variables" as *;
+
+.vm-service-volume-chart {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 120px;
+  padding: $padding-small $padding-global;
+  background-color: $color-background-block;
+  border-bottom: $border-divider;
+
+  &_loading {
+    opacity: 0.6;
+  }
+
+  &__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1 1 auto;
+    padding: $padding-global;
+  }
+}
