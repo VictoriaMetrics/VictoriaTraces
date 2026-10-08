@@ -9,6 +9,12 @@ export const VICTORIALOGS_DOCS_URL = "https://docs.victoriametrics.com/victorial
 export const TRACES_DEFAULT_LIMIT = 5000;
 export const TRACES_MAX_LIMIT = 10000;
 
+// Span volume chart (`/select/logsql/hits`): number of time buckets and number of top series before "other".
+export const HITS_BARS_VIEW = 100;
+export const HITS_FIELDS_LIMIT = 20;
+// Share of the x-axis step a bar occupies (uPlot bars `size` factor); the rest is the gap between bars.
+export const HITS_BAR_WIDTH_FACTOR = 0.96;
+
 // URL parameters for the traces page.
 export const TRACES_URL_PARAMS = {
   LIMIT: "limit",
