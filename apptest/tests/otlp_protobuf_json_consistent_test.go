@@ -118,7 +118,6 @@ func testProtobufJSONConsistency(tc *at.TestCase, sut1, sut2 at.VictoriaTracesWr
 	// the following assertion will skip such fields (which are found manually). it can be used as a reference of:
 	// - "which field needs pointer and omitempty"
 	ignoreFields := map[string]bool{
-		"_time":                    true,
 		"dropped_links_count":      true,
 		"dropped_attributes_count": true,
 		"dropped_events_count":     true,
