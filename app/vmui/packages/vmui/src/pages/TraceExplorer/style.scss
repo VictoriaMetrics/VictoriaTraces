@@ -24,6 +24,11 @@
   flex: 1 1 auto;
   font-size: $font-size-small;
 
+  // Inactive chart panels stay mounted to keep their data; only the active one is laid out.
+  .vm-trace-explorer-chart_hidden {
+    display: none;
+  }
+
   &-table {
     position: relative;
     flex: 1 1 auto;
