@@ -13,6 +13,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 ## tip
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): apply correct time‑range filter and return proper traces from Jaeger and Tempo search APIs when VictoriaTraces runs in a non‑UTC time zone. Previously, searches could return fewer traces or empty results due to incorrect time‑zone conversion for the time‑range filter, especially for time zones west of UTC such as `TZ=America/New_York`, which impacted the end‑time boundary. See [issue #260](https://github.com/VictoriaMetrics/VictoriaTraces/issues/260). Thank @Vandit1604 for [pull request #262](https://github.com/VictoriaMetrics/VictoriaTraces/pull/262).
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): do not match spans without the attribute for `!=` and `!~` filters on span, resource and instrumentation scope attributes in TraceQL queries of the Tempo API. For example, `{span.http.status_code != 200}` no longer returns spans that have no `http.status_code` attribute, which matches Tempo. See [issue #269](https://github.com/VictoriaMetrics/VictoriaTraces/issues/269).
 
 ## [v0.12.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.12.0)
 
