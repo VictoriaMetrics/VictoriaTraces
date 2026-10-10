@@ -43,7 +43,8 @@ Please download and unpack the `vtutils` archive from [releases page](https://gi
 `vtagent` is also available as Docker images on [Docker Hub](https://hub.docker.com/r/victoriametrics/vtagent/tags)
 and [Quay](https://quay.io/repository/victoriametrics/vtagent?tab=tags)), then pass the following command-line flags to the `vtagent-prod` binary:
 
-- `-remoteWrite.url` - the VictoriaTraces endpoint for sending the accepted trace spans to. It must end with `/insert/native`.
+- `-remoteWrite.url` - the VictoriaTraces endpoint for sending the accepted trace spans to. It must point to an OTLP/HTTP traces endpoint, such as `/insert/opentelemetry/v1/traces` of VictoriaTraces.
+  `vtagent` sends trace spans in OTLP/HTTP protobuf format, so any OTLP-compatible backend can be used as well.
   The `-remoteWrite.url` may refer to [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) address.
   See [these docs](https://docs.victoriametrics.com/victoriatraces/vtagent/#srv-urls) for details.
 
@@ -51,7 +52,7 @@ Example command, which starts `vtagent` for accepting trace spans over OTLP/HTTP
 and sends the collected trace spans to VictoriaTraces instance at `victoria-traces-host:10428`:
 
 ```sh
-/path/to/vtagent-prod -remoteWrite.url=http://victoria-traces-host:10428/insert/native
+/path/to/vtagent-prod -remoteWrite.url=http://victoria-traces:10428/insert/opentelemetry/v1/traces
 ```
 
 vtagent can also accept data over OTLP/gRPC at the port specified by `-otlpGRPCListenAddr`.
@@ -81,7 +82,7 @@ in a timely manner when some of the VictoriaTraces instances are unavailable.
 For example, the following command instructs `vtagent` to send the data to the TCP address obtained from the `victoria-traces` SRV record:
 
 ```sh
-/path/to/vtagent-prod -remoteWrite.url=http://srv+victoria-traces/insert/native
+/path/to/vtagent-prod -remoteWrite.url=http://srv+victoria-traces/insert/opentelemetry/v1/traces
 ```
 
 If SRV lookup returns multiple targets, `vtagent` randomly chooses a target per every new connection to the remote storage.
