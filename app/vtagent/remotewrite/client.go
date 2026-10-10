@@ -312,7 +312,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 	h := req.Header
 	h.Set("User-Agent", "vtagent")
 	h.Set("Content-Encoding", "zstd")
-	h.Set("Content-Type", "application/octet-stream")
+	h.Set("Content-Type", "application/x-protobuf")
 	err = c.authCfg.SetHeaders(req, true)
 	if err != nil {
 		return nil, err
@@ -321,7 +321,7 @@ func (c *client) newRequest(url string, body []byte) (*http.Request, error) {
 	return req, nil
 }
 
-// sendBlockHTTP sends the given block to c.remoteWriteURL.
+// sendBlockHTTP sends the given block to c.remoteWriteURL as OTLP/HTTP protobuf request.
 //
 // The function returns false only if c.stopCh is closed.
 // Otherwise, it tries sending the block to remote storage indefinitely.
