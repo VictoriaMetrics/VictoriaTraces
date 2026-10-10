@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -23,14 +22,11 @@ var (
 		"This option takes effect only when less than 2MB of data per second are pushed to -remoteWrite.url")
 )
 
-type pendingLogs struct {
+type pendingTraces struct {
 	lastFlushTime atomic.Uint64
 
 	// The queue to send blocks to.
 	fq *persistentqueue.FastQueue
-
-	// format is the format of the data to send to the remote storage.
-	format string
 
 	// mu protects wr
 	mu sync.Mutex
@@ -40,58 +36,42 @@ type pendingLogs struct {
 	periodicFlusherWG sync.WaitGroup
 }
 
-func newPendingLogs(fq *persistentqueue.FastQueue, format string) *pendingLogs {
-	pl := &pendingLogs{
+func newPendingTraces(fq *persistentqueue.FastQueue) *pendingTraces {
+	pt := &pendingTraces{
 		fq:     fq,
-		format: format,
 		stopCh: make(chan struct{}),
 	}
 
-	pl.periodicFlusherWG.Go(pl.periodicFlusher)
+	pt.periodicFlusherWG.Go(pt.periodicFlusher)
 
-	return pl
+	return pt
 }
 
-func (pl *pendingLogs) add(lr *logstorage.LogRows) {
-	lr.ForEachRow(func(_ uint64, r *logstorage.InsertRow) {
-		pl.addLogRow(r)
-	})
-}
+// add adds the OTLP ExportTraceServiceRequest protobuf message req with spansCount spans to pt.
+func (pt *pendingTraces) add(req []byte, spansCount int) {
+	pt.mu.Lock()
+	defer pt.mu.Unlock()
 
-func (pl *pendingLogs) addLogRow(r *logstorage.InsertRow) {
-	bb := bbPool.Get()
-	defer bbPool.Put(bb)
-
-	switch pl.format {
-	case "native":
-		bb.B = r.Marshal(bb.B)
-	case "jsonline":
-		bb.B = r.AppendJSON(bb.B)
-		bb.B = append(bb.B, '\n')
-	default:
-		logger.Panicf("BUG: unsupported remote write format: %q", pl.format)
-	}
-
-	pl.mu.Lock()
-	defer pl.mu.Unlock()
-
-	_, _ = pl.wr.pendingData.Write(bb.B)
-	pl.wr.pendingLogRowsCount++
-	if len(pl.wr.pendingData.B) > maxUnpackedBlockSize.IntN() {
-		pl.mustFlushLocked()
+	// Concatenation of serialized ExportTraceServiceRequest messages is a valid ExportTraceServiceRequest message
+	// containing resource_spans from all the concatenated messages, since resource_spans is a repeated field.
+	// See https://protobuf.dev/programming-guides/encoding/#last-one-wins
+	_, _ = pt.wr.pendingData.Write(req)
+	pt.wr.pendingSpansCount += int64(spansCount)
+	if len(pt.wr.pendingData.B) > maxUnpackedBlockSize.IntN() {
+		pt.mustFlushLocked()
 	}
 }
 
-func (pl *pendingLogs) mustFlushLocked() {
-	pl.lastFlushTime.Store(fasttime.UnixTimestamp())
-	pl.wr.push(func(b []byte) {
-		if !pl.fq.TryWriteBlock(b) {
+func (pt *pendingTraces) mustFlushLocked() {
+	pt.lastFlushTime.Store(fasttime.UnixTimestamp())
+	pt.wr.push(func(b []byte) {
+		if !pt.fq.TryWriteBlock(b) {
 			logger.Fatalf("BUG: TryWriteBlock cannot return false")
 		}
 	})
 }
 
-func (pl *pendingLogs) periodicFlusher() {
+func (pt *pendingTraces) periodicFlusher() {
 	flushSeconds := int64(flushInterval.Seconds())
 	if flushSeconds <= 0 {
 		flushSeconds = 1
@@ -101,37 +81,38 @@ func (pl *pendingLogs) periodicFlusher() {
 	defer ticker.Stop()
 	for {
 		select {
-		case <-pl.stopCh:
-			pl.mu.Lock()
-			pl.mustFlushOnStop()
-			pl.mu.Unlock()
+		case <-pt.stopCh:
+			pt.mu.Lock()
+			pt.mustFlushOnStop()
+			pt.mu.Unlock()
 			return
 		case <-ticker.C:
-			if fasttime.UnixTimestamp()-pl.lastFlushTime.Load() < uint64(flushSeconds) {
+			if fasttime.UnixTimestamp()-pt.lastFlushTime.Load() < uint64(flushSeconds) {
 				continue
 			}
 		}
-		pl.mu.Lock()
-		pl.mustFlushLocked()
-		pl.mu.Unlock()
+		pt.mu.Lock()
+		pt.mustFlushLocked()
+		pt.mu.Unlock()
 	}
 }
 
 // mustFlushOnStop force pushes wr data
 //
 // This is needed in order to properly save in-memory data to persistent queue on graceful shutdown.
-func (pl *pendingLogs) mustFlushOnStop() {
-	pl.wr.push(pl.fq.MustWriteBlockIgnoreDisabledPQ)
+func (pt *pendingTraces) mustFlushOnStop() {
+	pt.wr.push(pt.fq.MustWriteBlockIgnoreDisabledPQ)
 }
 
-func (pl *pendingLogs) mustStop() {
-	close(pl.stopCh)
-	pl.periodicFlusherWG.Wait()
+func (pt *pendingTraces) mustStop() {
+	close(pt.stopCh)
+	pt.periodicFlusherWG.Wait()
 }
 
 type writeRequest struct {
-	pendingData         bytesutil.ByteBuffer
-	pendingLogRowsCount int64
+	// pendingData contains concatenated OTLP ExportTraceServiceRequest protobuf messages.
+	pendingData       bytesutil.ByteBuffer
+	pendingSpansCount int64
 }
 
 func (wr *writeRequest) push(pushBlock func([]byte)) {
@@ -147,18 +128,15 @@ func (wr *writeRequest) push(pushBlock func([]byte)) {
 	pushBlock(zb.B)
 
 	blockSizeBytes.Update(float64(len(zb.B)))
-	blockSizeLogRows.Update(float64(wr.pendingLogRowsCount))
+	blockSizeSpans.Update(float64(wr.pendingSpansCount))
 
 	wr.pendingData.Reset()
-	wr.pendingLogRowsCount = 0
+	wr.pendingSpansCount = 0
 }
 
 var (
-	blockSizeBytes   = metrics.NewHistogram(`vtagent_remotewrite_block_size_bytes`)
-	blockSizeLogRows = metrics.NewHistogram(`vtagent_remotewrite_block_size_rows`)
+	blockSizeBytes = metrics.NewHistogram(`vtagent_remotewrite_block_size_bytes`)
+	blockSizeSpans = metrics.NewHistogram(`vtagent_remotewrite_block_size_spans`)
 )
 
-var (
-	compressBufPool bytesutil.ByteBufferPool
-	bbPool          bytesutil.ByteBufferPool
-)
+var compressBufPool bytesutil.ByteBufferPool

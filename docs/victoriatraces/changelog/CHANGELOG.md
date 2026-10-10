@@ -12,6 +12,10 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+**Update note:** [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/) now exports data in OTLP. `-remoteWrite.url` must point to an OTLP/HTTP traces endpoint such as `http://victoria-traces:10428/insert/opentelemetry/v1/traces` instead of `/insert/native`. The `-remoteWrite.format` command-line flag and the `/insert/native` ingestion endpoint of vtagent are removed.
+
+* FEATURE: [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): buffer and forward OTLP trace export requests as is, without converting them to log rows, and send them to `-remoteWrite.url` over OTLP/HTTP protobuf. This makes vtagent useful for non-VictoriaTraces users, and allows using any OTLP-compatible backend as remote storage.
+
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): apply correct time‑range filter and return proper traces from Jaeger and Tempo search APIs when VictoriaTraces runs in a non‑UTC time zone. Previously, searches could return fewer traces or empty results due to incorrect time‑zone conversion for the time‑range filter, especially for time zones west of UTC such as `TZ=America/New_York`, which impacted the end‑time boundary. See [issue #260](https://github.com/VictoriaMetrics/VictoriaTraces/issues/260). Thank @Vandit1604 for [pull request #262](https://github.com/VictoriaMetrics/VictoriaTraces/pull/262).
 
 ## [v0.12.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.12.0)

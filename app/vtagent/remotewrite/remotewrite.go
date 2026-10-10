@@ -8,7 +8,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -17,22 +16,18 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
-
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/netinsert"
 )
 
 var (
 	remoteWriteURLs = flagutil.NewArrayString("remoteWrite.url", "Remote storage URL to write data to. "+
-		"Example url: http://<victoriatraces-host>:10428/insert/native. "+
+		"The data is sent in OTLP/HTTP protobuf format, so the url must point to an OTLP/HTTP traces endpoint. "+
+		"Example url: http://<victoriatraces-host>:10428/insert/opentelemetry/v1/traces. "+
 		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. "+
-		"See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.format")
+		"See also -remoteWrite.maxDiskUsagePerURL")
 	maxPendingBytesPerURL = flagutil.NewArrayBytes("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
 		"Buffered data is stored in ~500MB chunks. It is recommended to set the value for this flag to a multiple of the block size 500MB. "+
 		"Disk usage is unlimited if the value is set to 0")
-	format = flagutil.NewArrayString("remoteWrite.format", "The data format to use for sending data to the corresponding -remoteWrite.url. "+
-		"Available formats: native, jsonline. Default is native. See https://docs.victoriametrics.com/victoriatraces/vtagent/#remote-write-format")
-
 	remoteWriteTmpDataPath = flag.String("remoteWrite.tmpDataPath", "", "Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url. "+
 		"If this flag isn't set, then pending data is stored in the vtagent-remotewrite-data subdirectory under the -tmpDataPath directory; "+
 		"see also -remoteWrite.maxDiskUsagePerURL")
@@ -47,21 +42,26 @@ var (
 // rwctxsGlobal contains statically populated entries when -remoteWrite.url is specified.
 var rwctxsGlobal []*remoteWriteCtx
 
-// Storage implements insertutil.LogRowsStorage interface
-type Storage struct{}
-
-// MustAddRows implements insertutil.LogRowsStorage interface
-func (*Storage) MustAddRows(lr *logstorage.LogRows) {
-	pushToRemoteStorages(lr)
-}
-
-// CanWriteData implements insertutil.LogRowsStorage interface
-func (*Storage) CanWriteData() error {
-	return nil
-}
-
-func (*Storage) IsLocalStorage() bool {
-	return false
+// PushOTLPTraces pushes the OTLP ExportTraceServiceRequest protobuf message with spansCount spans to all the configured -remoteWrite.url.
+//
+// req isn't unmarshaled. It is buffered as is and is sent to remote storage in batches.
+// The caller may re-use req after the function returns.
+func PushOTLPTraces(req []byte, spansCount int) {
+	rwctxs := rwctxsGlobal
+	if len(rwctxs) == 1 {
+		// fast path
+		rwctxs[0].push(req, spansCount)
+		return
+	}
+	// Push data to remote storage systems in parallel in order to reduce
+	// the time needed for sending the data to multiple remote storage systems.
+	var wg sync.WaitGroup
+	for _, rwctx := range rwctxs {
+		wg.Go(func() {
+			rwctx.push(req, spansCount)
+		})
+	}
+	wg.Wait()
 }
 
 // maxQueues limits the maximum value for `-remoteWrite.queues`. There is no sense in setting too high value,
@@ -179,50 +179,15 @@ func initRemoteWriteCtxs(tmpDataPath string, urls []string) {
 	rwctxsGlobal = rwctxs
 }
 
-func pushToRemoteStorages(lr *logstorage.LogRows) {
-	rwctxs := rwctxsGlobal
-	if len(rwctxs) == 1 {
-		// fast path
-		rwctxs[0].push(lr)
-		return
-	}
-	// Push samples to remote storage systems in parallel in order to reduce
-	// the time needed for sending the data to multiple remote storage systems.
-	var wg sync.WaitGroup
-	for _, rwctx := range rwctxs {
-		wg.Go(func() {
-			rwctx.push(lr)
-		})
-	}
-	wg.Wait()
-}
-
 type remoteWriteCtx struct {
 	fq *persistentqueue.FastQueue
 	c  *client
 
-	pls        []*pendingLogs
+	pls        []*pendingTraces
 	plsNextIdx atomic.Uint64
 }
 
 func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL, tmpDataPath string) *remoteWriteCtx {
-	dataFormat := format.GetOptionalArg(argIdx)
-	if dataFormat == "" {
-		dataFormat = "native"
-	}
-	switch dataFormat {
-	case "native", "jsonline":
-	default:
-		logger.Fatalf("unsupported -remoteWrite.format=%q; see https://docs.victoriametrics.com/victoriatraces/vtagent/#remote-write-format", dataFormat)
-	}
-
-	if dataFormat == "native" {
-		// Protocol version is required by VictoriaTraces for native data ingestion protocol.
-		q := remoteWriteURL.Query()
-		q.Set("version", netinsert.ProtocolVersion)
-		remoteWriteURL.RawQuery = q.Encode()
-	}
-
 	// strip query params, otherwise changing params resets pq
 	pqURL := *remoteWriteURL
 	pqURL.RawQuery = ""
@@ -262,13 +227,13 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	// Initialize pls
 	plsLen := *queues
 	if n := cgroup.AvailableCPUs(); plsLen > n {
-		// There is no sense in running more than availableCPUs concurrent pendingLogs,
-		// since every pendingLogs can saturate up to a single CPU.
+		// There is no sense in running more than availableCPUs concurrent pendingTraces,
+		// since every pendingTraces can saturate up to a single CPU.
 		plsLen = n
 	}
-	pls := make([]*pendingLogs, plsLen)
+	pls := make([]*pendingTraces, plsLen)
 	for i := range pls {
-		pls[i] = newPendingLogs(fq, dataFormat)
+		pls[i] = newPendingTraces(fq)
 	}
 
 	rwctx := &remoteWriteCtx{
@@ -280,10 +245,10 @@ func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks in
 	return rwctx
 }
 
-func (rwctx *remoteWriteCtx) push(lr *logstorage.LogRows) {
+func (rwctx *remoteWriteCtx) push(req []byte, spansCount int) {
 	pls := rwctx.pls
 	idx := rwctx.plsNextIdx.Add(1) % uint64(len(pls))
-	pls[idx].add(lr)
+	pls[idx].add(req, spansCount)
 }
 
 func (rwctx *remoteWriteCtx) mustStop() {
