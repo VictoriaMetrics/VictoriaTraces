@@ -6,7 +6,11 @@ import (
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
-func TestConcatenatedExportTraceServiceRequests(t *testing.T) {
+// TestBatchingExportTraceServiceRequests verify if ExportTraceServiceRequest (or actually any protobuf message) can be batched directly
+// by ByteBuffer.Write(msg1) and ByteBuffer.Write(msg2).
+//
+// See: https://github.com/protocolbuffers/protobuf/issues/9257#issuecomment-979447922
+func TestBatchingExportTraceServiceRequests(t *testing.T) {
 	newRequest := func(serviceName string) *otelpb.ExportTraceServiceRequest {
 		return &otelpb.ExportTraceServiceRequest{
 			ResourceSpans: []*otelpb.ResourceSpans{
