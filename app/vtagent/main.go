@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -15,9 +16,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtagent/opentelemetry"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtagent/remotewrite"
-	vtinsert "github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert"
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
 )
 
 var (
@@ -47,10 +47,8 @@ func main() {
 	logger.Infof("starting vtagent at %q...", listenAddrs)
 	startTime := time.Now()
 
-	insertutil.SetLogRowsStorage(&remotewrite.Storage{})
 	remotewrite.Init(*tmpDataPath)
-
-	vtinsert.Init()
+	opentelemetry.Init()
 
 	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
@@ -67,7 +65,7 @@ func main() {
 	if err := httpserver.Stop(listenAddrs); err != nil {
 		logger.Fatalf("cannot stop the webservice: %s", err)
 	}
-	vtinsert.Stop()
+	opentelemetry.Stop()
 	remotewrite.Stop()
 	logger.Infof("successfully shut down the webservice in %.3f seconds", time.Since(startTime).Seconds())
 	logger.Infof("successfully stopped vtagent in %.3f seconds", time.Since(startTime).Seconds())
@@ -89,12 +87,21 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		})
 		return true
 	}
-	return vtinsert.RequestHandler(w, r)
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
+	switch {
+	case path == "/insert/ready":
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"status":"ok"}`)
+		return true
+	case strings.HasPrefix(path, "/insert/opentelemetry/"):
+		return opentelemetry.RequestHandler(path, w, r)
+	}
+	return false
 }
 
 func usage() {
 	const s = `
-vtagent collects trace spans via popular data ingestion protocols and routes it to VictoriaTraces.
+vtagent collects trace spans via OpenTelemetry protocol (OTLP) and routes them to VictoriaTraces or other OTLP-compatible backends.
 
 See the docs at https://docs.victoriametrics.com/victoriatraces/vtagent/ .
 `
