@@ -7131,6 +7131,7 @@
         "type": "query"
       },
       {
+        "allValue": ".*",
         "current": {
           "text": "All",
           "value": "$__all"
@@ -7148,7 +7149,7 @@
           "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
           "refId": "StandardVariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "type": "query"
       },
