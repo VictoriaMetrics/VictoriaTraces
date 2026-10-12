@@ -4,6 +4,7 @@ import { parseLineToJSON } from "../../../../utils/json";
 import { nanosToIsoString } from "../../../../utils/time";
 import { useAppState } from "../../../../state/common/StateContext";
 import { useTenant } from "../../../../hooks/useTenant";
+import { TimeParams } from "../../../../types";
 import {
   HeatmapStatsRow,
   buildHeatmapErrorsQuery,
@@ -22,6 +23,7 @@ export function useHeatmapAggregation() {
   const tenant = useTenant();
 
   const [counts, setCounts] = useState<number[][]>(EMPTY_MATRIX);
+  const [period, setPeriod] = useState<TimeParams | null>(null);
   const [errors, setErrors] = useState<number[][]>(EMPTY_MATRIX);
   const [isLoading, setIsLoading] = useState(false);
   const [isErrorsLoading, setIsErrorsLoading] = useState(false);
@@ -84,11 +86,16 @@ export function useHeatmapAggregation() {
       }
     };
 
+    const setCountsForPeriod = (matrix: number[][]) => {
+      setCounts(matrix);
+      setPeriod({ start: startNs, end: endNs });
+    };
+
     await Promise.all([
-      load(buildHeatmapTracesQuery(trimmed, extraFilters, startNs, endNs), setCounts, setIsLoading),
+      load(buildHeatmapTracesQuery(trimmed, extraFilters, startNs, endNs), setCountsForPeriod, setIsLoading),
       load(buildHeatmapErrorsQuery(trimmed, extraFilters, startNs, endNs), setErrors, setIsErrorsLoading),
     ]);
   }, [serverUrl, tenant]);
 
-  return { grid, isLoading, isErrorsLoading, error, fetchHeatmap };
+  return { grid, period, isLoading, isErrorsLoading, error, fetchHeatmap };
 }

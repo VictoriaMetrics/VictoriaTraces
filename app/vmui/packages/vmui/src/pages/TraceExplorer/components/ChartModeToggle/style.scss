@@ -1,0 +1,8 @@
+@use "src/styles/variables" as *;
+
+.vm-chart-mode-toggle {
+  padding: 0 $padding-global;
+  background-color: $color-background-block;
+  border-bottom: $border-divider;
+  font-size: $font-size-small;
+}

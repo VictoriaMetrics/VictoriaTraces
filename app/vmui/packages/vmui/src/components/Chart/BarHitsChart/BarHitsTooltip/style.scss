@@ -1,0 +1,81 @@
+@use "src/styles/variables" as *;
+
+.vm-chart-tooltip {
+  position: absolute;
+  display: grid;
+  gap: $padding-global;
+  padding: $padding-global;
+  border-radius: $border-radius-medium;
+  background: $color-background-tooltip;
+  color: $color-white;
+  font-size: $font-size-small;
+  font-weight: normal;
+  line-height: 150%;
+  word-wrap: break-word;
+  font-family: $font-family-monospace;
+  // z-index should be bigger than z-index trace table header
+  z-index: 102;
+  // Never interactive: the tooltip sits under the cursor, and catching pointer events would steal the hover from the plot.
+  pointer-events: none;
+
+  &_hits {
+    white-space: pre-wrap;
+    word-break: break-all;
+    width: auto;
+    max-width: calc(100vw / 3);
+  }
+
+  &_hits &-data {
+    display: grid;
+    grid-template-columns: $font-size 1fr;
+  }
+
+  &-header {
+    display: flex;
+    align-items: center;
+    min-height: 25px;
+  }
+
+  &-data {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: $padding-small;
+
+    &__marker {
+      min-width: $font-size;
+      max-width: $font-size;
+      width: $font-size;
+      height: $font-size;
+      border: 1px solid rgba($color-white, 0.5);
+    }
+  }
+}
+
+.vm-bar-hits-tooltip {
+  opacity: 0;
+  gap: $padding-small;
+
+  &_visible {
+    opacity: 1;
+  }
+
+  &-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: $padding-global;
+    max-width: 100%;
+
+    &__label {
+      display: inline-block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &__date {
+    white-space: normal;
+  }
+}
