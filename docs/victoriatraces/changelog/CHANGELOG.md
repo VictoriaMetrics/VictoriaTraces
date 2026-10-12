@@ -16,6 +16,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): apply correct time‑range filter and return proper traces from Jaeger and Tempo search APIs when VictoriaTraces runs in a non‑UTC time zone. Previously, searches could return fewer traces or empty results due to incorrect time‑zone conversion for the time‑range filter, especially for time zones west of UTC such as `TZ=America/New_York`, which impacted the end‑time boundary. See [issue #260](https://github.com/VictoriaMetrics/VictoriaTraces/issues/260). Thank @Vandit1604 for [pull request #262](https://github.com/VictoriaMetrics/VictoriaTraces/pull/262).
 
+* BUGFIX: vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return `502 Bad Gateway` instead of `400 Bad Request` from Jaeger and Tempo query APIs when a `-storageNode` is unavailable. Previously, Jaeger services, operations and trace-by-ID APIs, as well as Tempo tags, trace-by-ID and metrics APIs, returned `400 Bad Request`, and Jaeger services and Tempo tags APIs reported a misleading `cannot parse query` error. See [issue #276](https://github.com/VictoriaMetrics/VictoriaTraces/issues/276).
+
 ## [v0.12.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.12.0)
 
 Released at 2026-09-29
