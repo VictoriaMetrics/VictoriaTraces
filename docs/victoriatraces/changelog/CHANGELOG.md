@@ -16,6 +16,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): apply correct time‑range filter and return proper traces from Jaeger and Tempo search APIs when VictoriaTraces runs in a non‑UTC time zone. Previously, searches could return fewer traces or empty results due to incorrect time‑zone conversion for the time‑range filter, especially for time zones west of UTC such as `TZ=America/New_York`, which impacted the end‑time boundary. See [issue #260](https://github.com/VictoriaMetrics/VictoriaTraces/issues/260). Thank @Vandit1604 for [pull request #262](https://github.com/VictoriaMetrics/VictoriaTraces/pull/262).
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/), vtinsert in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/) and [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): count every failed OpenTelemetry ingestion request exactly once in `vt_http_errors_total`. Previously, OTLP/gRPC requests with undecodable protobuf data were counted twice, while requests rejected because the storage couldn't accept writes or because of invalid request params weren't counted at all. OTLP/HTTP requests with invalid compressed data weren't counted either.
+
 ## [v0.12.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.12.0)
 
 Released at 2026-09-29

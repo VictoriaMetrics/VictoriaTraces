@@ -49,6 +49,7 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	requestsGRPCTotal.Inc()
 
 	if err := insertutil.CanWriteData(); err != nil {
+		errorsGRPCTotal.Inc()
 		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
 		return
 	}
@@ -56,6 +57,7 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	// prepare ingestion
 	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
+		errorsGRPCTotal.Inc()
 		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot parse common params from request: %s", err))
 		return
 	}
@@ -161,7 +163,6 @@ func writeExportTraceServiceResponse(w http.ResponseWriter, rejectedSpans int64,
 func pushGRPCProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor) error {
 	pushSpans := NewPushSpansCallbackFunc(lmp)
 	if err := decodeExportTraceServiceRequest(data, pushSpans); err != nil {
-		errorsGRPCTotal.Inc()
 		return fmt.Errorf("cannot decode LogsData request from %d bytes: %w", len(data), err)
 	}
 	return nil
