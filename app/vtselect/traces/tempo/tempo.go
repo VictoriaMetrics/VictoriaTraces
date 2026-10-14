@@ -387,11 +387,11 @@ func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr st
 	pipeLimit := limit
 	switch scope {
 	case "instrumentation":
-		scopes = fmt.Sprintf(`| filter name:"%s:"*`, otelpb.InstrumentationScopeAttrPrefix)
+		scopes = fmt.Sprintf(`| filter name:"%s"*`, otelpb.InstrumentationScopeAttrPrefix)
 	case "resource":
-		scopes = fmt.Sprintf(`| filter name:"%s:"*`, otelpb.ResourceAttrPrefix)
+		scopes = fmt.Sprintf(`| filter name:"%s"*`, otelpb.ResourceAttrPrefix)
 	case "span":
-		scopes = fmt.Sprintf(`| filter name:"%s:"*`, otelpb.SpanAttrPrefixField)
+		scopes = fmt.Sprintf(`| filter name:"%s"*`, otelpb.SpanAttrPrefixField)
 	case "event":
 		//scopes = fmt.Sprintf(`| filter name:"%s:"*`, otelpb.EventPrefix+otelpb.EventAttrPrefix)
 		return nil, errors.New("scope: event is not supported yet")
