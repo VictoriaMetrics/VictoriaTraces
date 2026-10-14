@@ -45,6 +45,9 @@ vtagent-openbsd-amd64-prod:
 vtagent-windows-amd64-prod:
 	APP_NAME=vtagent $(MAKE) app-via-docker-windows-amd64
 
+package-vtagent:
+	APP_NAME=vtagent $(MAKE) package-via-docker
+
 publish-vtagent:
 	APP_NAME=vtagent $(MAKE) publish-via-docker
 
