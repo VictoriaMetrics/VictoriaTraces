@@ -108,7 +108,7 @@ func insertHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 // otlpGRPCRequestHandler handles OTLP gRPC insert requests over HTTP for VictoriaTraces.
 func otlpGRPCRequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if *disableInsert {
-		grpc.WriteErrorGrpcResponse(w, r, grpc.StatusCodeUnavailable, "requests to grpc export are disabled with -insert.disable command-line flag")
+		grpc.Errorf(w, r, grpc.StatusCodeUnavailable, "requests to grpc export are disabled with -insert.disable command-line flag")
 		return true
 	}
 	return opentelemetry.OTLPGRPCRequestHandler(r, w)

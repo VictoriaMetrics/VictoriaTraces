@@ -3,10 +3,8 @@ package grpc
 import (
 	"encoding/binary"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/http2server"
 	"net/http"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // https://github.com/grpc/grpc/blob/master/doc/statuscodes.md
@@ -62,13 +60,14 @@ func CheckDataFrame(req []byte) error {
 	return nil
 }
 
-// WriteErrorGrpcResponse write error response in gRPC protocol over HTTP.
-func WriteErrorGrpcResponse(w http.ResponseWriter, r *http.Request, grpcErrorCode, grpcErrorMessage string) {
-	remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-	requestURI := httpserver.GetRequestURI(r)
-	errStr := fmt.Sprintf("remoteAddr: %s; requestURI: %s; %s", remoteAddr, requestURI, grpcErrorMessage)
-	logger.WarnfSkipframes(1, "%s", errStr)
+// Errorf writes formatted error code and message in gRPC protocol over HTTP to w, and to logger.
+func Errorf(w http.ResponseWriter, r *http.Request, grpcErrorCode, grpcErrorMessage string) {
+	http2server.LogHTTPError(r, grpcErrorMessage)
+	writeErrorGrpcResponse(w, grpcErrorCode, grpcErrorMessage)
+}
 
+// writeErrorGrpcResponse write error response in gRPC protocol over HTTP.
+func writeErrorGrpcResponse(w http.ResponseWriter, grpcErrorCode, grpcErrorMessage string) {
 	w.Header().Set("content-type", "application/grpc+proto")
 	w.Header().Set("trailer", "grpc-status, grpc-message")
 	w.Header().Set("grpc-status", grpcErrorCode)

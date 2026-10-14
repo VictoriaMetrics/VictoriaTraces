@@ -26,7 +26,7 @@ func TestWriteErrorGrpcResponse(t *testing.T) {
 		r.RemoteAddr = remoteAddr
 		w := httptest.NewRecorder()
 
-		WriteErrorGrpcResponse(w, r, grpcErrorCode, grpcErrorMessage)
+		Errorf(w, r, grpcErrorCode, grpcErrorMessage)
 
 		// the error must be still returned to the client in gRPC format
 		h := w.Header()
