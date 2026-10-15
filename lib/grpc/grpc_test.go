@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-// TestWriteErrorGrpcResponse to verify the gRPC headers in error response.
-func TestWriteErrorGrpcResponse(t *testing.T) {
+// TestGRPCErrorf verifies the gRPC headers in the error response.
+func TestGRPCErrorf(t *testing.T) {
 	f := func(grpcErrorCode string) {
 		t.Helper()
 
