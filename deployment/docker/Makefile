@@ -101,6 +101,8 @@ package-via-docker:
 	$(DOCKER) buildx build \
 		--platform=linux/$(DOCKER_ARCH) \
 		--build-arg root_image=$(ROOT_IMAGE) \
+		--build-arg APP_NAME=$(APP_NAME) \
+		--build-arg BINARY_SUFFIX="" \
 		--label "org.opencontainers.image.source=https://github.com/VictoriaMetrics/VictoriaTraces" \
 		--label "org.opencontainers.image.documentation=https://docs.victoriametrics.com/victoriatraces" \
 		--label "org.opencontainers.image.title=$(APP_NAME)" \
