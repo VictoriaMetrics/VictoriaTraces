@@ -11294,11 +11294,12 @@
           "query": "label_values(vm_app_version{version=~\"victoria-traces-.*\"}, job)",
           "refId": "StandardVariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "type": "query"
       },
       {
+        "allValue": ".*",
         "current": {
           "text": "All",
           "value": [
@@ -11318,7 +11319,7 @@
           "query": "label_values(vm_app_version{job=~\"$job\"}, instance)",
           "refId": "StandardVariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "type": "query"
       },
@@ -11377,7 +11378,7 @@
           "query": "label_values(vt_merges_total,instance)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "type": "query"
       },
@@ -11402,7 +11403,7 @@
           "query": "label_values(vt_merges_total{instance=~\"$instance\"},instance)",
           "refId": "VariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "type": "query"
       },
@@ -11427,7 +11428,7 @@
           "query": "label_values(vtinsert_backend_conn_bytes_read_total,instance)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "type": "query"
       },
@@ -11452,7 +11453,7 @@
           "query": "label_values(vtinsert_backend_conn_bytes_read_total{instance=~\"$instance\"},instance)",
           "refId": "VariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "type": "query"
       },
@@ -11478,7 +11479,7 @@
           "query": "label_values(vtselect_backend_conn_reads_total,instance)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "type": "query"
       },
@@ -11504,7 +11505,7 @@
           "query": "label_values(vtselect_backend_conn_reads_total{instance=~\"$instance\"},instance)",
           "refId": "VariableQueryEditor-VariableQuery"
         },
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "type": "query"
       }
