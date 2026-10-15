@@ -3,8 +3,9 @@ package grpc
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaTraces/lib/http2server"
 	"net/http"
+
+	"github.com/VictoriaMetrics/VictoriaTraces/lib/http2server"
 )
 
 // https://github.com/grpc/grpc/blob/master/doc/statuscodes.md
