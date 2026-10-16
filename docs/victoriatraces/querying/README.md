@@ -259,7 +259,28 @@ Here's a response example:
 {"traces":[{"traceID":"c5acfeeaf4d64ac026da0c30d2513082","rootServiceName":"example-gateway","rootTraceName":"","startTimeUnixNano":1783567376769803488,"durationMs":3011,"spanSets":[{"spans":[{"spanID":"430871c05136c0b5","startTimeUnixNano":1783567376769803488,"durationNanos":3011746753,"attributes":[{"key":"service.name","value":{"stringValue":"frontend"}},{"key":"name","value":{"stringValue":"GET"}},{"key":"nestedSetParent","value":{"intValue":"0"}}]}],"matched":1}]}]}
 ```
 
-2. Querying a trace by ID
+2. Find traces which have a span carrying an `exception` event:
+
+```sh
+curl -G http://<victoria-traces>:10428/select/tempo/api/search \
+  --data-urlencode 'q={ event:name = "exception" }'
+```
+
+An `event.` or `event:name` condition matches any event of the span. A `link.`, `link:spanID`
+or `link:traceID` condition matches any link.
+
+Each condition is matched on its own, so
+`{ event:name = "exception" && event.exception.type = "OutOfMemoryError" }` also matches a span
+where one event is named `exception` and a different event carries the attribute. Use a single
+condition when you need to be sure which event matched.
+
+Comparisons against `nil` read across every event, so the two directions are not opposites of each
+other on a single event. `event.foo != nil` matches when any event carries `foo`, while
+`event.foo = nil` matches only when no event of the span carries it. Links behave the same way.
+
+The `event:timeSinceStart` intrinsic is not supported.
+
+3. Querying a trace by ID
 
 ```sh
 curl http://<victoria-traces>:10428/select/tempo/api/v2/traces/d8d8d9c6d1cdfa5344ef3d69b8b594d8
@@ -271,7 +292,7 @@ Here's a response example:
 {"trace":{"resourceSpans":[{"resource":{"attributes":[{"key":"docker.cli.cobra.command_path","value":{"stringValue":"docker%20compose"}},{"key":"service.name","value":{"stringValue":"frontend-proxy"}}]},"scopeSpans":[{"scope":{"name":"","version":"","attributes":[]},"spans":[{"traceId":"2NjZxtHN+lNE7z1puLWU2A==","spanId":"yuSYZPL61X8=","parentSpanId":"M+KIEWQP/FQ=","name":"router image-provider egress","kind":"SPAN_KIND_CLIENT","startTimeUnixNano":"1783062881157505553","endTimeUnixNano":"1783062881196836233","attributes":[{"key":"component","value":{"stringValue":"proxy"}},{"key":"http.protocol","value":{"stringValue":"HTTP/1.1"}}],"status":{}}]}]}]},"metrics":{"inspectedBytes":"0"}}
 ```
 
-3. Querying metrics of trace spans
+4. Querying metrics of trace spans
 
 ```sh
 curl -G http://<victoria-traces>:10428/select/tempo/api/metrics/query_range \
