@@ -44,3 +44,87 @@ func TestUnmarshalExportTraceServiceRequest(t *testing.T) {
 		}
 	}
 }
+
+func TestUnmarshalExportTraceServiceRequestNullItems(t *testing.T) {
+	f := func(jsonString, jsonStringExpected string) {
+		t.Helper()
+		var req, reqExpected ExportTraceServiceRequest
+		if err := req.UnmarshalJSONCustom([]byte(jsonString)); err != nil {
+			t.Fatalf("unexpected error when unmarshaling %s: %s", jsonString, err)
+		}
+		if err := reqExpected.UnmarshalJSONCustom([]byte(jsonStringExpected)); err != nil {
+			t.Fatalf("unexpected error when unmarshaling %s: %s", jsonStringExpected, err)
+		}
+		// null items must be treated as absent items, so the marshaled results must be identical.
+		data := req.MarshalProtobuf(nil)
+		dataExpected := reqExpected.MarshalProtobuf(nil)
+		if string(data) != string(dataExpected) {
+			t.Fatalf("unexpected result for %s; got %X; want %X", jsonString, data, dataExpected)
+		}
+	}
+
+	f(`{"resourceSpans":[null]}`, `{}`)
+
+	// null items in resource and scope
+	f(`{
+		"resourceSpans": [{
+			"resource": {
+				"attributes": [
+					null,
+					{"key": "a", "value": {"arrayValue": {"values": [null]}}},
+					{"key": "b", "value": {"keyValueList": {"values": [null]}}}
+				]
+			},
+			"scopeSpans": [
+				null,
+				{"scope": {"attributes": [null]}}
+			]
+		}]
+	}`, `{
+		"resourceSpans": [{
+			"resource": {
+				"attributes": [
+					{"key": "a", "value": {"arrayValue": {}}},
+					{"key": "b", "value": {"keyValueList": {}}}
+				]
+			},
+			"scopeSpans": [
+				{}
+			]
+		}]
+	}`)
+
+	// null items in spans, span attributes, links and events, while other items are kept
+	f(`{
+		"resourceSpans": [
+			null,
+			{
+				"scopeSpans": [{
+					"spans": [
+						null,
+						{
+							"name": "foo",
+							"traceId": "AB",
+							"attributes": [null],
+							"links": [null, {"attributes": [null]}],
+							"events": [null, {"attributes": [null]}]
+						},
+						null
+					]
+				}]
+			},
+			null
+		]
+	}`, `{
+		"resourceSpans": [{
+			"scopeSpans": [{
+				"spans": [{
+					"name": "foo",
+					"traceId": "ab",
+					"links": [{}],
+					"events": [{}]
+				}]
+			}]
+		}]
+	}`)
+}
