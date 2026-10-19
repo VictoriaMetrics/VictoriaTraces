@@ -12,7 +12,7 @@ import (
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
-var maxRequestSize = flagutil.NewBytes("opentelemetry.traces.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single OpenTelemetry trace export request.")
+var maxRequestSize = flagutil.NewBytes("opentelemetry.traces.maxRequestSize", 32*1024*1024, "The maximum size in bytes of a single OpenTelemetry trace export request.")
 
 var (
 	mandatoryStreamFields = []string{otelpb.ResourceAttrServiceName, otelpb.NameField}
@@ -24,11 +24,17 @@ var (
 func pushExportTraceServiceRequest(req *otelpb.ExportTraceServiceRequest, tsp insertutil.LogMessageProcessor) error {
 	var commonFields []logstorage.Field
 	for _, rs := range req.ResourceSpans {
+		if rs == nil {
+			continue
+		}
 		commonFields = commonFields[:0]
 		attributes := rs.Resource.Attributes
 		commonFields = appendKeyValuesWithPrefix(commonFields, attributes, "", otelpb.ResourceAttrPrefix)
 		commonFieldsLen := len(commonFields)
 		for _, ss := range rs.ScopeSpans {
+			if ss == nil {
+				continue
+			}
 			commonFields = pushFieldsFromScopeSpans(ss, commonFields[:commonFieldsLen], tsp)
 		}
 	}
@@ -46,6 +52,9 @@ func pushFieldsFromScopeSpans(ss *otelpb.ScopeSpans, commonFields []logstorage.F
 	commonFields = appendKeyValuesWithPrefix(commonFields, ss.Scope.Attributes, "", otelpb.InstrumentationScopeAttrPrefix)
 	commonFieldsLen := len(commonFields)
 	for _, span := range ss.Spans {
+		if span == nil {
+			continue
+		}
 		commonFields = pushFieldsFromSpan(span, commonFields[:commonFieldsLen], tsp)
 	}
 	return commonFields
@@ -76,6 +85,9 @@ func pushFieldsFromSpan(span *otelpb.Span, scopeCommonFields []logstorage.Field,
 	fields = appendKeyValuesWithPrefix(fields, span.Attributes, "", otelpb.SpanAttrPrefixField)
 
 	for idx, event := range span.Events {
+		if event == nil {
+			continue
+		}
 		eventFieldPrefix := otelpb.EventPrefix
 		eventFieldSuffix := ":" + strconv.Itoa(idx)
 		fields = append(fields,
@@ -88,6 +100,9 @@ func pushFieldsFromSpan(span *otelpb.Span, scopeCommonFields []logstorage.Field,
 	}
 
 	for idx, link := range span.Links {
+		if link == nil {
+			continue
+		}
 		linkFieldPrefix := otelpb.LinkPrefix
 		linkFieldSuffix := ":" + strconv.Itoa(idx)
 		fields = append(fields,
@@ -120,12 +135,15 @@ func appendKeyValuesWithPrefix(fields []logstorage.Field, kvs []*otelpb.KeyValue
 
 func appendKeyValuesWithPrefixSuffix(fields []logstorage.Field, kvs []*otelpb.KeyValue, parentField, prefix, suffix string) []logstorage.Field {
 	for _, attr := range kvs {
+		if attr == nil {
+			continue
+		}
 		fieldName := attr.Key
 		if parentField != "" {
 			fieldName = parentField + "." + fieldName
 		}
 
-		if attr.Value.KeyValueList != nil {
+		if attr.Value != nil && attr.Value.KeyValueList != nil {
 			fields = appendKeyValuesWithPrefixSuffix(fields, attr.Value.KeyValueList.Values, fieldName, prefix, suffix)
 			continue
 		}

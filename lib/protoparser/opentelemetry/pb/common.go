@@ -18,6 +18,9 @@ type Resource struct {
 // marshalProtobuf marshals
 func (r *Resource) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	for _, a := range r.Attributes {
+		if a == nil {
+			continue
+		}
 		a.marshalProtobuf(mm.AppendMessage(1))
 	}
 }
@@ -248,6 +251,9 @@ type ArrayValue struct {
 
 func (av *ArrayValue) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	for _, v := range av.Values {
+		if v == nil {
+			continue
+		}
 		v.marshalProtobuf(mm.AppendMessage(1))
 	}
 }
@@ -286,6 +292,9 @@ type KeyValueList struct {
 
 func (kvl *KeyValueList) marshalProtobuf(mm *easyproto.MessageMarshaler) {
 	for _, v := range kvl.Values {
+		if v == nil {
+			continue
+		}
 		v.marshalProtobuf(mm.AppendMessage(1))
 	}
 }
