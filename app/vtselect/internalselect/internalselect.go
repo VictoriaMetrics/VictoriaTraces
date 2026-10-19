@@ -69,15 +69,6 @@ var concurrencyLimitCh chan struct{}
 var concurrentRequestsWaitDuration = metrics.NewSummary(`vt_concurrent_internalselect_requests_wait_duration`)
 
 func requestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, startTime time.Time) {
-	// Parse request before obtaining the request args from it in order to catch parse errors,
-	// which are silently skipped at r.FormValue() calls inside the request handlers executed below.
-	//
-	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/1462
-	if err := parseRequest(r); err != nil {
-		httpserver.Errorf(w, r, "cannot parse request to %q: %s", r.URL, err)
-		return
-	}
-
 	path := r.URL.Path
 	rh := requestHandlers[path]
 	if rh == nil {
@@ -86,6 +77,17 @@ func requestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request,
 	}
 
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vt_http_requests_total{path=%q}`, path)).Inc()
+
+	// Parse request before obtaining the request args from it in order to catch parse errors,
+	// which are silently skipped at r.FormValue() calls inside the request handlers executed below.
+	//
+	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/1462
+	if err := parseRequest(r); err != nil {
+		metrics.GetOrCreateCounter(fmt.Sprintf(`vt_http_errors_total{path=%q}`, path)).Inc()
+		httpserver.Errorf(w, r, "cannot parse request to %q: %s", r.URL, err)
+		return
+	}
+
 	if err := rh(ctx, w, r); err != nil && !netutil.IsTrivialNetworkError(err) {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vt_http_errors_total{path=%q}`, path)).Inc()
 

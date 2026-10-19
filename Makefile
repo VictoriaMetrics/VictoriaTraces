@@ -36,6 +36,10 @@ publish: \
 	publish-victoria-traces \
 	publish-vtagent
 
+package: \
+	package-victoria-traces \
+	package-vtagent
+
 vtutils: \
 	vtagent
 

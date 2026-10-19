@@ -45,6 +45,9 @@ victoria-traces-openbsd-amd64-prod:
 victoria-traces-windows-amd64-prod:
 	APP_NAME=victoria-traces $(MAKE) app-via-docker-windows-amd64
 
+package-victoria-traces:
+	APP_NAME=victoria-traces $(MAKE) package-via-docker
+
 publish-victoria-traces:
 	APP_NAME=victoria-traces $(MAKE) publish-via-docker
 

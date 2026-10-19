@@ -56,6 +56,7 @@ func handleProtobufRequest(r *http.Request, w http.ResponseWriter) {
 
 	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
+		errorsProtobufTotal.Inc()
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return
 	}
@@ -65,6 +66,7 @@ func handleProtobufRequest(r *http.Request, w http.ResponseWriter) {
 	cp.StreamFields = append(mandatoryStreamFields, cp.StreamFields...)
 
 	if err = insertutil.CanWriteData(); err != nil {
+		errorsProtobufTotal.Inc()
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
@@ -78,6 +80,7 @@ func handleProtobufRequest(r *http.Request, w http.ResponseWriter) {
 		return callbackErr
 	})
 	if err != nil {
+		errorsProtobufTotal.Inc()
 		httpserver.Errorf(w, r, "cannot read OpenTelemetry protocol data: %s", err)
 		return
 	}
@@ -92,7 +95,6 @@ func handleProtobufRequest(r *http.Request, w http.ResponseWriter) {
 func pushHTTPProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor) error {
 	pushSpans := NewPushSpansCallbackFunc(lmp)
 	if err := decodeExportTraceServiceRequest(data, pushSpans); err != nil {
-		errorsProtobufTotal.Inc()
 		return fmt.Errorf("cannot decode LogsData request from %d bytes: %w", len(data), err)
 	}
 	return nil
@@ -104,6 +106,7 @@ func handleJSONRequest(r *http.Request, w http.ResponseWriter) {
 
 	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
+		errorsJSONTotal.Inc()
 		httpserver.Errorf(w, r, "cannot parse common params from request: %s", err)
 		return
 	}
@@ -113,6 +116,7 @@ func handleJSONRequest(r *http.Request, w http.ResponseWriter) {
 	cp.StreamFields = append(mandatoryStreamFields, cp.StreamFields...)
 
 	if err = insertutil.CanWriteData(); err != nil {
+		errorsJSONTotal.Inc()
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
@@ -125,7 +129,6 @@ func handleJSONRequest(r *http.Request, w http.ResponseWriter) {
 		)
 		tsp := cp.NewTraceProcessor("opentelemetry_traces_otlphttp_json", false)
 		if callbackErr = req.UnmarshalJSONCustom(data); callbackErr != nil {
-			errorsJSONTotal.Inc()
 			return fmt.Errorf("cannot unmarshal request from %d json bytes: %w", len(data), callbackErr)
 		}
 		callbackErr = pushExportTraceServiceRequest(&req, tsp)
@@ -133,6 +136,7 @@ func handleJSONRequest(r *http.Request, w http.ResponseWriter) {
 		return callbackErr
 	})
 	if err != nil {
+		errorsJSONTotal.Inc()
 		httpserver.Errorf(w, r, "cannot read OpenTelemetry protocol data: %s", err)
 		return
 	}

@@ -39,7 +39,7 @@ func OTLPGRPCRequestHandler(r *http.Request, w http.ResponseWriter) bool {
 	case otlpExportTracesPath:
 		otlpExportTracesHandler(r, w)
 	default:
-		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeUnimplemented, fmt.Sprintf("gRPC method not found: %s", r.URL.Path))
+		grpc.Errorf(w, r, grpc.StatusCodeUnimplemented, fmt.Sprintf("gRPC method not found: %s", r.URL.Path))
 	}
 	return true
 }
@@ -50,14 +50,16 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	requestsGRPCTotal.Inc()
 
 	if err := insertutil.CanWriteData(); err != nil {
-		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
+		errorsGRPCTotal.Inc()
+		grpc.Errorf(w, r, grpc.StatusCodeInternal, err.Error())
 		return
 	}
 
 	// prepare ingestion
 	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
-		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot parse common params from request: %s", err))
+		errorsGRPCTotal.Inc()
+		grpc.Errorf(w, r, grpc.StatusCodeInternal, fmt.Sprintf("cannot parse common params from request: %s", err))
 		return
 	}
 
@@ -68,7 +70,7 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	message, err := grpc.ReadDataFrame(bb, r.Body, maxRequestSize)
 	if err != nil {
 		errorsGRPCTotal.Inc()
-		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
+		grpc.Errorf(w, r, grpc.StatusCodeInternal, err.Error())
 		return
 	}
 
@@ -89,7 +91,7 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	})
 	if err != nil {
 		errorsGRPCTotal.Inc()
-		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
+		grpc.Errorf(w, r, grpc.StatusCodeInternal, fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
 		return
 	}
 
@@ -153,7 +155,6 @@ func writeExportTraceServiceResponse(w http.ResponseWriter, rejectedSpans int64,
 func pushGRPCProtobufRequest(data []byte, lmp insertutil.LogMessageProcessor) error {
 	pushSpans := NewPushSpansCallbackFunc(lmp)
 	if err := decodeExportTraceServiceRequest(data, pushSpans); err != nil {
-		errorsGRPCTotal.Inc()
 		return fmt.Errorf("cannot decode LogsData request from %d bytes: %w", len(data), err)
 	}
 	return nil

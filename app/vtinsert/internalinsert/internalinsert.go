@@ -27,20 +27,24 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
+	requestsTotal.Inc()
+
 	version := r.FormValue("version")
 	if version != netinsert.ProtocolVersion {
+		errorsTotal.Inc()
 		httpserver.Errorf(w, r, "unsupported protocol version=%q; want %q", version, netinsert.ProtocolVersion)
 		return
 	}
 
-	requestsTotal.Inc()
-
 	cp, err := insertutil.GetCommonParams(r)
 	if err != nil {
+		errorsTotal.Inc()
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
 	if err := insertutil.CanWriteData(); err != nil {
+		errorsTotal.Inc()
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
