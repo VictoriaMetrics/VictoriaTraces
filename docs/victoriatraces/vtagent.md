@@ -49,7 +49,7 @@ and [Quay](https://quay.io/repository/victoriametrics/vtagent?tab=tags)), then p
   See [these docs](https://docs.victoriametrics.com/victoriatraces/vtagent/#srv-urls) for details.
 
 Example command, which starts `vtagent` for accepting trace spans over OTLP/HTTP at the port `10429`
-and sends the collected trace spans to VictoriaTraces instance at `victoria-traces-host:10428`:
+and sends the collected trace spans to VictoriaTraces instance at `victoria-traces:10428`:
 
 ```sh
 /path/to/vtagent-prod -remoteWrite.url=http://victoria-traces:10428/insert/opentelemetry/v1/traces

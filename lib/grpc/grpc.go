@@ -35,26 +35,23 @@ const (
 // dataFrameHeaderLen is the length of `Compressed-Flag` and `Message-Length` in DATA frame.
 const dataFrameHeaderLen = 5
 
-// ReadDataFrame reads DATA frame from r into bb and verifies it with CheckDataFrame.
-//
-// On success, bb.B contains only the (possibly compressed) message data without DATA frame header.
+// ReadDataFrame reads DATA frame from r into bb and returns the message data without DATA frame header.
 //
 // The maxMessageSize limits the maximum message data size, which can be read from r.
-func ReadDataFrame(bb *bytesutil.ByteBuffer, r io.Reader, maxMessageSize *flagutil.Bytes) error {
+func ReadDataFrame(bb *bytesutil.ByteBuffer, r io.Reader, maxMessageSize *flagutil.Bytes) ([]byte, error) {
 	lr := ioutil.GetLimitedReader(r, dataFrameHeaderLen+maxMessageSize.N+1)
 	defer ioutil.PutLimitedReader(lr)
 
 	if _, err := bb.ReadFrom(lr); err != nil {
-		return fmt.Errorf("cannot read request body: %w", err)
+		return nil, fmt.Errorf("cannot read request body: %w", err)
 	}
 	if int64(len(bb.B)) > dataFrameHeaderLen+maxMessageSize.N {
-		return fmt.Errorf("too big gRPC message size exceeding -%s=%d bytes", maxMessageSize.Name, maxMessageSize.N)
+		return nil, fmt.Errorf("too big gRPC message size exceeding -%s=%d bytes", maxMessageSize.Name, maxMessageSize.N)
 	}
 	if err := CheckDataFrame(bb.B); err != nil {
-		return err
+		return nil, err
 	}
-	bb.B = bb.B[dataFrameHeaderLen:]
-	return nil
+	return bb.B[dataFrameHeaderLen:], nil
 }
 
 // CheckDataFrame verify the `Compressed-Flag` and `Message-Length` in DATA frame.

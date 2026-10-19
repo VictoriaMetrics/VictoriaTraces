@@ -20,11 +20,15 @@ func TestReadDataFrame_Success(t *testing.T) {
 	f := func(body []byte, maxMessageSize int64, messageExpected string) {
 		t.Helper()
 		var bb bytesutil.ByteBuffer
-		if err := ReadDataFrame(&bb, bytes.NewReader(body), &flagutil.Bytes{N: maxMessageSize, Name: "maxRequestSize"}); err != nil {
+		message, err := ReadDataFrame(&bb, bytes.NewReader(body), &flagutil.Bytes{N: maxMessageSize, Name: "maxRequestSize"})
+		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if string(bb.B) != messageExpected {
-			t.Fatalf("unexpected message; got %q; want %q", bb.B, messageExpected)
+		if string(message) != messageExpected {
+			t.Fatalf("unexpected message; got %q; want %q", message, messageExpected)
+		}
+		if string(bb.B) != string(body) {
+			t.Fatalf("unexpected bb.B; got %q; want %q", bb.B, body)
 		}
 	}
 
@@ -39,7 +43,7 @@ func TestReadDataFrame_Failure(t *testing.T) {
 	f := func(body []byte, maxMessageSize int64, errExpected string) {
 		t.Helper()
 		var bb bytesutil.ByteBuffer
-		err := ReadDataFrame(&bb, bytes.NewReader(body), &flagutil.Bytes{N: maxMessageSize, Name: "maxRequestSize"})
+		_, err := ReadDataFrame(&bb, bytes.NewReader(body), &flagutil.Bytes{N: maxMessageSize, Name: "maxRequestSize"})
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
