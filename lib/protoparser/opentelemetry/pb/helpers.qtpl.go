@@ -25,197 +25,201 @@ var (
 
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:7
 func (kvl *KeyValueList) StreamFormatString(qw422016 *qt422016.Writer) {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:8
-	if len(kvl.Values) > 0 {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:8
-		qw422016.N().S(`{`)
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:7
+	qw422016.N().S(`{`)
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:9
+	needComma := false
+
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:10
-		for i, v := range kvl.Values {
+	for _, v := range kvl.Values {
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:11
-			qw422016.N().Q(v.Key)
+		if v == nil {
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:11
-			qw422016.N().S(`:`)
+			continue
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:11
-			qw422016.N().S(v.Value.FormatString(false))
+		}
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:12
-			if i+1 < len(kvl.Values) {
+		if needComma {
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:12
-				qw422016.N().S(`,`)
+			qw422016.N().S(`,`)
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:12
-			}
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:13
 		}
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:13
-		qw422016.N().S(`}`)
+		needComma = true
+
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:14
+		qw422016.N().Q(v.Key)
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:14
+		qw422016.N().S(`:`)
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:14
+		qw422016.N().S(v.Value.FormatString(false))
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:15
-	} else {
+	}
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:15
-		qw422016.N().S(`{}`)
+	qw422016.N().S(`}`)
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
-	}
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
 }
 
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
 func (kvl *KeyValueList) WriteFormatString(qq422016 qtio422016.Writer) {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
 	kvl.StreamFormatString(qw422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
 	qt422016.ReleaseWriter(qw422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
 }
 
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
 func (kvl *KeyValueList) FormatString() string {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
 	kvl.WriteFormatString(qb422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
 	qs422016 := string(qb422016.B)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
 	return qs422016
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:18
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:17
 }
 
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:22
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:21
 func (av *ArrayValue) StreamFormatString(qw422016 *qt422016.Writer) {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:23
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:22
 	if len(av.Values) > 0 {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:23
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:22
 		qw422016.N().S(`[`)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:25
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:24
 		for i, v := range av.Values {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:26
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:25
 			qw422016.N().S(v.FormatString(false))
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:27
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:26
 			if i+1 < len(av.Values) {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:27
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:26
 				qw422016.N().S(`,`)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:27
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:26
 			}
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:28
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:27
 		}
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:28
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:27
 		qw422016.N().S(`]`)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:30
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:29
 	} else {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:30
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:29
 		qw422016.N().S(`[]`)
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:31
+	}
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
-	}
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
 }
 
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
 func (av *ArrayValue) WriteFormatString(qq422016 qtio422016.Writer) {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
 	av.StreamFormatString(qw422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
 	qt422016.ReleaseWriter(qw422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
 }
 
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
 func (av *ArrayValue) FormatString() string {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
 	av.WriteFormatString(qb422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
 	qs422016 := string(qb422016.B)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
 	return qs422016
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:33
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:32
 }
 
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:37
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:36
 func (av *AnyValue) StreamFormatString(qw422016 *qt422016.Writer, toplevel bool) {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:38
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:37
 	if av == nil {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:39
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:38
 		if !toplevel {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:39
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:38
 			qw422016.N().S(`null`)
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:40
+		}
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:41
-		}
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:42
 		return
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:42
+	}
 //line lib/protoparser/opentelemetry/pb/helpers.qtpl:43
-	}
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:44
 	switch {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:45
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:44
 	case av.StringValue != nil:
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:46
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:45
 		if toplevel {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:47
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:46
 			qw422016.N().S(*av.StringValue)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:48
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:47
 		} else {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:49
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:48
 			qw422016.N().Q(*av.StringValue)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:50
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:49
 		}
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:51
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:50
 	case av.BoolValue != nil:
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:52
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:51
 		qw422016.N().S(strconv.FormatBool(*av.BoolValue))
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:53
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:52
 	case av.IntValue != nil:
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:54
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:53
 		qw422016.N().DL(*av.IntValue)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:55
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:54
 	case av.DoubleValue != nil:
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:56
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:55
 		qw422016.N().S(float64AsString(*av.DoubleValue))
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:57
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:56
 	case av.ArrayValue != nil:
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:58
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:57
 		qw422016.N().S(av.ArrayValue.FormatString())
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:59
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:58
 	case av.KeyValueList != nil:
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:60
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:59
 		qw422016.N().S(av.KeyValueList.FormatString())
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:61
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:60
 	case av.BytesValue != nil:
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:62
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:61
 		qw422016.N().S(base64.StdEncoding.EncodeToString(*av.BytesValue))
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:62
 	}
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 }
 
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 func (av *AnyValue) WriteFormatString(qq422016 qtio422016.Writer, toplevel bool) {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 	av.StreamFormatString(qw422016, toplevel)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 	qt422016.ReleaseWriter(qw422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 }
 
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 func (av *AnyValue) FormatString(toplevel bool) string {
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 	qb422016 := qt422016.AcquireByteBuffer()
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 	av.WriteFormatString(qb422016, toplevel)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 	qs422016 := string(qb422016.B)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 	qt422016.ReleaseByteBuffer(qb422016)
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 	return qs422016
-//line lib/protoparser/opentelemetry/pb/helpers.qtpl:64
+//line lib/protoparser/opentelemetry/pb/helpers.qtpl:63
 }

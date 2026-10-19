@@ -5,16 +5,15 @@
 
 {% stripspace %}
 {% func (kvl *KeyValueList) FormatString() %}
-{% if len(kvl.Values) > 0 %}
 {
-	{% for i, v := range kvl.Values %}
+	{% code needComma := false %}
+	{% for _, v := range kvl.Values %}
+		{% if v == nil %}{% continue %}{% endif %}
+		{% if needComma %},{% endif %}
+		{% code needComma = true %}
 		{%q= v.Key %}: {%s= v.Value.FormatString(false) %}
-		{% if i + 1 < len(kvl.Values) %},{% endif %}
 	{% endfor %}
 }
-{% else %}
-{}
-{% endif %}
 {% endfunc %}
 {% endstripspace %}
 
