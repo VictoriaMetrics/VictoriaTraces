@@ -3,7 +3,12 @@ package grpc
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net/http"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ioutil"
 )
 
 // https://github.com/grpc/grpc/blob/master/doc/statuscodes.md
@@ -27,6 +32,31 @@ const (
 	StatusCodeUnauthenticated    = "16"
 )
 
+// dataFrameHeaderLen is the length of `Compressed-Flag` and `Message-Length` in DATA frame.
+const dataFrameHeaderLen = 5
+
+// ReadDataFrame reads DATA frame from r into bb and verifies it with CheckDataFrame.
+//
+// On success, bb.B contains only the (possibly compressed) message data without DATA frame header.
+//
+// The maxMessageSize limits the maximum message data size, which can be read from r.
+func ReadDataFrame(bb *bytesutil.ByteBuffer, r io.Reader, maxMessageSize *flagutil.Bytes) error {
+	lr := ioutil.GetLimitedReader(r, dataFrameHeaderLen+maxMessageSize.N+1)
+	defer ioutil.PutLimitedReader(lr)
+
+	if _, err := bb.ReadFrom(lr); err != nil {
+		return fmt.Errorf("cannot read request body: %w", err)
+	}
+	if int64(len(bb.B)) > dataFrameHeaderLen+maxMessageSize.N {
+		return fmt.Errorf("too big gRPC message size exceeding -%s=%d bytes", maxMessageSize.Name, maxMessageSize.N)
+	}
+	if err := CheckDataFrame(bb.B); err != nil {
+		return err
+	}
+	bb.B = bb.B[dataFrameHeaderLen:]
+	return nil
+}
+
 // CheckDataFrame verify the `Compressed-Flag` and `Message-Length` in DATA frame.
 // See https://grpc.github.io/grpc/core/md_doc__p_r_o_t_o_c_o_l-_h_t_t_p2.html
 //
@@ -44,16 +74,16 @@ const (
 // +----------------------------------------------------------+
 func CheckDataFrame(req []byte) error {
 	n := len(req)
-	if n < 5 {
+	if n < dataFrameHeaderLen {
 		return fmt.Errorf("invalid gRPC header length: %d", n)
 	}
 
-	grpcHeader := req[:5]
+	grpcHeader := req[:dataFrameHeaderLen]
 	if isCompress := grpcHeader[0]; isCompress != 0 && isCompress != 1 {
 		return fmt.Errorf("invalid gRPC compressed flag %d", isCompress)
 	}
 	messageLength := binary.BigEndian.Uint32(grpcHeader[1:5])
-	if n != 5+int(messageLength) {
+	if n != dataFrameHeaderLen+int(messageLength) {
 		return fmt.Errorf("invalid gRPC message length: %d, actual length: %d", messageLength, n)
 	}
 	return nil

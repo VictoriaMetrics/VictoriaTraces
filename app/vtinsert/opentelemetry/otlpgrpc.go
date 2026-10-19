@@ -64,21 +64,12 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	bb := compressedBytes.Get()
 	defer compressedBytes.Put(bb)
 
-	_, err = bb.ReadFrom(r.Body)
-	if err != nil {
-		errorsGRPCTotal.Inc()
-		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot read request body: %s", err))
-		return
-	}
-
-	err = grpc.CheckDataFrame(bb.B)
+	err = grpc.ReadDataFrame(bb, r.Body, maxRequestSize)
 	if err != nil {
 		errorsGRPCTotal.Inc()
 		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
 		return
 	}
-
-	bb.B = bb.B[5:]
 
 	// stream fields must contain the service name and span name.
 	// by using arguments and headers, users can also add other fields as stream fields
