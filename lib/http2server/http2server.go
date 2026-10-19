@@ -17,14 +17,27 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+	"github.com/klauspost/compress/gzhttp"
+	"github.com/valyala/fastrand"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/stringsutil"
-	metrics "github.com/VictoriaMetrics/metrics"
-	"github.com/klauspost/compress/gzhttp"
-	"github.com/valyala/fastrand"
+)
+
+var (
+	tlsEnable   = flagutil.NewArrayBool("otlpGRPC.tls", "Whether to enable TLS for incoming gRPC requests at the given -otlpGRPCListenAddr. -otlpGRPC.tlsCertFile and -otlpGRPC.tlsKeyFile must be set if -otlpGRPC.tls is set")
+	tlsCertFile = flagutil.NewArrayString("otlpGRPC.tlsCertFile", "Path to file with TLS certificate for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. "+
+		"Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated")
+	tlsKeyFile = flagutil.NewArrayString("otlpGRPC.tlsKeyFile", "Path to file with TLS key for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. "+
+		"The provided key file is automatically re-read every second, so it can be dynamically updated")
+	tlsCipherSuites = flagutil.NewArrayString("otlpGRPC.tlsCipherSuites", "Optional list of TLS cipher suites for incoming requests over HTTPS if -otlpGRPC.tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants")
+	tlsMinVersion   = flagutil.NewArrayString("otlpGRPC.tlsMinVersion", "Optional minimum TLS version to use for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. "+
+		"Supported values: TLS10, TLS11, TLS12, TLS13")
 )
 
 var (
@@ -43,19 +56,39 @@ type ServeOptions struct{}
 // Serve starts an http server on the given addrs with the given optional rh.
 //
 // By default, all the responses are transparently compressed, since egress traffic is usually expensive.
-func Serve(addr string, rh httpserver.RequestHandler, tlsConfig *tls.Config) {
+func Serve(addrs []string, rh httpserver.RequestHandler, opts ServeOptions) {
 	if rh == nil {
 		rh = func(_ http.ResponseWriter, _ *http.Request) bool {
 			return false
 		}
 	}
-	go serve(addr, rh, tlsConfig)
+	for idx, addr := range addrs {
+		if addr == "" {
+			continue
+		}
+		go serve(addr, rh, idx, opts)
+	}
 }
 
-func serve(addr string, rh httpserver.RequestHandler, tlsConfig *tls.Config) {
+func serve(addr string, rh httpserver.RequestHandler, idx int, _ ServeOptions) {
 	scheme := "http2"
 	useProxyProto := false
 
+	var tlsConfig *tls.Config
+	if tlsEnable.GetOptionalArg(idx) {
+		certFile := tlsCertFile.GetOptionalArg(idx)
+		keyFile := tlsKeyFile.GetOptionalArg(idx)
+		minVersion := tlsMinVersion.GetOptionalArg(idx)
+		tc, err := netutil.GetServerTLSConfig(certFile, keyFile, minVersion, *tlsCipherSuites)
+		if err != nil {
+			logger.Fatalf("cannot load TLS cert from -otlpGRPC.tlsCertFile=%q, -otlpGRPC.tlsKeyFile=%q, -otlpGRPC.tlsMinVersion=%q, -otlpGRPC.tlsCipherSuites=%q: %s", certFile, keyFile, minVersion, *tlsCipherSuites, err)
+		}
+		// Allow using TLS with HTTP/2 by specifying NextProtos.
+		// See https://datatracker.ietf.org/doc/html/rfc7540#section-3.3
+		// See https://github.com/VictoriaMetrics/VictoriaTraces/issues/108
+		tc.NextProtos = []string{"h2"}
+		tlsConfig = tc
+	}
 	ln, err := netutil.NewTCPListener(scheme, addr, useProxyProto, tlsConfig)
 	if err != nil {
 		logger.Fatalf("cannot start http/2 server at %s: %s", addr, err)

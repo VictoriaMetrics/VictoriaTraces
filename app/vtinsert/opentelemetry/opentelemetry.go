@@ -12,7 +12,7 @@ import (
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
-var maxRequestSize = flagutil.NewBytes("opentelemetry.traces.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single OpenTelemetry trace export request.")
+var maxRequestSize = flagutil.NewBytes("opentelemetry.traces.maxRequestSize", 32*1024*1024, "The maximum size in bytes of a single OpenTelemetry trace export request.")
 
 var (
 	mandatoryStreamFields = []string{otelpb.ResourceAttrServiceName, otelpb.NameField}

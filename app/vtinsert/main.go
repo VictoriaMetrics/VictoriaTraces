@@ -1,7 +1,6 @@
 package vtinsert
 
 import (
-	"crypto/tls"
 	"flag"
 	"fmt"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/nativeinsert"
@@ -10,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 
@@ -26,18 +24,7 @@ var (
 	disableInternalInsert = flag.Bool("internalinsert.disable", false, "Whether to disable /internal/insert HTTP endpoint. See also -insert.disable. See https://docs.victoriametrics.com/victoriatraces/cluster/#security")
 )
 
-var (
-	otlpGRPCListenAddr = flag.String("otlpGRPCListenAddr", "", `TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317".`)
-
-	otlpGRPCTlsEnable   = flag.Bool("otlpGRPC.tls", true, "Enable TLS for incoming gRPC request at the given -otlpGRPCListenAddr. It's set to true by default, and -otlpGRPC.tlsCertFile and -otlpGRPC.tlsKeyFile must be set. It could be configured to false to allow insecure connection.")
-	otlpGRPCTlsCertFile = flag.String("otlpGRPC.tlsCertFile", "", "Path to file with TLS certificate for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is not set to false. "+
-		"Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated.")
-	otlpGRPCTlsKeyFile = flag.String("otlpGRPC.tlsKeyFile", "", "Path to file with TLS key for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is not set to false. "+
-		"The provided key file is automatically re-read every second, so it can be dynamically updated.")
-	otlpGRPCTlsCipherSuites = flagutil.NewArrayString("otlpGRPC.tlsCipherSuites", "Optional TLS cipher suites for incoming requests over HTTPS if -otlpGRPC.tls is not set to false. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants")
-	otlpGRPCTlsMinVersion   = flag.String("otlpGRPC.tlsMinVersion", "", "Optional minimum TLS version to use for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is not set to false. "+
-		"Supported values: TLS10, TLS11, TLS12, TLS13.")
-)
+var otlpGRPCListenAddr = flag.String("otlpGRPCListenAddr", "", `TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317". See also -otlpGRPC.tls`)
 
 // Init initializes vtinsert
 func Init() {
@@ -115,30 +102,8 @@ func otlpGRPCRequestHandler(w http.ResponseWriter, r *http.Request) bool {
 }
 
 func initGRPCServer() {
-	var (
-		err       error
-		tlsConfig *tls.Config
-	)
-
-	if *otlpGRPCTlsEnable {
-		if *otlpGRPCTlsKeyFile == "" {
-			logger.Fatalf("-otlpGRPC.tlsKeyFile is required when -otlpGRPC.tls is true.")
-		}
-		if *otlpGRPCTlsCertFile == "" {
-			logger.Fatalf("-otlpGRPC.tlsCertFile is required when -otlpGRPC.tls is true.")
-		}
-		tlsConfig, err = http2server.NewTLSConfig(*otlpGRPCTlsCertFile, *otlpGRPCTlsKeyFile, *otlpGRPCTlsMinVersion, *otlpGRPCTlsCipherSuites)
-		if err != nil {
-			logger.Fatalf("cannot load TLS cert from -tlsCertFile=%q, -tlsKeyFile=%q, -tlsMinVersion=%q, -tlsCipherSuites=%q: %s", *otlpGRPCTlsCertFile, *otlpGRPCTlsKeyFile, *otlpGRPCTlsMinVersion, *otlpGRPCTlsCipherSuites, err)
-		}
-	}
-
 	logger.Infof("starting OTLP gRPC server at %q...", *otlpGRPCListenAddr)
-	go http2server.Serve(
-		*otlpGRPCListenAddr,
-		otlpGRPCRequestHandler,
-		tlsConfig,
-	)
+	http2server.Serve([]string{*otlpGRPCListenAddr}, otlpGRPCRequestHandler, http2server.ServeOptions{})
 }
 
 func stopGRPCServer() {
