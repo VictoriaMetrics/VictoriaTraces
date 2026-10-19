@@ -38,7 +38,7 @@ func OTLPGRPCRequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case otlpExportTracesPath:
 		otlpExportTracesHandler(r, w)
 	default:
-		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeUnimplemented, fmt.Sprintf("gRPC method not found: %s", r.URL.Path))
+		grpc.Errorf(w, r, grpc.StatusCodeUnimplemented, fmt.Sprintf("gRPC method not found: %s", r.URL.Path))
 	}
 	return true
 }
@@ -55,7 +55,7 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	message, err := grpc.ReadDataFrame(bb, r.Body, maxRequestSize)
 	if err != nil {
 		errorsGRPCTotal.Inc()
-		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, err.Error())
+		grpc.Errorf(w, r, grpc.StatusCodeInternal, err.Error())
 		return
 	}
 
@@ -63,7 +63,7 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	err = protoparserutil.ReadUncompressedData(bytes.NewReader(message), encoding, maxRequestSize, pushExportTraceServiceRequest)
 	if err != nil {
 		errorsGRPCTotal.Inc()
-		grpc.WriteErrorGrpcResponse(w, grpc.StatusCodeInternal, fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
+		grpc.Errorf(w, r, grpc.StatusCodeInternal, fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
 		return
 	}
 
