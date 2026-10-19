@@ -3,6 +3,7 @@ package opentelemetry
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -11,11 +12,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
-)
-
-const (
-	contentTypeProtobuf = "application/x-protobuf"
-	contentTypeJSON     = "application/json"
 )
 
 var (
@@ -43,10 +39,11 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 }
 
 func handleTracesRequest(r *http.Request, w http.ResponseWriter) bool {
-	switch contentType := r.Header.Get("Content-Type"); contentType {
-	case contentTypeProtobuf:
+	contentType := r.Header.Get("Content-Type")
+	switch {
+	case contentType == "application/x-protobuf" || strings.HasPrefix(contentType, "application/x-protobuf;"):
 		handleProtobufRequest(r, w)
-	case contentTypeJSON:
+	case contentType == "application/json" || strings.HasPrefix(contentType, "application/json;"):
 		handleJSONRequest(r, w)
 	default:
 		httpserver.Errorf(w, r, "Content-Type %s isn't supported for opentelemetry format. Use protobuf or JSON encoding", contentType)
