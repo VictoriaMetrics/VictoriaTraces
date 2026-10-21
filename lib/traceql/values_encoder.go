@@ -999,6 +999,9 @@ func tryParseDuration(s string) (int64, bool) {
 	isMinus := s[0] == '-'
 	if isMinus {
 		s = s[1:]
+		if len(s) == 0 {
+			return 0, false
+		}
 	}
 
 	nsecs := int64(0)
