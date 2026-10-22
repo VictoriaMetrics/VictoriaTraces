@@ -141,7 +141,7 @@ func (fc *filterCommon) String() string {
 	}
 
 	// vtinsert stores an empty attribute value as "-", since VictoriaLogs drops empty fields.
-	if fieldValue == "" && (fc.op == "=" || fc.op == "!=") {
+	if fieldValue == "" && (fc.op == "=" || fc.op == "!=") && isAttributeField(fieldName) {
 		fieldValue = "-"
 	}
 
@@ -189,6 +189,14 @@ func TraceQLFieldToVTField(fieldName string) string {
 	}
 
 	return fieldName
+}
+
+func isAttributeField(fieldName string) bool {
+	return strings.HasPrefix(fieldName, otelpb.ResourceAttrPrefix) ||
+		strings.HasPrefix(fieldName, otelpb.SpanAttrPrefixField) ||
+		strings.HasPrefix(fieldName, otelpb.EventPrefix+otelpb.EventAttrPrefix) ||
+		strings.HasPrefix(fieldName, otelpb.LinkPrefix+otelpb.LinkAttrPrefix) ||
+		strings.HasPrefix(fieldName, otelpb.InstrumentationScopeAttrPrefix)
 }
 
 // VTFieldToTraceQL converts a VictoriaTraces internal field name back to a TraceQL field name.
