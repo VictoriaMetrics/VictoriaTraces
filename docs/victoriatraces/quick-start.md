@@ -113,6 +113,10 @@ curl -X POST -H 'Content-Type: application/json' --data-binary @- http://<victor
 
 This command will send an HTTP request to VictoriaTraces and ingest one example span.
 
+Most queries do not show the ingested span right away. VMUI and the Jaeger and Tempo search APIs show it after `-search.latencyOffset` (`30s` by default).
+The Jaeger and Tempo APIs return it by trace ID after the trace index is flushed (`-insert.indexFlushInterval`, `20s` by default).
+See [search latency](https://docs.victoriametrics.com/victoriatraces/querying/#search-latency).
+
 Alternatively, the following example application (HotROD) can be used:
 
 ```
@@ -132,7 +136,7 @@ Simply open `http://127.0.0.1:8080/`, click any button to generate traces.
 
 After that, you can check the data in VMUI at `http://<victoria-traces>:10428/select/vmui`.
 
-See more details about how to send data to VictoriaTraces from **an instrumented application** or **an OpenTelemetry collector** [in this doc](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/).
+See more details about how to send data to VictoriaTraces from **an instrumented application** or **an OpenTelemetry collector** in [OpenTelemetry setup](https://docs.victoriametrics.com/victoriatraces/data-ingestion/opentelemetry/).
 
 ## Read data
 
@@ -145,18 +149,18 @@ It allows users to visualize trace data on Grafana, by simply adding a [Jaeger d
 http://<victoria-traces>:10428/select/jaeger
 ```
 
-See more details about the HTTP APIs and params VictoriaTraces supports and how to query data from them [in this doc](https://docs.victoriametrics.com/victoriatraces/querying/).
+See more details about the HTTP APIs and params VictoriaTraces supports and how to query data from them in [Querying](https://docs.victoriametrics.com/victoriatraces/querying/).
 
 ## Alerting
 
-see [these docs](https://docs.victoriametrics.com/victoriatraces/vmalert/).
+See [Alerting with traces](https://docs.victoriametrics.com/victoriatraces/vmalert/).
 
 ## Monitoring
 
 VictoriaTraces exposes internal metrics in Prometheus exposition format at `http://<victoria-traces>:10428/metrics` page.
 It is recommended to set up monitoring of these metrics via VictoriaMetrics
-(see [these docs](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
-vmagent (see [these docs](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
+(see [how to scrape Prometheus exporters such as node-exporter](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#how-to-scrape-prometheus-exporters-such-as-node-exporter)),
+vmagent (see [how to collect metrics in Prometheus format](https://docs.victoriametrics.com/victoriametrics/vmagent/#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
 
 We recommend installing Grafana dashboard for [VictoriaTraces single-node](https://grafana.com/grafana/dashboards/24136) or [cluster](https://grafana.com/grafana/dashboards/24134).
 
