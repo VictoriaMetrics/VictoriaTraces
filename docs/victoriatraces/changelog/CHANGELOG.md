@@ -14,6 +14,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 * SECURITY: upgrade Go builder from Go1.27.2 to Go1.27.3. See the list of issues addressed in [Go1.27.3](https://github.com/golang/go/issues?q=milestone%3AGo1.27.3+label%3ACherryPickApproved).
 
+* FEATURE: [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/), and [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): add `-healthcheck` command-line flag, which checks that the running process accepts connections at `-httpListenAddr` and exits with non-zero code if the check fails. This allows setting up Docker `HEALTHCHECK` in images without `curl` or `wget`. See [these docs](https://docs.victoriametrics.com/victoriatraces/quick-start/#starting-victoriatraces-single-node-via-docker) and [VictoriaLogs issue #1565](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1565).
+
 ## [v0.12.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.12.1)
 
 Released at 2026-10-23
