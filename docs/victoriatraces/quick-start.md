@@ -49,6 +49,19 @@ This command will make VictoriaTraces run in the foreground, and store the inges
 
 After VictoriaTraces is running, verify VMUI is working by going to `http://<victoria-traces>:10428/select/vmui`.
 
+The Docker image doesn't contain `curl` or `wget`. Use the `-healthcheck` command-line flag{{% available_from "#" %}} for Docker `HEALTHCHECK` instead.
+It checks that the running VictoriaTraces accepts connections at `-httpListenAddr` and exits with non-zero code if the check fails.
+Pass the same `-httpListenAddr` as the checked process has. For example, in Docker Compose:
+
+```yaml
+healthcheck:
+  test: ["CMD", "/victoria-traces-prod", "-healthcheck"]
+```
+
+If VictoriaTraces is configured via [environment variables](https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#environment-variables),
+then add `-envflag.enable` to the healthcheck command, so it reads the same environment variables.
+The same flag is supported by [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/) at `/vtagent-prod`.
+
 See how to [write](#write-data) or [read](#read-data) from VictoriaTraces.
 
 ### Starting VictoriaTraces Single Node from a Binary
