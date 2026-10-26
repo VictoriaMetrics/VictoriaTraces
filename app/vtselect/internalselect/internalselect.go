@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	vtstoragecommon "github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/common"
 	"io"
 	"net/http"
 	"strconv"
@@ -26,7 +27,6 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
-	vtstoragecommon "github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/common"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/netselect"
 )
 
