@@ -56,7 +56,7 @@ func TestRequestHandlerPostPassesTheMethodCheck(t *testing.T) {
 
 	// the request carries no version arg, so it must fail on the protocol version check
 	// rather than on the method check.
-	RequestHandler(context.Background(), w, r, r.RequestURI)
+	RequestHandler(context.Background(), w, r, r.URL.Path)
 
 	if w.Code == http.StatusMethodNotAllowed {
 		t.Fatalf("a POST request must not be rejected by the method check; response: %q", w.Body.String())
