@@ -14,6 +14,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 * SECURITY: upgrade Go builder from Go1.27.2 to Go1.27.3. See the list of issues addressed in [Go1.27.3](https://github.com/golang/go/issues?q=milestone%3AGo1.27.3+label%3ACherryPickApproved).
 
+* FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.52.0 to v1.53.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.52.0...v1.53.0).
+
 ## [v0.12.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.12.1)
 
 Released at 2026-10-23

@@ -29,6 +29,7 @@ var (
 func InitSecretFlags() {
 	// The -pushmetrics.url flag can contain basic auth creds, so it mustn't be visible when exposing the flags.
 	flagutil.RegisterSecretFlag("pushmetrics.url")
+	flagutil.RegisterSecretFlag("pushmetrics.header")
 }
 
 var (
@@ -111,6 +112,7 @@ func StopAndPush() {
 				ExtraLabels:        extraLabels,
 				Headers:            *pushHeader,
 				DisableCompression: *disableCompression,
+				LogErr:             logger.Errorf,
 			}
 			if err := metrics.PushMetricsExt(ctxLocal, pu, appmetrics.WritePrometheusMetrics, opts); err != nil {
 				logger.Errorf("failed to push metrics to %q: %s", pu, err)
