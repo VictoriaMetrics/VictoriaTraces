@@ -4,8 +4,6 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/nativeinsert"
-	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/nativeinsert/nativemultitenant"
 	"net/http"
 	"strings"
 	"time"
@@ -16,6 +14,8 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/internalinsert"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/nativeinsert"
+	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/nativeinsert/nativemultitenant"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/opentelemetry"
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/grpc"
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/http2server"
