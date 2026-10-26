@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	vtstoragecommon "github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/common"
 	"io"
 	"net/http"
 	"strconv"
@@ -20,12 +21,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage"
-	vtstoragecommon "github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/common"
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtstorage/netselect"
 )
 
@@ -33,7 +34,7 @@ var maxConcurrentRequests = flag.Int("internalselect.maxConcurrentRequests", 8, 
 	"other requests are put into the wait queue; see https://docs.victoriametrics.com/victoriatraces/cluster/")
 
 // RequestHandler processes requests to /internal/select/*
-func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, path string) {
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -43,12 +44,24 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 
 	select {
 	case concurrencyLimitCh <- struct{}{}:
-		if d := time.Since(startTime); d > 100*time.Millisecond {
+		waitDuration := time.Since(startTime)
+		if waitDuration > 100*time.Millisecond {
 			// Measure the wait duration for requests, which hit the concurrency limit and waited for more than 100 milliseconds to be executed.
-			concurrentRequestsWaitDuration.Update(d.Seconds())
+			concurrentRequestsWaitDuration.Update(waitDuration.Seconds())
 		}
-		requestHandler(ctx, w, r, startTime)
+		requestHandler(ctx, w, r, path, startTime)
 		<-concurrencyLimitCh
+
+		// Log slow queries executed by this vtstorage node.
+		if strings.HasPrefix(path, "/internal/select/") && logSlowQueryDuration > 0 {
+			if totalDuration := time.Since(startTime); totalDuration >= logSlowQueryDuration {
+				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+				requestURI := httpserver.GetRequestURI(r)
+				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, totalDuration=%.3f seconds, waitDuration=%.3f seconds; requestURI: %q",
+					logSlowQueryDuration, remoteAddr, totalDuration.Seconds(), waitDuration.Seconds(), requestURI)
+				metrics.GetOrCreateCounter(`vt_slow_queries_total`).Inc()
+			}
+		}
 	case <-ctx.Done():
 		// Unconditionally measure the wait time until the the request is canceled by the client.
 		concurrentRequestsWaitDuration.UpdateDuration(startTime)
@@ -56,8 +69,9 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 }
 
 // Init initializes internalselect package.
-func Init() {
+func Init(slowQueryDuration time.Duration) {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
+	logSlowQueryDuration = slowQueryDuration
 }
 
 // Stop stops vtselect
@@ -67,28 +81,33 @@ func Stop() {
 
 var concurrencyLimitCh chan struct{}
 
+var logSlowQueryDuration time.Duration
+
 var concurrentRequestsWaitDuration = metrics.NewSummary(`vt_concurrent_internalselect_requests_wait_duration`)
 
-func requestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, startTime time.Time) {
-	path := r.URL.Path
-	rh := requestHandlers[path]
-	if rh == nil {
-		httpserver.Errorf(w, r, "unsupported endpoint requested: %s", path)
-		return
-	}
-
-	metrics.GetOrCreateCounter(fmt.Sprintf(`vt_http_requests_total{path=%q}`, path)).Inc()
-
+func requestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, path string, startTime time.Time) {
 	// Parse request before obtaining the request args from it in order to catch parse errors,
 	// which are silently skipped at r.FormValue() calls inside the request handlers executed below.
 	//
 	// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/1462
 	if err := parseRequest(r); err != nil {
-		metrics.GetOrCreateCounter(fmt.Sprintf(`vt_http_errors_total{path=%q}`, path)).Inc()
+		if ctx.Err() != nil {
+			// Do not report parse errors for canceled requests, since they are expected and legal.
+			return
+		}
+		metrics.GetOrCreateCounter(`vt_http_errors_total{path="unparsed"}`).Inc()
 		httpserver.Errorf(w, r, "cannot parse request to %q: %s", r.URL, err)
 		return
 	}
 
+	rh := requestHandlers[path]
+	if rh == nil {
+		metrics.GetOrCreateCounter(`vt_http_errors_total{path="unsupported"}`).Inc()
+		httpserver.Errorf(w, r, "unsupported endpoint requested: %s", path)
+		return
+	}
+
+	metrics.GetOrCreateCounter(fmt.Sprintf(`vt_http_requests_total{path=%q}`, path)).Inc()
 	if err := rh(ctx, w, r); err != nil && !netutil.IsTrivialNetworkError(err) {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vt_http_errors_total{path=%q}`, path)).Inc()
 
@@ -108,6 +127,9 @@ func requestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request,
 func parseRequest(r *http.Request) error {
 	maxMemory := int64(0.1 * float64(memory.Allowed()))
 	ct := r.Header.Get("Content-Type")
+
+	// ParseMultipartForm allows configuring the memory limit,
+	// while ParseForm limits URL-encoded bodies to 10MB.
 	if strings.HasPrefix(ct, "multipart/form-data;") {
 		if err := r.ParseMultipartForm(maxMemory); err != nil {
 			return fmt.Errorf("cannot parse multipart-encoded request args: %w", err)

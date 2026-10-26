@@ -25,7 +25,7 @@ import (
 )
 
 var (
-	maxConcurrentRequests = flag.Int("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "The maximum number of concurrent search requests. "+
+	maxConcurrentRequests = flagutil.NewIntWithDynamicDefault("search.maxConcurrentRequests", getDefaultMaxConcurrentRequests(), "2x CPU cores when there are 4 or fewer; otherwise CPU cores, capped at 16", "The maximum number of concurrent search requests. "+
 		"It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. "+
 		"See also -search.maxQueueDuration")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the search request waits for execution when -search.maxConcurrentRequests "+
@@ -38,6 +38,7 @@ var (
 	enableDelete         = flag.Bool("delete.enable", false, "Whether to enable /delete/* HTTP endpoints")
 	enableInternalDelete = flag.Bool("internaldelete.enable", false, "Whether to enable /internal/delete/* HTTP endpoints, which are used by vtselect for deleting spans "+
 		"via delete API at vtstorage nodes")
+	deleteAuthKey        = flagutil.NewPassword("deleteAuthKey", "authKey, which must be passed in query string to /delete/* . It overrides -httpAuth.* .")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second,
 		"Log queries with execution time exceeding this value. Zero disables slow query logging")
 	vmalertProxyURL = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert; see https://docs.victoriametrics.com/victoriatraces/#vmalert")
@@ -70,7 +71,7 @@ func Init() {
 
 	vmalertproxy.Init(*vmalertProxyURL)
 
-	internalselect.Init()
+	internalselect.Init(*logSlowQueryDuration)
 }
 
 // Stop stops vtselect
@@ -99,11 +100,22 @@ var vmuiFiles embed.FS
 
 var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
+// IsAuthKeyProtectedPath returns true for paths, which verify the corresponding -*AuthKey flag
+// on their own at RequestHandler().
+func IsAuthKeyProtectedPath(r *http.Request) bool {
+	path := strings.ReplaceAll(r.URL.Path, "//", "/")
+	return strings.HasPrefix(path, "/delete/")
+}
+
 // RequestHandler handles select requests for VictoriaTraces
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := strings.ReplaceAll(r.URL.Path, "//", "/")
 
 	if strings.HasPrefix(path, "/delete/") {
+		// The paths reported by IsAuthKeyProtectedPath() must verify the -*AuthKey before any other check.
+		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey) {
+			return true
+		}
 		if !*enableDelete {
 			httpserver.Errorf(w, r, "requests to /delete/* are disabled; pass -delete.enable command-line flag for enabling them")
 			return true
@@ -127,7 +139,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 				"see https://docs.victoriametrics.com/victorialogs/#how-to-delete-logs")
 			return true
 		}
-		internalselect.RequestHandler(r.Context(), w, r)
+		internalselect.RequestHandler(r.Context(), w, r, path)
 		return true
 	}
 
@@ -140,7 +152,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "requests to /internal/select/* are disabled with -select.disable command-line flag")
 			return true
 		}
-		internalselect.RequestHandler(r.Context(), w, r)
+		internalselect.RequestHandler(r.Context(), w, r, path)
 		return true
 	}
 
@@ -173,7 +185,7 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 
 	if path == "/select/vmui" {
 		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
-		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
+		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaTraces
 		// is hidden behind vmauth or similar proxy.
 		_ = r.ParseForm()
 		newURL := "vmui/?" + r.Form.Encode()
@@ -228,6 +240,7 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 	}
 	defer decRequestConcurrency()
 
+	waitDuration := time.Since(startTime)
 	if strings.HasPrefix(path, "/select/jaeger/") {
 		// Jaeger HTTP APIs for distributed tracing.
 		// Could be used by Grafana Jaeger datasource, Jaeger UI, and more.
@@ -247,8 +260,8 @@ func selectHandler(w http.ResponseWriter, r *http.Request, path string) bool {
 		if d >= *logSlowQueryDuration {
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 			requestURI := httpserver.GetRequestURI(r)
-			logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
-				*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+			logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, totalDuration=%.3f seconds, waitDuration=%.3f seconds; requestURI: %q",
+				*logSlowQueryDuration, remoteAddr, d.Seconds(), waitDuration.Seconds(), requestURI)
 			slowQueries.Inc()
 		}
 	}
