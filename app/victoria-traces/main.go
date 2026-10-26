@@ -43,6 +43,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":10428"}
 	}
+	httpserver.CheckHealth(listenAddrs)
 	logger.Infof("starting VictoriaTraces at %q...", listenAddrs)
 	startTime := time.Now()
 
