@@ -231,7 +231,7 @@ This can help narrowing down and eliminating high-cardinality fields from [trace
 
 ### Other fields
 
-Every ingested log entry may contain arbitrary number of [fields](#data-model) additionally to [`_time`](#time-field).
-For example, `name`, `span_attr:ip`, `span_attr:ip`, etc. Such fields can be used for simplifying and optimizing [search queries](https://docs.victoriametrics.com/victorialogs/logsql/).
+Every ingested trace span may contain arbitrary number of [fields](#data-model) additionally to [`_time`](#time-field).
+For example, `name`, `span_attr:ip`, `span_attr:port`, etc. Such fields can be used for simplifying and optimizing [search queries](https://docs.victoriametrics.com/victorialogs/logsql/).
 
 See [LogsQL docs](https://docs.victoriametrics.com/victorialogs/logsql/) for more details.
