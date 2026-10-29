@@ -1,6 +1,7 @@
 package opentelemetry
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -77,7 +78,7 @@ func handleJSONRequest(r *http.Request, w http.ResponseWriter) {
 	err := protoparserutil.ReadUncompressedData(r.Body, encoding, maxRequestSize, func(data []byte) error {
 		// JSON-encoded requests cannot be concatenated, so convert them to protobuf before buffering.
 		var req otelpb.ExportTraceServiceRequest
-		if err := req.UnmarshalJSONCustom(data); err != nil {
+		if err := json.Unmarshal(data, &req); err != nil {
 			return fmt.Errorf("cannot unmarshal request from %d json bytes: %w", len(data), err)
 		}
 

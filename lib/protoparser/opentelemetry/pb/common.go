@@ -99,14 +99,19 @@ func (kv *KeyValue) unmarshalProtobuf(src []byte) (err error) {
 }
 
 // AnyValue represents the corresponding OTEL protobuf message
+//
+// AnyValue is a oneof, so only the set field is encoded to JSON.
 type AnyValue struct {
-	StringValue  *string       `json:"stringValue"`
-	BoolValue    *bool         `json:"boolValue"`
+	StringValue *string `json:"stringValue,omitempty"`
+	BoolValue   *bool   `json:"boolValue,omitempty"`
+	// IntValue is ignored by encoding/json, since OTLP/JSON may encode int64 as either a JSON number or a decimal string,
+	// which cannot be handled by a single struct tag. It is decoded from anyValueDecode.IntValueRaw in UnmarshalJSON
+	// and encoded as a decimal string in MarshalJSON.
 	IntValue     *int64        `json:"-"`
-	DoubleValue  *float64      `json:"doubleValue"`
-	ArrayValue   *ArrayValue   `json:"arrayValue"`
-	KeyValueList *KeyValueList `json:"keyValueList"`
-	BytesValue   *[]byte       `json:"BytesValue"`
+	DoubleValue  *float64      `json:"doubleValue,omitempty"`
+	ArrayValue   *ArrayValue   `json:"arrayValue,omitempty"`
+	KeyValueList *KeyValueList `json:"keyValueList,omitempty"`
+	BytesValue   *[]byte       `json:"bytesValue,omitempty"`
 }
 
 type anyValueAlias AnyValue
@@ -242,6 +247,25 @@ func (av *AnyValue) UnmarshalJSON(b []byte) (err error) {
 		}
 	}
 	return nil
+}
+
+// MarshalJSON implements json.Marshaler.
+//
+// intValue is encoded as a decimal string according to the protobuf JSON mapping for int64.
+// https://protobuf.dev/programming-guides/json/
+func (av *AnyValue) MarshalJSON() ([]byte, error) {
+	avEncode := struct {
+		anyValueAlias
+
+		IntValue *string `json:"intValue,omitempty"`
+	}{
+		anyValueAlias: anyValueAlias(*av),
+	}
+	if av.IntValue != nil {
+		intValue := strconv.FormatInt(*av.IntValue, 10)
+		avEncode.IntValue = &intValue
+	}
+	return json.Marshal(&avEncode)
 }
 
 // ArrayValue represents the corresponding OTEL protobuf message
