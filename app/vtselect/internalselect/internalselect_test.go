@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 // TestRequestHandlerRequiresPOST checks that the /internal/select/* and /internal/delete/*
@@ -14,7 +15,7 @@ import (
 //
 // See https://github.com/VictoriaMetrics/VictoriaTraces/issues/225
 func TestRequestHandlerRequiresPOST(t *testing.T) {
-	Init()
+	Init(5 * time.Second)
 	defer Stop()
 
 	f := func(method, path string) {
@@ -22,7 +23,7 @@ func TestRequestHandlerRequiresPOST(t *testing.T) {
 
 		r := httptest.NewRequest(method, path, nil)
 		w := httptest.NewRecorder()
-		RequestHandler(context.Background(), w, r)
+		RequestHandler(context.Background(), w, r, path)
 
 		if w.Code != http.StatusMethodNotAllowed {
 			t.Fatalf("unexpected status code for %s %s; got %d; want %d; response: %q",
@@ -44,7 +45,7 @@ func TestRequestHandlerRequiresPOST(t *testing.T) {
 //
 // vtselect always sends POST here, see getResponseBodyForPathAndArgs in app/vtstorage/netselect.
 func TestRequestHandlerPostPassesTheMethodCheck(t *testing.T) {
-	Init()
+	Init(5 * time.Second)
 	defer Stop()
 
 	args := url.Values{}
@@ -55,7 +56,7 @@ func TestRequestHandlerPostPassesTheMethodCheck(t *testing.T) {
 
 	// the request carries no version arg, so it must fail on the protocol version check
 	// rather than on the method check.
-	RequestHandler(context.Background(), w, r)
+	RequestHandler(context.Background(), w, r, r.URL.Path)
 
 	if w.Code == http.StatusMethodNotAllowed {
 		t.Fatalf("a POST request must not be rejected by the method check; response: %q", w.Body.String())

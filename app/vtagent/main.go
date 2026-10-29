@@ -44,6 +44,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":10429"}
 	}
+	httpserver.CheckHealth(listenAddrs)
 	logger.Infof("starting vtagent at %q...", listenAddrs)
 	startTime := time.Now()
 

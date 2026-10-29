@@ -23,7 +23,8 @@ import (
 )
 
 var (
-	httpListenAddrs  = flagutil.NewArrayString("httpListenAddr", "TCP address to listen for incoming http requests. See also -httpListenAddr.useProxyProtocol")
+	httpListenAddrs = flagutil.NewArrayString("httpListenAddr", "Addresses to listen for incoming http requests. "+
+		"Use unix:/path/to/socket to listen on Unix domain socket. Note that -tls and -httpListenAddr.useProxyProtocol cannot be used with Unix sockets")
 	useProxyProtocol = flagutil.NewArrayBool("httpListenAddr.useProxyProtocol", "Whether to use proxy protocol for connections accepted at the given -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
@@ -42,6 +43,7 @@ func main() {
 	if len(listenAddrs) == 0 {
 		listenAddrs = []string{":10428"}
 	}
+	httpserver.CheckHealth(listenAddrs)
 	logger.Infof("starting VictoriaTraces at %q...", listenAddrs)
 	startTime := time.Now()
 
@@ -53,7 +55,9 @@ func main() {
 
 	servicegraph.Init()
 
-	go httpserver.Serve(listenAddrs, httpRequestHandler, httpserver.ServeOptions{
+	httpserver.RegisterAuthKeyProtectedPathsFunc(isAuthKeyProtectedPath)
+
+	go httpserver.Serve(listenAddrs, requestHandler, httpserver.ServeOptions{
 		UseProxyProtocol: useProxyProtocol,
 	})
 
@@ -79,7 +83,7 @@ func main() {
 	logger.Infof("the VictoriaTraces has been stopped in %.3f seconds", time.Since(startTime).Seconds())
 }
 
-func httpRequestHandler(w http.ResponseWriter, r *http.Request) bool {
+func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if r.URL.Path == "/" {
 		if r.Method != http.MethodGet {
 			return false
@@ -118,6 +122,10 @@ func httpRequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	return false
 }
 
+func isAuthKeyProtectedPath(r *http.Request) bool {
+	return vtselect.IsAuthKeyProtectedPath(r) || vtstorage.IsAuthKeyProtectedPath(r)
+}
+
 func usage() {
 	const s = `
 victoria-traces is a traces storage and analytics service.
@@ -127,6 +135,7 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/
 	flagutil.Usage(s)
 }
 
+// initSecretFlags manage the default secret flags for victoria-traces application.
 func initSecretFlags() {
 	pushmetrics.InitSecretFlags()
 	vtselect.InitSecretFlags()

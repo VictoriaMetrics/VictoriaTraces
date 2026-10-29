@@ -1498,14 +1498,13 @@ func parseCommonArgsExt(r *http.Request, skipMaxQueryTimeRangeCheck, defaultDisa
 		return nil, err
 	}
 
-	currTimestamp := time.Now().UnixNano()
 	if !timeOK {
 		// If time arg is missing, then evaluate query either at the end timestamp (if it is set)
 		// or at the current timestamp (if end query arg isn't set)
 		if endOK {
 			timestamp = end
 		} else {
-			timestamp = currTimestamp
+			timestamp = time.Now().UnixNano()
 		}
 	}
 
