@@ -12,10 +12,15 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+**Update note 1:** [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/) now exports data in OTLP. `-remoteWrite.url` must point to an OTLP/HTTP traces endpoint such as `http://victoria-traces:10428/insert/opentelemetry/v1/traces` instead of `/insert/native`. The `-remoteWrite.format` command-line flag and the `/insert/native` ingestion endpoint of vtagent are removed.
+
+**Update note 2:** TLS for the OTLP gRPC server is now disabled by default, the same as `-tls` for `-httpListenAddr`. Set `-otlpGRPC.tls` explicitly in order to keep accepting OTLP gRPC requests over TLS at `-otlpGRPCListenAddr`.
+
 * SECURITY: upgrade Go builder from Go1.27.2 to Go1.27.3. See the list of issues addressed in [Go1.27.3](https://github.com/golang/go/issues?q=milestone%3AGo1.27.3+label%3ACherryPickApproved).
 
 * FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.52.0 to v1.53.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.52.0...v1.53.0).
 * FEATURE: [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/), and [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): add `-healthcheck` command-line flag, which checks that the running process accepts connections at `-httpListenAddr` and exits with non-zero code if the check fails. This allows setting up Docker `HEALTHCHECK` in images without `curl` or `wget`. See [these docs](https://docs.victoriametrics.com/victoriatraces/quick-start/#starting-victoriatraces-single-node-via-docker) and [VictoriaLogs issue #1565](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1565).
+* FEATURE: [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): buffer and forward OTLP trace export requests as is, without converting them to log rows, and send them to `-remoteWrite.url` over OTLP/HTTP protobuf. This makes vtagent useful for non-VictoriaTraces users, and allows using any OTLP-compatible backend as remote storage.
 
 ## [v0.12.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.12.1)
 
