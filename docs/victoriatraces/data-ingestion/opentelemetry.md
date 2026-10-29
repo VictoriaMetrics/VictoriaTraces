@@ -48,13 +48,25 @@ traceExporter, err := otlptracehttp.New(ctx,
 
 ### gRPC endpoint
 
-To send the trace data to VictoriaTraces gRPC trace service, you need to first enable the OTLP gRPC server on VictoriaTraces by:
+To send the trace data to VictoriaTraces gRPC trace service, you need to first enable the OTLP gRPC server on VictoriaTraces.
+The OTLP gRPC server is disabled by default. TLS is enabled for it by default, so `-otlpGRPCListenAddr` needs a certificate and a key:
 
 ```shell
 ./victoria-traces -otlpGRPCListenAddr=:4317 -otlpGRPC.tlsCertFile=<cert_file> -otlpGRPC.tlsKeyFile=<key_file>
 ```
 
-> You can also **disable TLS** for incoming gRPC requests by setting `-otlpGRPC.tls=false`. TLS is recommended for production use, and disabling it should only be done when you're testing or aware of the potential risks.
+For testing, you can **disable TLS** for incoming gRPC requests with `-otlpGRPC.tls=false`. TLS is recommended for production use, and disabling it should only be done when you're testing or aware of the potential risks.
+
+```shell
+./victoria-traces -otlpGRPCListenAddr=:4317 -otlpGRPC.tls=false
+```
+
+If you run VictoriaTraces in Docker, publish the gRPC port as well, and pass the flags after the image name:
+
+```shell
+docker run --rm -p 10428:10428 -p 4317:4317 docker.io/victoriametrics/victoria-traces:latest \
+  -otlpGRPCListenAddr=:4317 -otlpGRPC.tls=false
+```
 
 After that, specify the `Endpoint` for grpc-exporter builder to `<victoria-traces>:4317`.
 
@@ -71,9 +83,9 @@ traceExporter, err := otlptracegrpc.New(ctx,
 VictoriaTraces supports other HTTP headers in both HTTP and gRPC endpoints - see [HTTP headers](https://docs.victoriametrics.com/victoriatraces/data-ingestion/#http-headers).
 
 VictoriaTraces automatically use `service.name` in **resource attributes** and `name` in **span** as [stream fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#stream-fields).
-While the remaining data (including [resource](https://opentelemetry.io/docs/specs/otel/overview/#resources), [instrumentation scope](https://opentelemetry.io/docs/specs/otel/common/instrumentation-scope/), and fields in [span](https://opentelemetry.io/docs/specs/otel/trace/api/#span), like `trace_id`, `span_id`, span `attributes` and more) are stored as [regular fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model):
+The remaining data (including [resource](https://opentelemetry.io/docs/specs/otel/overview/#resources), [instrumentation scope](https://opentelemetry.io/docs/specs/otel/common/instrumentation-scope/), and fields in [span](https://opentelemetry.io/docs/specs/otel/trace/api/#span), like `trace_id`, `span_id`, span `attributes` and more) is stored as [regular fields](https://docs.victoriametrics.com/victoriatraces/keyconcepts/#data-model).
 
-The ingested trace spans can be queried according to [these docs](https://docs.victoriametrics.com/victoriatraces/querying/).
+The ingested trace spans can be queried as described in [Querying](https://docs.victoriametrics.com/victoriatraces/querying/).
 
 ## Collector configuration
 
@@ -106,13 +118,25 @@ exporters:
 
 #### gRPC exporter
 
-To send the collected traces to VictoriaTraces gRPC trace service, you need to first enable the OTLP gRPC server on VictoriaTraces by:
+To send the collected traces to VictoriaTraces gRPC trace service, you need to first enable the OTLP gRPC server on VictoriaTraces.
+The OTLP gRPC server is disabled by default. TLS is enabled for it by default, so `-otlpGRPCListenAddr` needs a certificate and a key:
 
 ```shell
 ./victoria-traces -otlpGRPCListenAddr=:4317 -otlpGRPC.tlsCertFile=<cert_file> -otlpGRPC.tlsKeyFile=<key_file>
 ```
 
-> You can also **disable TLS** for incoming gRPC requests by setting `-otlpGRPC.tls=false`. TLS is recommended for production use, and disabling it should only be done when you're testing or aware of the potential risks.
+For testing, you can **disable TLS** for incoming gRPC requests with `-otlpGRPC.tls=false`. TLS is recommended for production use, and disabling it should only be done when you're testing or aware of the potential risks.
+
+```shell
+./victoria-traces -otlpGRPCListenAddr=:4317 -otlpGRPC.tls=false
+```
+
+If you run VictoriaTraces in Docker, publish the gRPC port as well, and pass the flags after the image name:
+
+```shell
+docker run --rm -p 10428:10428 -p 4317:4317 docker.io/victoriametrics/victoria-traces:latest \
+  -otlpGRPCListenAddr=:4317 -otlpGRPC.tls=false
+```
 
 After that, specify endpoint for [OTLP/gRPC exporter](https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlpexporter/README.md):
 
