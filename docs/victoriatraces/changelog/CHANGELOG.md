@@ -31,6 +31,8 @@ Released at 2026-10-23
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/), vtinsert in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/) and [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): Fix unexpected closure of HTTP/2 connections after `ReadHeaderTimeout` by upgrading the Go version. See [the issue #292](https://github.com/VictoriaMetrics/VictoriaTraces/issues/292) and [this Golang issue](https://github.com/golang/go/issues/80876) for details.
 * BUGFIX: [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): properly cancel requests waiting in the `vtstorage` concurrency queue when the corresponding query is canceled or times out on `vtselect`. Previously, these requests could remain queued and run later, accumulating stale work and wasting resources. See [VictoriaLogs issue #1672](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1672).
 
+* BUGFIX: vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return `502 Bad Gateway` instead of `400 Bad Request` from Jaeger and Tempo query APIs when a `-storageNode` is unavailable. Previously, Jaeger services, operations and trace-by-ID APIs, as well as Tempo tags, trace-by-ID and metrics APIs, returned `400 Bad Request`, and Jaeger services and Tempo tags APIs reported a misleading `cannot parse query` error. See [issue #276](https://github.com/VictoriaMetrics/VictoriaTraces/issues/276).
+
 ## [v0.12.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.12.0)
 
 Released at 2026-09-29
