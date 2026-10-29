@@ -175,6 +175,19 @@ func (tc *TestCase) MustStartVtsingle(instance string, flags []string, env ...st
 	return app
 }
 
+// MustStartDefaultVtcluster is a test helper function that starts an instance of
+// vtcluster with defaults suitable for most tests.
+func (tc *TestCase) MustStartDefaultVtcluster() *Vtcluster {
+	tc.t.Helper()
+
+	app, err := StartVtcluster("vtcluster", tc.Dir(), []string{"-retentionPeriod=100y"}, tc.cli)
+	if err != nil {
+		tc.t.Fatalf("Could not start vtcluster: %v", err)
+	}
+	tc.addApp("vtcluster", app)
+	return app
+}
+
 // MustStartVtagent is a test helper function that starts an instance of
 // vtagent and fails the test if the app fails to start.
 func (tc *TestCase) MustStartVtagent(instance string, remoteWriteURLs, flags []string, env ...string) *Vtagent {
