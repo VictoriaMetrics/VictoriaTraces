@@ -1,5 +1,6 @@
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { buildTraceLocation } from "../../hooks/useTenant";
 import TraceExplorerHeader from "./components/TraceExplorerHeader";
 import { TRACE_QUERY_URL_PARAMS, useTraceQueryState } from "./hooks/useTraceQueryState";
 import TracesResultsTable from "./components/TracesResultsTable";
@@ -33,6 +34,9 @@ const TraceExplorer: FC = () => {
   const { limit, setLimit } = useLimitController();
   const { executeQueryTrigger } = useQueryState();
   const navigate = useNavigate();
+  const openTrace = useCallback((traceID: string) => {
+    navigate(buildTraceLocation(searchParams, traceID), { state: { autoRun: true } });
+  }, [navigate, searchParams]);
   const { isVisible: isFiltersSidebarVisible, setVisible: setFiltersSidebarVisible } = useFiltersSidebarVisible();
 
   const { query, setQuery } = useTraceQueryState();
@@ -224,10 +228,7 @@ const TraceExplorer: FC = () => {
                 results={displayedTraces}
                 activeTraceID={selectedTraceId}
                 onClickRow={row => setSelectedTraceId(row.traceID)}
-                onOpenTrace={row => navigate(
-                  `/trace?trace_id=${encodeURIComponent(row.traceID)}`,
-                  { state: { autoRun: true } }
-                )}
+                onOpenTrace={row => openTrace(row.traceID)}
               />
             )}
           </div>
@@ -238,10 +239,7 @@ const TraceExplorer: FC = () => {
               periodStart={period.start}
               periodEnd={period.end}
               onClose={() => setSelectedTraceId("")}
-              onViewFullTrace={() => navigate(
-                `/trace?trace_id=${encodeURIComponent(selectedTrace.traceID)}`,
-                { state: { autoRun: true } }
-              )}
+              onViewFullTrace={() => openTrace(selectedTrace.traceID)}
             />
           )}
         </div>

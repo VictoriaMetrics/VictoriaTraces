@@ -10,6 +10,17 @@ export const getTenantSearchParams = (source: URLSearchParams): URLSearchParams 
   return params;
 };
 
+export const buildTraceLocation = (
+  source: URLSearchParams,
+  traceID: string,
+  spanID?: string,
+): { pathname: string, search: string } => {
+  const params = getTenantSearchParams(source);
+  params.set("trace_id", traceID);
+  if (spanID) params.set("span_id", spanID);
+  return { pathname: "/trace", search: params.toString() };
+};
+
 export const useTenant = () => {
   const [searchParams] = useSearchParams();
 
