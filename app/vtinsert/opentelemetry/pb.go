@@ -168,11 +168,11 @@ func decodeScopeSpans(src []byte, fs *logstorage.Fields, fb *fmtBuffer, pushSpan
 			if !ok {
 				return fmt.Errorf("cannot read Span data")
 			}
-			startTimeUnixNano, err := decodeSpan(data, fs, fb)
+			endTimeUnixNano, err := decodeSpan(data, fs, fb)
 			if err != nil {
 				return fmt.Errorf("cannot decode Span: %w", err)
 			}
-			pushSpans(int64(startTimeUnixNano), fs.Fields)
+			pushSpans(int64(endTimeUnixNano), fs.Fields)
 			fs.Fields = fs.Fields[:commonFieldsLen]
 			fb.buf = fb.buf[:fbLen]
 		}
@@ -232,7 +232,7 @@ func decodeInstrumentationScope(src []byte, fs *logstorage.Fields, fb *fmtBuffer
 //
 // https://github.com/open-telemetry/opentelemetry-proto/blob/v1.5.0/opentelemetry/proto/trace/v1/trace.proto#L88
 // https://github.com/open-telemetry/opentelemetry-collector/blob/v0.124.0/pdata/internal/data/protogen/trace/v1/trace.pb.go#L380
-func decodeSpan(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (startTimeUnixNano uint64, err error) {
+func decodeSpan(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (endTimeUnixNano uint64, err error) {
 	//message Span {
 	//	bytes trace_id = 1;
 	//	bytes span_id = 2;
@@ -252,12 +252,12 @@ func decodeSpan(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (startTimeUnix
 	//  fixed32 flags = 16;
 	//}
 	var (
-		fc              easyproto.FieldContext
-		ok              bool
-		endTimeUnixNano uint64
-		statusCode      int64
-		eventIdx        int
-		linkIdx         int
+		fc                easyproto.FieldContext
+		ok                bool
+		startTimeUnixNano uint64
+		statusCode        int64
+		eventIdx          int
+		linkIdx           int
 
 		// special fields that must be appended at the end of the fields slice
 		// startTimeUnixNano uint64
@@ -267,119 +267,119 @@ func decodeSpan(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (startTimeUnix
 	for len(src) > 0 {
 		src, err = fc.NextField(src)
 		if err != nil {
-			return startTimeUnixNano, fmt.Errorf("cannot read next field in Span: %w", err)
+			return 0, fmt.Errorf("cannot read next field in Span: %w", err)
 		}
 		switch fc.FieldNum {
 		case 1:
 			traceIDBytes, ok := fc.Bytes()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span trace id")
+				return 0, fmt.Errorf("cannot read span trace id")
 			}
 			traceID = fb.formatHex(traceIDBytes)
 			// don't add to fs here. traceID field should be appended at the tail.
 		case 2:
 			spanID, ok := fc.Bytes()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span span id")
+				return 0, fmt.Errorf("cannot read span span id")
 			}
 			spanIDHex := fb.formatHex(spanID)
 			fs.Add(pb.SpanIDField, spanIDHex)
 		case 3:
 			traceState, ok := fc.String()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span trace state")
+				return 0, fmt.Errorf("cannot read span trace state")
 			}
 			fs.Add(pb.TraceStateField, traceState)
 		case 4:
 			parentSpanID, ok := fc.Bytes()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span parent span id")
+				return 0, fmt.Errorf("cannot read span parent span id")
 			}
 			parentSpanIDHex := fb.formatHex(parentSpanID)
 			fs.Add(pb.ParentSpanIDField, parentSpanIDHex)
 		case 5:
 			spanName, ok := fc.String()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span name")
+				return 0, fmt.Errorf("cannot read span name")
 			}
 			fs.Add(pb.NameField, spanName)
 		case 6:
 			kind, ok := fc.Int32()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span kind")
+				return 0, fmt.Errorf("cannot read span kind")
 			}
 			fs.Add(pb.KindField, strconv.FormatInt(int64(kind), 10))
 		case 7:
 			startTimeUnixNano, ok = fc.Fixed64()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span start timestamp")
+				return 0, fmt.Errorf("cannot read span start timestamp")
 			}
 			// don't add to fs here. startTimeUnixNano field should be appended at the tail.
 		case 8:
 			endTimeUnixNano, ok = fc.Fixed64()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span end timestamp")
+				return 0, fmt.Errorf("cannot read span end timestamp")
 			}
 			// don't add to fs here. endTimeUnixNano field should be appended at the tail.
 		case 9:
 			data, ok := fc.MessageData()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span attributes data")
+				return 0, fmt.Errorf("cannot read span attributes data")
 			}
 			if err = decodeKeyValue(data, fs, fb, pb.SpanAttrPrefixField); err != nil {
-				return startTimeUnixNano, fmt.Errorf("cannot decode span attributes: %w", err)
+				return 0, fmt.Errorf("cannot decode span attributes: %w", err)
 			}
 		case 10:
 			droppedAttributesCount, ok := fc.Uint32()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span dropped attributes count")
+				return 0, fmt.Errorf("cannot read span dropped attributes count")
 			}
 			fs.Add(pb.DroppedAttributesCountField, strconv.FormatUint(uint64(droppedAttributesCount), 10))
 		case 11:
 			data, ok := fc.MessageData()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span event data")
+				return 0, fmt.Errorf("cannot read span event data")
 			}
 			if err = decodeEvent(data, fs, fb, eventIdx); err != nil {
-				return startTimeUnixNano, fmt.Errorf("cannot decode span event: %w", err)
+				return 0, fmt.Errorf("cannot decode span event: %w", err)
 			}
 			eventIdx++
 		case 12:
 			droppedEventsCount, ok := fc.Uint32()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span dropped events count")
+				return 0, fmt.Errorf("cannot read span dropped events count")
 			}
 			//s.DroppedEventsCount = droppedEventsCount
 			fs.Add(pb.DroppedEventsCountField, strconv.FormatUint(uint64(droppedEventsCount), 10))
 		case 13:
 			data, ok := fc.MessageData()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span link data")
+				return 0, fmt.Errorf("cannot read span link data")
 			}
 			if err = decodeLink(data, fs, fb, linkIdx); err != nil {
-				return startTimeUnixNano, fmt.Errorf("cannot decode span link: %w", err)
+				return 0, fmt.Errorf("cannot decode span link: %w", err)
 			}
 			linkIdx++
 		case 14:
 			droppedLinksCount, ok := fc.Uint32()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span dropped links count")
+				return 0, fmt.Errorf("cannot read span dropped links count")
 			}
 			//s.DroppedLinksCount = droppedLinksCount
 			fs.Add(pb.DroppedLinksCountField, strconv.FormatUint(uint64(droppedLinksCount), 10))
 		case 15:
 			data, ok := fc.MessageData()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span status data")
+				return 0, fmt.Errorf("cannot read span status data")
 			}
 			statusCode, err = decodeStatus(data, fs, fb)
 			if err != nil {
-				return startTimeUnixNano, fmt.Errorf("cannot decode span status: %w", err)
+				return 0, fmt.Errorf("cannot decode span status: %w", err)
 			}
 		case 16:
 			flags, ok := fc.Fixed32()
 			if !ok {
-				return startTimeUnixNano, fmt.Errorf("cannot read span flags")
+				return 0, fmt.Errorf("cannot read span flags")
 			}
 			fs.Add(pb.FlagsField, strconv.FormatUint(uint64(flags), 10))
 		}
@@ -400,7 +400,7 @@ func decodeSpan(src []byte, fs *logstorage.Fields, fb *fmtBuffer) (startTimeUnix
 	if traceID != "" {
 		fs.Add(pb.TraceIDField, traceID)
 	}
-	return startTimeUnixNano, nil
+	return endTimeUnixNano, nil
 }
 
 // decodeEvent parses an Event protobuf message from src.
