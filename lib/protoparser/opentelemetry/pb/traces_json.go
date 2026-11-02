@@ -7,6 +7,11 @@ import (
 	"strings"
 )
 
+// TODO: OTLP/JSON support is not a mainstream core feature and could be optimized.
+// Specifically, (Un)marshaling should be implemented with fastjson.
+// Previous benchmark results show fastjson > custom (Un)marshalJSONCustom method > nested-struct-based (Un)marshalJSON implementation.
+// The current implementation prioritizes usability over performance to facilitate testing code that relies on json.(Un)marshal.
+
 // parseUnixTimestampByte parses fixed64 timestamp from OTLP/JSON, which may be either a JSON number or a decimal string.
 // Absent and null timestamps are treated as the default value 0.
 //
