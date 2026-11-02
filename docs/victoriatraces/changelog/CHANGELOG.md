@@ -12,7 +12,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
-**Update note 1:** [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/) now exports data in OTLP. `-remoteWrite.url` must point to an OTLP/HTTP traces endpoint such as `http://victoria-traces:10428/insert/opentelemetry/v1/traces` instead of `/insert/native`. The `-remoteWrite.format` command-line flag and the `/insert/native` ingestion endpoint of vtagent are removed.
+**Update note 1:** [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/) now exports data in OTLP. `-remoteWrite.url` must point to an OTLP/HTTP traces endpoint such as `http://victoria-traces:10428/insert/opentelemetry/v1/traces` instead of `/insert/native`. The `-remoteWrite.format` command-line flag and the `/insert/native` ingestion endpoint of vtagent are removed. The default value for `-opentelemetry.traces.maxRequestSize` is changed from `64MiB` to `32MiB`, and the default value for `-remoteWrite.maxBlockSize` is changed from `8MiB` to `32MiB`. Requests bigger than `-remoteWrite.maxBlockSize` are rejected. See [these docs](https://docs.victoriametrics.com/victoriatraces/vtagent/#data-persistence).
 
 **Update note 2:** TLS for the OTLP gRPC server is now disabled by default, the same as `-tls` for `-httpListenAddr`. Set `-otlpGRPC.tls` explicitly in order to keep accepting OTLP gRPC requests over TLS at `-otlpGRPCListenAddr`.
 

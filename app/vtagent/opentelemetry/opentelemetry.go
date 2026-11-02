@@ -13,12 +13,20 @@ import (
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/http2server"
 )
 
-var maxRequestSize = flagutil.NewBytes("opentelemetry.traces.maxRequestSize", 32*1024*1024, "The maximum size in bytes of a single OpenTelemetry trace export request.")
+var maxRequestSize = flagutil.NewBytes("opentelemetry.traces.maxRequestSize", 32*1024*1024, "The maximum size in bytes of a single OpenTelemetry trace export request. "+
+	"It shouldn't exceed -remoteWrite.maxBlockSize, since bigger requests are rejected")
 
 var otlpGRPCListenAddr = flag.String("otlpGRPCListenAddr", "", `TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317". See also -otlpGRPC.tls`)
 
 // Init starts the OTLP gRPC server if -otlpGRPCListenAddr is set.
+//
+// It must be called after remotewrite.Init.
 func Init() {
+	if n := remotewrite.MaxBlockSize(); maxRequestSize.N > n {
+		logger.Warnf("-opentelemetry.traces.maxRequestSize=%d exceeds -remoteWrite.maxBlockSize=%d; requests bigger than -remoteWrite.maxBlockSize are rejected. "+
+			"Decrease -opentelemetry.traces.maxRequestSize or increase -remoteWrite.maxBlockSize", maxRequestSize.N, n)
+	}
+
 	if *otlpGRPCListenAddr == "" {
 		return
 	}
@@ -53,8 +61,7 @@ func pushExportTraceServiceRequest(data []byte) error {
 	if spansCount == 0 {
 		return nil
 	}
-	remotewrite.PushOTLPTraces(data, spansCount)
-	return nil
+	return remotewrite.PushOTLPTraces(data, spansCount)
 }
 
 // countSpans returns the number of spans in the ExportTraceServiceRequest protobuf message in src.

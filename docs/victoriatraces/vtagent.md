@@ -94,6 +94,10 @@ The in-memory data is saved to `-remoteWrite.tmpDataPath` on graceful shutdown a
 Bigger `-remoteWrite.maxBlockSize` and `-remoteWrite.flushInterval` values reduce the number of requests to remote storage at the cost of higher memory usage and delivery latency.
 Make sure that remote storage accepts requests of `-remoteWrite.maxBlockSize` size.
 
+Blocks never exceed `-remoteWrite.maxBlockSize`, since accepted OTLP requests aren't split. So `vtagent` rejects OTLP requests bigger than `-remoteWrite.maxBlockSize`.
+The maximum accepted request size is set via `-opentelemetry.traces.maxRequestSize`, and it shouldn't exceed `-remoteWrite.maxBlockSize`.
+`vtagent` logs a warning at startup otherwise.
+
 ## SRV URLs
 
 `vtagent` supports [DNS SRV](https://en.wikipedia.org/wiki/SRV_record) hostname resolution in the `-remoteWrite.url` command-line flag when the hostname starts with `srv+` prefix.

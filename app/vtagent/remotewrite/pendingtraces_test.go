@@ -1,7 +1,11 @@
 package remotewrite
 
 import (
+	"reflect"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/persistentqueue"
 
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
@@ -42,4 +46,70 @@ func TestBatchingExportTraceServiceRequests(t *testing.T) {
 			t.Fatalf("unexpected service.name at resource spans #%d; got %q; want %q", i, got, want)
 		}
 	}
+}
+
+func TestPendingTracesAddBlockSize(t *testing.T) {
+	defaultMaxBlockSize := maxUnpackedBlockSize.N
+	defer func() {
+		maxUnpackedBlockSize.N = defaultMaxBlockSize
+	}()
+	maxUnpackedBlockSize.N = 100
+
+	f := func(reqSizes, blockSizesExpected []int) {
+		t.Helper()
+
+		fq := persistentqueue.MustOpenFastQueue(t.TempDir(), "test", 100, 0, false)
+		defer fq.MustClose()
+		pt := &pendingTraces{fq: fq}
+
+		for _, n := range reqSizes {
+			pt.add(make([]byte, n), 1)
+		}
+		pt.mustFlushLocked()
+
+		var blockSizes []int
+		for {
+			block, ok := fq.MustReadInMemoryBlock(nil)
+			if !ok {
+				break
+			}
+			data, err := zstd.Decompress(nil, block)
+			if err != nil {
+				t.Fatalf("cannot decompress block: %s", err)
+			}
+			blockSizes = append(blockSizes, len(data))
+		}
+		if !reflect.DeepEqual(blockSizes, blockSizesExpected) {
+			t.Fatalf("unexpected block sizes; got %v; want %v", blockSizes, blockSizesExpected)
+		}
+	}
+
+	// requests fit a single block
+	f([]int{30, 30, 40}, []int{100})
+	f([]int{100}, []int{100})
+
+	// the pending data is flushed before the request, which would exceed the max block size
+	f([]int{60, 50}, []int{60, 50})
+	f([]int{99, 2}, []int{99, 2})
+	f([]int{100, 1}, []int{100, 1})
+	f([]int{50, 50, 50}, []int{100, 50})
+}
+
+func TestPushOTLPTracesTooBigRequest(t *testing.T) {
+	defaultMaxBlockSize := maxUnpackedBlockSize.N
+	defer func() {
+		maxUnpackedBlockSize.N = defaultMaxBlockSize
+	}()
+	maxUnpackedBlockSize.N = 100
+
+	f := func(reqSize int, resultExpected bool) {
+		t.Helper()
+		err := PushOTLPTraces(make([]byte, reqSize), 1)
+		if (err == nil) != resultExpected {
+			t.Fatalf("unexpected result for %d bytes request; got error %v; want success %v", reqSize, err, resultExpected)
+		}
+	}
+
+	f(100, true)
+	f(101, false)
 }

@@ -42,16 +42,27 @@ var (
 // rwctxsGlobal contains statically populated entries when -remoteWrite.url is specified.
 var rwctxsGlobal []*remoteWriteCtx
 
+// MaxBlockSize returns the maximum size of a block sent to remote storage, i.e. -remoteWrite.maxBlockSize.
+func MaxBlockSize() int64 {
+	return maxUnpackedBlockSize.N
+}
+
 // PushOTLPTraces pushes the OTLP ExportTraceServiceRequest protobuf message with spansCount spans to all the configured -remoteWrite.url.
 //
 // req isn't unmarshaled. It is buffered as is and is sent to remote storage in batches.
 // The caller may re-use req after the function returns.
-func PushOTLPTraces(req []byte, spansCount int) {
+//
+// req bigger than -remoteWrite.maxBlockSize is rejected, since it cannot fit a single block.
+func PushOTLPTraces(req []byte, spansCount int) error {
+	if len(req) > maxUnpackedBlockSize.IntN() {
+		return fmt.Errorf("too big request size: %d bytes; it mustn't exceed -remoteWrite.maxBlockSize=%d bytes", len(req), maxUnpackedBlockSize.N)
+	}
+
 	rwctxs := rwctxsGlobal
 	if len(rwctxs) == 1 {
 		// fast path
 		rwctxs[0].push(req, spansCount)
-		return
+		return nil
 	}
 	// Push data to remote storage systems in parallel in order to reduce
 	// the time needed for sending the data to multiple remote storage systems.
@@ -62,6 +73,7 @@ func PushOTLPTraces(req []byte, spansCount int) {
 		})
 	}
 	wg.Wait()
+	return nil
 }
 
 // maxQueues limits the maximum value for `-remoteWrite.queues`. There is no sense in setting too high value,

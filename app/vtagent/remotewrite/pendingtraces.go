@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	maxUnpackedBlockSize = flagutil.NewBytes("remoteWrite.maxBlockSize", 8*1024*1024, "The maximum block size to send to remote storage. Bigger blocks may improve performance at the cost of the increased memory usage.")
-	flushInterval        = flag.Duration("remoteWrite.flushInterval", time.Second, "Interval for flushing the data to remote storage. "+
+	maxUnpackedBlockSize = flagutil.NewBytes("remoteWrite.maxBlockSize", 32*1024*1024, "The maximum block size to send to remote storage. Bigger blocks may improve performance at the cost of the increased memory usage. "+
+		"Requests bigger than this value are rejected. See also -opentelemetry.traces.maxRequestSize")
+	flushInterval = flag.Duration("remoteWrite.flushInterval", time.Second, "Interval for flushing the data to remote storage. "+
 		"This option takes effect only when less than 2MB of data per second are pushed to -remoteWrite.url")
 )
 
@@ -52,14 +53,18 @@ func (pt *pendingTraces) add(req []byte, spansCount int) {
 	pt.mu.Lock()
 	defer pt.mu.Unlock()
 
+	// Flush the pending data before adding req if the resulting block would exceed -remoteWrite.maxBlockSize.
+	// req itself cannot exceed -remoteWrite.maxBlockSize, since such requests are rejected by PushOTLPTraces,
+	// so the block never exceeds -remoteWrite.maxBlockSize.
+	if len(pt.wr.pendingData.B)+len(req) > maxUnpackedBlockSize.IntN() {
+		pt.mustFlushLocked()
+	}
+
 	// Concatenation of serialized ExportTraceServiceRequest messages is a valid ExportTraceServiceRequest message
 	// containing resource_spans from all the concatenated messages, since resource_spans is a repeated field.
 	// See https://protobuf.dev/programming-guides/encoding/#last-one-wins
 	_, _ = pt.wr.pendingData.Write(req)
 	pt.wr.pendingSpansCount += int64(spansCount)
-	if len(pt.wr.pendingData.B) > maxUnpackedBlockSize.IntN() {
-		pt.mustFlushLocked()
-	}
 }
 
 func (pt *pendingTraces) mustFlushLocked() {
