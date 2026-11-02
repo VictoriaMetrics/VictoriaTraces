@@ -105,8 +105,8 @@ type AnyValue struct {
 	StringValue *string `json:"stringValue,omitempty"`
 	BoolValue   *bool   `json:"boolValue,omitempty"`
 	// IntValue is ignored by encoding/json, since OTLP/JSON may encode int64 as either a JSON number or a decimal string,
-	// which cannot be handled by a single struct tag. It is decoded from anyValueDecode.IntValueRaw in UnmarshalJSON
-	// and encoded as a decimal string in MarshalJSON.
+	// which cannot be handled by a single struct tag. It is decoded from anyValueJSON.IntValueRaw in UnmarshalJSON
+	// and encoded to anyValueJSON.IntValueRaw as a decimal string in MarshalJSON.
 	IntValue     *int64        `json:"-"`
 	DoubleValue  *float64      `json:"doubleValue,omitempty"`
 	ArrayValue   *ArrayValue   `json:"arrayValue,omitempty"`
@@ -116,10 +116,11 @@ type AnyValue struct {
 
 type anyValueAlias AnyValue
 
-type anyValueDecode struct {
-	anyValueAlias
+// anyValueJSON is used by AnyValue.UnmarshalJSON and AnyValue.MarshalJSON for handling intValue.
+type anyValueJSON struct {
+	*anyValueAlias
 
-	IntValueRaw *json.RawMessage `json:"intValue"`
+	IntValueRaw *json.RawMessage `json:"intValue,omitempty"`
 }
 
 func (av *AnyValue) marshalProtobuf(mm *easyproto.MessageMarshaler) {
@@ -217,25 +218,23 @@ func (av *AnyValue) unmarshalProtobuf(src []byte) (err error) {
 }
 
 func (av *AnyValue) UnmarshalJSON(b []byte) (err error) {
-	avDecode := anyValueDecode{}
-
-	if err := json.Unmarshal(b, &avDecode); err != nil {
+	avJSON := anyValueJSON{anyValueAlias: (*anyValueAlias)(av)}
+	if err := json.Unmarshal(b, &avJSON); err != nil {
 		return err
 	}
-	*av = AnyValue(avDecode.anyValueAlias)
 
 	// decode intValueRaw and treat it as int64 to field IntValue
-	if avDecode.IntValueRaw != nil && len(*avDecode.IntValueRaw) > 0 {
-		firstByte := (*avDecode.IntValueRaw)[0]
+	if avJSON.IntValueRaw != nil && len(*avJSON.IntValueRaw) > 0 {
+		firstByte := (*avJSON.IntValueRaw)[0]
 		if firstByte == '-' || (firstByte >= '0' && firstByte <= '9') {
 			var intVal int64
-			err = json.Unmarshal(*avDecode.IntValueRaw, &intVal)
+			err = json.Unmarshal(*avJSON.IntValueRaw, &intVal)
 			if err != nil {
 				return err
 			}
 			av.IntValue = &intVal
 		} else {
-			unquoted, err := strconv.Unquote(string(*avDecode.IntValueRaw))
+			unquoted, err := strconv.Unquote(string(*avJSON.IntValueRaw))
 			if err != nil {
 				return err
 			}
@@ -254,18 +253,14 @@ func (av *AnyValue) UnmarshalJSON(b []byte) (err error) {
 // intValue is encoded as a decimal string according to the protobuf JSON mapping for int64.
 // https://protobuf.dev/programming-guides/json/
 func (av *AnyValue) MarshalJSON() ([]byte, error) {
-	avEncode := struct {
-		anyValueAlias
-
-		IntValue *string `json:"intValue,omitempty"`
-	}{
-		anyValueAlias: anyValueAlias(*av),
+	avJSON := anyValueJSON{
+		anyValueAlias: (*anyValueAlias)(av),
 	}
 	if av.IntValue != nil {
-		intValue := strconv.FormatInt(*av.IntValue, 10)
-		avEncode.IntValue = &intValue
+		intValueRaw := json.RawMessage(strconv.Quote(strconv.FormatInt(*av.IntValue, 10)))
+		avJSON.IntValueRaw = &intValueRaw
 	}
-	return json.Marshal(&avEncode)
+	return json.Marshal(&avJSON)
 }
 
 // ArrayValue represents the corresponding OTEL protobuf message
