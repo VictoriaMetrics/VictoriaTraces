@@ -145,16 +145,33 @@ func (fc *filterCommon) String() string {
 		return `{` + quoteFieldNameIfNeeded(fieldName) + fc.op + quoteTokenIfNeeded(fieldValue) + `}`
 	}
 
+	// LogsQL negative filters also match logs without the field, while TraceQL needs the attribute to exist.
+	// Intrinsics are not covered: span kind 0 is not stored, so `kind != server` must still match it.
+	requireField := ""
+	if (fc.op == "!=" || fc.op == "!~") && isScopedAttribute(fc.fieldName) {
+		requireField = quoteFieldNameIfNeeded(fieldName) + ":* and "
+	}
+
 	// regex ops translate to LogsQL's :~ / :!~ filters.
 	if fc.op == "=~" || fc.op == "!~" {
 		op := ":~"
 		if fc.op == "!~" {
 			op = ":!~"
 		}
-		return quoteFieldNameIfNeeded(fieldName) + op + strconv.Quote(fieldValue)
+		return requireField + quoteFieldNameIfNeeded(fieldName) + op + strconv.Quote(fieldValue)
 	}
 
-	return quoteFieldNameIfNeeded(fieldName) + ":" + fc.op + quoteTokenIfNeeded(fieldValue)
+	return requireField + quoteFieldNameIfNeeded(fieldName) + ":" + fc.op + quoteTokenIfNeeded(fieldValue)
+}
+
+func isScopedAttribute(fieldName string) bool {
+	// event. and link. are not here: their stored field names end with the event or link index.
+	for _, scope := range []string{"span.", "resource.", "instrumentation."} {
+		if strings.HasPrefix(fieldName, scope) {
+			return true
+		}
+	}
+	return false
 }
 
 func (fc *filterCommon) tagToVTField() string {

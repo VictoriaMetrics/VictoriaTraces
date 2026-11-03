@@ -107,6 +107,22 @@ func TestParseQuery(t *testing.T) {
 
 	// Regex match operator `=~` must become LogsQL `~` (not `=~`).
 	f(`{resource.host.name =~ "kimi-k2-a.*"}`, `"resource_attr:host.name":~"kimi-k2-a.*"`)
+
+	// negative ops on attributes do not match spans without the attribute.
+	f(`{span.http.status_code != 200}`, `"span_attr:http.status_code":* and "span_attr:http.status_code":!=200`)
+	f(`{span.istio.cluster_id !~ "c.*"}`, `"span_attr:istio.cluster_id":* and "span_attr:istio.cluster_id":!~"c.*"`)
+	f(`{resource.host.name != "a"}`, `"resource_attr:host.name":* and "resource_attr:host.name":!=a`)
+	f(`{instrumentation.x != "a"}`, `"scope_attr:x":* and "scope_attr:x":!=a`)
+	f(`{span.a != "b" || span.c = "d"}`, `"span_attr:a":* and "span_attr:a":!=b or "span_attr:c":=d`)
+	f(`{span.a != "b" && span.c = "d"}`, `"span_attr:a":* and "span_attr:a":!=b and "span_attr:c":=d`)
+	f(`{(span.a != "b" || span.c = "d") && span.e = "f"}`, `("span_attr:a":* and "span_attr:a":!=b or "span_attr:c":=d) and "span_attr:e":=f`)
+	f(`{span.a != nil}`, `"span_attr:a":*`)
+
+	// intrinsics, stream fields and event attributes keep the plain negative filter.
+	f(`{event.a != "b"}`, `"event:event_attr:a":!=b`)
+	f(`{kind != server}`, `kind:!=2`)
+	f(`{status != error}`, `status_code:!=2`)
+	f(`{resource.service.name != "a"}`, `{"resource_attr:service.name"!=a}`)
 }
 
 // TestParseQueryInvalid asserts that malformed inputs return an error
