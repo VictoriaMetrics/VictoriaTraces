@@ -270,6 +270,37 @@ func TestTranslateMetricsQueryErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid query")
 	}
+
+	// histogram() reads a single named field, so it rejects the ":*" wildcard which the
+	// event and link scopes carry. Reject it up front rather than emit LogsQL which
+	// fails to parse and shows the user an internal field name.
+	for _, q := range []string{
+		`{} | histogram_over_time(event.foo)`,
+		`{} | histogram_over_time(link.foo)`,
+		`{} | histogram_over_time(event:name)`,
+	} {
+		if _, err = translateMetricsQuery(q, ts); err == nil {
+			t.Fatalf("expected error for %s", q)
+		}
+	}
+
+	// The other aggregations do accept the wildcard. Parse what they generate, so that a
+	// query which reaches the storage layer is proven to be valid rather than assumed.
+	for _, q := range []string{
+		`{} | min_over_time(event.foo)`,
+		`{} | max_over_time(link.foo)`,
+		`{} | avg_over_time(event.foo)`,
+		`{} | sum_over_time(event.foo)`,
+		`{} | quantile_over_time(event.foo, 0.9)`,
+	} {
+		tr, err := translateMetricsQuery(q, ts)
+		if err != nil {
+			t.Fatalf("unexpected error for %s: %s", q, err)
+		}
+		if _, err = logstorage.ParseQueryAtTimestamp(tr.baseQuery, ts); err != nil {
+			t.Fatalf("%s generated LogsQL which does not parse [%s]: %s", q, tr.baseQuery, err)
+		}
+	}
 }
 
 // TestTranslateMetricsQueryQuantileLabels verifies that quantile_over_time

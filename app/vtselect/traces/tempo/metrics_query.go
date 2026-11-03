@@ -129,7 +129,8 @@ func buildStatsQuery(filterStr string, vtByFields []string, statsExpr string) st
 // quantile and a map of alias→quantile-value so the executor can attach a `p`
 // label that distinguishes the resulting series.
 func metricsToLogsQLStats(funcName, fieldName string, quantiles []string) (statsExpr string, valueColumnLabels map[string]string, err error) {
-	vtField := quoteLogsQLField(traceql.TraceQLFieldToVTField(fieldName))
+	vtFieldName := traceql.TraceQLFieldToVTField(fieldName)
+	vtField := quoteLogsQLField(vtFieldName)
 	switch funcName {
 	case "rate":
 		return "rate() as value", nil, nil
@@ -144,6 +145,12 @@ func metricsToLogsQLStats(funcName, fieldName string, quantiles []string) (stats
 	case "sum_over_time":
 		return "sum(" + vtField + ") as value", nil, nil
 	case "histogram_over_time":
+		// histogram() reads a single named field, so it rejects the ":*" wildcard which
+		// event and link fields carry. Fail here with the offending field rather than
+		// let LogsQL fail to parse the generated query.
+		if strings.HasSuffix(vtFieldName, ":*") {
+			return "", nil, fmt.Errorf("histogram_over_time does not support the event and link scopes; got %q", fieldName)
+		}
 		return "histogram(" + vtField + ") as value", nil, nil
 	case "quantile_over_time":
 		if len(quantiles) == 0 {
