@@ -221,6 +221,48 @@ Some valid filter examples:
 
 Note that the examples are for user input on the Jaeger frontend, which parses and sends the request in JSON format later.
 
+### Jaeger HTTP API v3
+
+Jaeger UI v2.15 and newer calls the [Jaeger HTTP API v3](https://github.com/jaegertracing/jaeger-idl/blob/main/proto/api_v3/query_service.proto)
+for the service and span name lists, and v2.19 and newer also calls it for search. A single trace
+and the service dependency graph still come from the v1 endpoints above, so both API versions serve
+a running Jaeger UI at the same time. VictoriaTraces provides the following v3 endpoints:
+
+- `/select/jaeger/api/v3/services` for querying all the services.
+- `/select/jaeger/api/v3/operations` for querying all the span names of a service.
+- `/select/jaeger/api/v3/trace-summaries` for querying a summary per matching trace.
+- `/select/jaeger/api/v3/traces/{trace_id}` for querying a trace.
+- `/select/jaeger/api/v3/traces` for querying traces.
+
+The v3 endpoints return traces in the OpenTelemetry format instead of the Jaeger format, and they
+take a different set of params. The `/select/jaeger/api/v3/operations` endpoint reads the service
+name from the `service` param instead of the path.
+
+The search screen of Jaeger UI uses `/select/jaeger/api/v3/trace-summaries`, which returns the few
+fields the result list shows rather than every span of every matching trace. It takes the same
+params as `/select/jaeger/api/v3/traces`:
+
+- `query.serviceName`: the service name. An absent service name matches any service.
+- `query.operationName`: the span name (also known as the operation name in Jaeger).
+- `query.attributes`: the attributes (also known as tags) filter, example: `{"key":"value"}`. It works the same way as the `tags` param of the v1 endpoint.
+- `query.startTimeMin`: the start timestamp in [RFC3339](https://www.rfc-editor.org/rfc/rfc3339) format.
+- `query.startTimeMax`: the end timestamp in [RFC3339](https://www.rfc-editor.org/rfc/rfc3339) format.
+- `query.durationMin`: the minimum duration of the span, with units `ns`, `us`, `ms`, `s`, `m`, or `h`.
+- `query.durationMax`: the maximum duration of the span, with units `ns`, `us`, `ms`, `s`, `m`, or `h`.
+- `query.searchDepth`: the trace limit of the query, default `100`.
+
+The snake_case names which Jaeger keeps for backwards compatibility, such as `query.service_name`,
+are accepted as well.
+
+Two params are accepted and ignored. `spanKind` on `/select/jaeger/api/v3/operations` does not
+narrow the result, since the span name list is stored without the span kind. `query.rawTraces` on
+the search endpoints does not change the result, since spans are always returned as stored.
+
+The service dependency graph has no v3 endpoint in Jaeger, so
+[`/select/jaeger/api/dependencies`](#querying-dependencies) serves it for both API versions.
+
+The v1 endpoints keep working, so an older Jaeger UI needs no change.
+
 ### Tempo HTTP API
 
 > Support for Grafana Tempo HTTP APIs is **experimental**. This feature acts as a complement to the [Jaeger HTTP API](#jaeger-http-api),

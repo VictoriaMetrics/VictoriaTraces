@@ -1,0 +1,167 @@
+{% import (
+	"encoding/base64"
+	"strconv"
+) %}
+
+{% stripspace %}
+
+{% comment %}
+TracesDataJSON writes rss as OTLP/JSON TracesData.
+
+The encoding follows the OTLP/JSON rules: field names are lowerCamelCase, trace and span ids
+are hex-encoded strings, 64-bit integers are decimal strings and enums are integers.
+See https://opentelemetry.io/docs/specs/otlp/#json-protobuf-encoding
+
+Fields with default values are written instead of being omitted, since a receiver must treat
+an explicit default the same way as a missing field. This keeps the template free of the
+bookkeeping needed to place commas between an unknown set of fields.
+{% endcomment %}
+{% func TracesDataJSON(rss []*ResourceSpans) %}
+{
+	"resourceSpans":[
+		{% for i, rs := range rss %}
+			{% if i > 0 %},{% endif %}
+			{%= resourceSpansJSON(rs) %}
+		{% endfor %}
+	]
+}
+{% endfunc %}
+
+{% func resourceSpansJSON(rs *ResourceSpans) %}
+{
+	"resource":{
+		"attributes":{%= keyValuesJSON(rs.Resource.Attributes) %}
+	},
+	"scopeSpans":[
+		{% for i, ss := range rs.ScopeSpans %}
+			{% if i > 0 %},{% endif %}
+			{%= scopeSpansJSON(ss) %}
+		{% endfor %}
+	],
+	"schemaUrl":{%q= rs.SchemaURL %}
+}
+{% endfunc %}
+
+{% func scopeSpansJSON(ss *ScopeSpans) %}
+{
+	"scope":{
+		"name":{%q= ss.Scope.Name %},
+		"version":{%q= ss.Scope.Version %},
+		"attributes":{%= keyValuesJSON(ss.Scope.Attributes) %},
+		"droppedAttributesCount":{%dul= uint64(ss.Scope.DroppedAttributesCount) %}
+	},
+	"spans":[
+		{% for i, s := range ss.Spans %}
+			{% if i > 0 %},{% endif %}
+			{%= spanJSON(s) %}
+		{% endfor %}
+	],
+	"schemaUrl":{%q= ss.SchemaURL %}
+}
+{% endfunc %}
+
+{% func spanJSON(s *Span) %}
+{
+	"traceId":{%q= s.TraceID %},
+	"spanId":{%q= s.SpanID %},
+	"traceState":{%q= s.TraceState %},
+	"parentSpanId":{%q= s.ParentSpanID %},
+	"flags":{%dul= uint64(s.Flags) %},
+	"name":{%q= s.Name %},
+	"kind":{%d= int(s.Kind) %},
+	"startTimeUnixNano":{%q= strconv.FormatUint(s.StartTimeUnixNano, 10) %},
+	"endTimeUnixNano":{%q= strconv.FormatUint(s.EndTimeUnixNano, 10) %},
+	"attributes":{%= keyValuesJSON(s.Attributes) %},
+	"droppedAttributesCount":{%dul= uint64(s.DroppedAttributesCount) %},
+	"events":[
+		{% for i, e := range s.Events %}
+			{% if i > 0 %},{% endif %}
+			{%= spanEventJSON(e) %}
+		{% endfor %}
+	],
+	"droppedEventsCount":{%dul= uint64(s.DroppedEventsCount) %},
+	"links":[
+		{% for i, l := range s.Links %}
+			{% if i > 0 %},{% endif %}
+			{%= spanLinkJSON(l) %}
+		{% endfor %}
+	],
+	"droppedLinksCount":{%dul= uint64(s.DroppedLinksCount) %},
+	"status":{
+		"message":{%q= s.Status.Message %},
+		"code":{%d= int(s.Status.Code) %}
+	}
+}
+{% endfunc %}
+
+{% func spanEventJSON(e *SpanEvent) %}
+{
+	"timeUnixNano":{%q= strconv.FormatUint(e.TimeUnixNano, 10) %},
+	"name":{%q= e.Name %},
+	"attributes":{%= keyValuesJSON(e.Attributes) %},
+	"droppedAttributesCount":{%dul= uint64(e.DroppedAttributesCount) %}
+}
+{% endfunc %}
+
+{% func spanLinkJSON(l *SpanLink) %}
+{
+	"traceId":{%q= l.TraceID %},
+	"spanId":{%q= l.SpanID %},
+	"traceState":{%q= l.TraceState %},
+	"attributes":{%= keyValuesJSON(l.Attributes) %},
+	"droppedAttributesCount":{%dul= uint64(l.DroppedAttributesCount) %},
+	"flags":{%dul= uint64(l.Flags) %}
+}
+{% endfunc %}
+
+{% func keyValuesJSON(kvs []*KeyValue) %}
+[
+	{% for i, kv := range kvs %}
+		{% if i > 0 %},{% endif %}
+		{
+			"key":{%q= kv.Key %},
+			"value":{%= anyValueJSON(kv.Value) %}
+		}
+	{% endfor %}
+]
+{% endfunc %}
+
+{% comment %}
+A KeyValue may carry no value at all, so the empty object must be written as a whole.
+Writing the opening brace before the check leaves it unclosed and breaks the whole response.
+{% endcomment %}
+{% func anyValueJSON(av *AnyValue) %}
+{% if av == nil %}
+	{}
+	{% return %}
+{% endif %}
+{
+	{% switch %}
+	{% case av.StringValue != nil %}
+		"stringValue":{%q= *av.StringValue %}
+	{% case av.BoolValue != nil %}
+		"boolValue":{%v= *av.BoolValue %}
+	{% case av.IntValue != nil %}
+		"intValue":{%q= strconv.FormatInt(*av.IntValue, 10) %}
+	{% case av.DoubleValue != nil %}
+		"doubleValue":{%s= float64AsString(*av.DoubleValue) %}
+	{% case av.BytesValue != nil %}
+		"bytesValue":{%q= base64.StdEncoding.EncodeToString(*av.BytesValue) %}
+	{% case av.ArrayValue != nil %}
+		"arrayValue":{
+			"values":[
+				{% for i, v := range av.ArrayValue.Values %}
+					{% if i > 0 %},{% endif %}
+					{%= anyValueJSON(v) %}
+				{% endfor %}
+			]
+		}
+	{% case av.KeyValueList != nil %}
+		"kvlistValue":{
+			"values":{%= keyValuesJSON(av.KeyValueList.Values) %}
+		}
+	{% endswitch %}
+}
+{% endfunc %}
+
+{% endstripspace %}

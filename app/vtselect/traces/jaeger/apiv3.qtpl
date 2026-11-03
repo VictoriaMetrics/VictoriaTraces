@@ -1,0 +1,92 @@
+{% import (
+	"sort"
+	"strconv"
+
+	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
+) %}
+
+{% stripspace %}
+
+{% comment %}
+The Jaeger HTTP API v3 is served by a grpc-gateway in Jaeger, so the response shapes below
+follow the proto messages of the api_v3 query service rather than the v1 JSON API.
+See https://github.com/jaegertracing/jaeger-idl/blob/main/proto/api_v3/query_service.proto
+{% endcomment %}
+
+{% func GetServicesResponseV3(serviceList []string) %}
+{
+	{% code
+	    sort.Slice(serviceList, func(i, j int) bool { return serviceList[i] < serviceList[j] })
+	%}
+	"services":[
+		{% for i, service := range serviceList %}
+			{% if i > 0 %},{% endif %}
+			{%q= service %}
+		{% endfor %}
+	]
+}
+{% endfunc %}
+
+{% func GetOperationsResponseV3(operationList []string) %}
+{
+	{% code
+	    sort.Slice(operationList, func(i, j int) bool { return operationList[i] < operationList[j] })
+	%}
+	"operations":[
+		{% for i, operation := range operationList %}
+			{% if i > 0 %},{% endif %}
+			{"name":{%q= operation %},"spanKind":{%q= defaultSpanKind %}}
+		{% endfor %}
+	]
+}
+{% endfunc %}
+
+{% func TracesResponseV3(rss []*otelpb.ResourceSpans) %}
+{
+	"result":{%= otelpb.TracesDataJSON(rss) %}
+}
+{% endfunc %}
+
+{% comment %}
+The timestamps are 64-bit integers, so they are written as decimal strings.
+{% endcomment %}
+{% func TraceSummariesResponseV3(summaries []traceSummaryV3) %}
+{
+	"summaries":[
+		{% for i, s := range summaries %}
+			{% if i > 0 %},{% endif %}
+			{
+				"traceId":{%q= s.traceID %},
+				"rootServiceName":{%q= s.rootServiceName %},
+				"rootOperationName":{%q= s.rootOperationName %},
+				"minStartTimeUnixNano":{%q= strconv.FormatUint(s.minStartTimeUnixNano, 10) %},
+				"maxEndTimeUnixNano":{%q= strconv.FormatUint(s.maxEndTimeUnixNano, 10) %},
+				"spanCount":{%d= s.spanCount %},
+				"errorSpanCount":{%d= s.errorSpanCount %},
+				"orphanSpanCount":{%d= s.orphanSpanCount %},
+				"services":[
+					{% for j, svc := range s.services %}
+						{% if j > 0 %},{% endif %}
+						{
+							"name":{%q= svc.name %},
+							"spanCount":{%d= svc.spanCount %},
+							"errorSpanCount":{%d= svc.errorSpanCount %}
+						}
+					{% endfor %}
+				]
+			}
+		{% endfor %}
+	]
+}
+{% endfunc %}
+
+{% func ErrorResponseV3(httpCode int, message string) %}
+{
+	"error":{
+		"httpCode":{%d= httpCode %},
+		"message":{%q= message %}
+	}
+}
+{% endfunc %}
+
+{% endstripspace %}

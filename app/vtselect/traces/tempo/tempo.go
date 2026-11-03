@@ -225,7 +225,7 @@ func getTraceByID(ctx context.Context, cp *tracecommon.CommonParams, traceID str
 		return nil, fmt.Errorf("cannot get traces list: %s", err)
 	}
 
-	resourceSpans, err := rowsToResourceSpans(rows)
+	resourceSpans, err := tracecommon.RowsToResourceSpans(rows)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse rows into resource spans: %s", err)
 	}
