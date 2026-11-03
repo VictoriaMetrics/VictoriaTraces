@@ -16,6 +16,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 * FEATURE: [logstorage](https://docs.victoriametrics.com/victorialogs/): upgrade VictoriaLogs dependency from [v1.52.0 to v1.53.0](https://github.com/VictoriaMetrics/VictoriaLogs/compare/v1.52.0...v1.53.0).
 * FEATURE: [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/), and [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): add `-healthcheck` command-line flag, which checks that the running process accepts connections at `-httpListenAddr` and exits with non-zero code if the check fails. This allows setting up Docker `HEALTHCHECK` in images without `curl` or `wget`. See [these docs](https://docs.victoriametrics.com/victoriatraces/quick-start/#starting-victoriatraces-single-node-via-docker) and [VictoriaLogs issue #1565](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1565).
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return attribute names for `scope=resource`, `scope=span` and `scope=instrumentation` in the Tempo `/api/v2/search/tags` API. Previously these scopes returned empty lists, so TraceQL editors such as Perses showed no attribute names after `resource.` or `span.`. See [issue #268](https://github.com/VictoriaMetrics/VictoriaTraces/issues/268).
 
 ## [v0.12.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.12.1)
 
