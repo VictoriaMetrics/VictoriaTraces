@@ -140,6 +140,11 @@ func (fc *filterCommon) String() string {
 		fieldValue = strconv.FormatInt(duration, 10)
 	}
 
+	// vtinsert stores an empty attribute value as "-", since VictoriaLogs drops empty fields.
+	if fieldValue == "" && (fc.op == "=" || fc.op == "!=") && isAttributeField(fieldName) {
+		fieldValue = "-"
+	}
+
 	// for stream filter, just use the source op (=, !=, =~, !~), as they're identical in LogsQL.
 	if isStreamField(fieldName) && (fc.op == "=" || fc.op == "!=" || fc.op == "=~" || fc.op == "!~") {
 		return `{` + quoteFieldNameIfNeeded(fieldName) + fc.op + quoteTokenIfNeeded(fieldValue) + `}`
@@ -184,6 +189,14 @@ func TraceQLFieldToVTField(fieldName string) string {
 	}
 
 	return fieldName
+}
+
+func isAttributeField(fieldName string) bool {
+	return strings.HasPrefix(fieldName, otelpb.ResourceAttrPrefix) ||
+		strings.HasPrefix(fieldName, otelpb.SpanAttrPrefixField) ||
+		strings.HasPrefix(fieldName, otelpb.EventPrefix+otelpb.EventAttrPrefix) ||
+		strings.HasPrefix(fieldName, otelpb.LinkPrefix+otelpb.LinkAttrPrefix) ||
+		strings.HasPrefix(fieldName, otelpb.InstrumentationScopeAttrPrefix)
 }
 
 // VTFieldToTraceQL converts a VictoriaTraces internal field name back to a TraceQL field name.
