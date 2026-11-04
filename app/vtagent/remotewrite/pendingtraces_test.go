@@ -1,6 +1,7 @@
 package remotewrite
 
 import (
+	"math/rand"
 	"reflect"
 	"testing"
 
@@ -112,4 +113,35 @@ func TestPushOTLPTracesTooBigRequest(t *testing.T) {
 
 	f(100, true)
 	f(101, false)
+}
+
+func TestPendingTracesDropTooBigCompressedBlock(t *testing.T) {
+	defaultMaxBlockSize := maxUnpackedBlockSize.N
+	defer func() {
+		maxUnpackedBlockSize.N = defaultMaxBlockSize
+	}()
+	maxUnpackedBlockSize.N = 2 * persistentqueue.MaxBlockSize
+
+	fq := persistentqueue.MustOpenFastQueue(t.TempDir(), "test", 100, 0, false)
+	defer fq.MustClose()
+	pt := &pendingTraces{fq: fq}
+
+	// random data is incompressible, so the compressed block exceeds persistentqueue.MaxBlockSize
+	req := make([]byte, persistentqueue.MaxBlockSize+1)
+	r := rand.New(rand.NewSource(1))
+	_, _ = r.Read(req)
+
+	droppedSpansBefore := tooBigBlocksDroppedSpans.Get()
+	pt.add(req, 10)
+	pt.mustFlushLocked()
+
+	if n := tooBigBlocksDroppedSpans.Get() - droppedSpansBefore; n != 10 {
+		t.Fatalf("unexpected number of dropped spans; got %d; want 10", n)
+	}
+	if n := fq.GetPendingBytes(); n != 0 {
+		t.Fatalf("unexpected pending bytes in the queue; got %d; want 0", n)
+	}
+	if n := len(pt.wr.pendingData.B); n != 0 {
+		t.Fatalf("unexpected pending data size; got %d; want 0", n)
+	}
 }

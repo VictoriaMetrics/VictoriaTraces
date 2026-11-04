@@ -125,23 +125,35 @@ func (wr *writeRequest) push(pushBlock func([]byte)) {
 		return
 	}
 	b := wr.pendingData.B
+	defer func() {
+		wr.pendingData.Reset()
+		wr.pendingSpansCount = 0
+	}()
 
 	zb := compressBufPool.Get()
 	defer compressBufPool.Put(zb)
 
 	zb.B = zstd.CompressLevel(zb.B[:0], b, 1)
+	if len(zb.B) > persistentqueue.MaxBlockSize {
+		// The persistent queue may panics on blocks bigger than persistentqueue.MaxBlockSize, so drop such blocks instead with a log.
+		// This may happen only if -remoteWrite.maxBlockSize (which is for uncompressed size) exceeds
+		// persistentqueue.MaxBlockSize (which is usually under zstd compression).
+		tooBigBlocksDroppedSpans.Add(int(wr.pendingSpansCount))
+		logger.Errorf("dropping a block with %d spans, since its compressed size %d bytes exceeds %d bytes, the maximum block size supported by the persistent queue; "+
+			"decrease -remoteWrite.maxBlockSize=%d in order to avoid this", wr.pendingSpansCount, len(zb.B), persistentqueue.MaxBlockSize, maxUnpackedBlockSize.N)
+		return
+	}
 	pushBlock(zb.B)
 
 	blockSizeBytes.Update(float64(len(zb.B)))
 	blockSizeSpans.Update(float64(wr.pendingSpansCount))
-
-	wr.pendingData.Reset()
-	wr.pendingSpansCount = 0
 }
 
 var (
 	blockSizeBytes = metrics.NewHistogram(`vtagent_remotewrite_block_size_bytes`)
 	blockSizeSpans = metrics.NewHistogram(`vtagent_remotewrite_block_size_spans`)
+
+	tooBigBlocksDroppedSpans = metrics.NewCounter(`vtagent_remotewrite_dropped_spans_total{reason="too_big_compressed_block"}`)
 )
 
 var compressBufPool bytesutil.ByteBufferPool

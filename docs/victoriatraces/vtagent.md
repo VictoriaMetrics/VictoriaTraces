@@ -97,7 +97,7 @@ Make sure that remote storage accepts requests of `-remoteWrite.maxBlockSize` si
 Blocks never exceed `-remoteWrite.maxBlockSize`, since accepted OTLP requests aren't split. So `vtagent` rejects OTLP requests bigger than `-remoteWrite.maxBlockSize`.
 The maximum accepted request size is set via `-opentelemetry.traces.maxRequestSize`, and it cannot exceed `-remoteWrite.maxBlockSize`.
 `vtagent` fails to start otherwise.
-It isn't recommended to set `-remoteWrite.maxBlockSize` above `32MiB`, since `vtagent` may crash if a compressed block exceeds `32MiB`, the maximum block size supported by the persistent queue. `vtagent` logs a warning at startup in this case.
+It isn't recommended to set `-remoteWrite.maxBlockSize` above `32MiB`, since `vtagent` drops blocks exceeding `32MiB` after compression, the maximum block size supported by the persistent queue. `vtagent` logs a warning at startup in this case.
 
 ## SRV URLs
 
