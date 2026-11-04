@@ -23,7 +23,7 @@ var otlpGRPCListenAddr = flag.String("otlpGRPCListenAddr", "", `TCP address for 
 // It must be called after remotewrite.Init.
 func Init() {
 	if n := remotewrite.MaxBlockSize(); maxRequestSize.N > n {
-		logger.Fatalf("-opentelemetry.traces.maxRequestSize=%d exceeds -remoteWrite.maxBlockSize=%d; requests bigger than -remoteWrite.maxBlockSize will be dropped. "+
+		logger.Fatalf("vtagent can't start because -opentelemetry.traces.maxRequestSize=%d exceeds -remoteWrite.maxBlockSize=%d. The request size should fit in the block size. "+
 			"Decrease -opentelemetry.traces.maxRequestSize or increase -remoteWrite.maxBlockSize", maxRequestSize.N, n)
 	}
 
