@@ -51,10 +51,10 @@ traceExporter, err := otlptracehttp.New(ctx,
 To send the trace data to VictoriaTraces gRPC trace service, you need to first enable the OTLP gRPC server on VictoriaTraces by:
 
 ```shell
-./victoria-traces -otlpGRPCListenAddr=:4317 -otlpGRPC.tlsCertFile=<cert_file> -otlpGRPC.tlsKeyFile=<key_file>
+./victoria-traces -otlpGRPCListenAddr=:4317 -otlpGRPC.tls -otlpGRPC.tlsCertFile=<cert_file> -otlpGRPC.tlsKeyFile=<key_file>
 ```
 
-> You can also **disable TLS** for incoming gRPC requests by setting `-otlpGRPC.tls=false`. TLS is recommended for production use, and disabling it should only be done when you're testing or aware of the potential risks.
+> TLS is disabled for incoming gRPC requests if `-otlpGRPC.tls` isn't set. TLS is recommended for production use, and disabling it should only be done when you're testing or aware of the potential risks.
 
 After that, specify the `Endpoint` for grpc-exporter builder to `<victoria-traces>:4317`.
 
@@ -109,10 +109,10 @@ exporters:
 To send the collected traces to VictoriaTraces gRPC trace service, you need to first enable the OTLP gRPC server on VictoriaTraces by:
 
 ```shell
-./victoria-traces -otlpGRPCListenAddr=:4317 -otlpGRPC.tlsCertFile=<cert_file> -otlpGRPC.tlsKeyFile=<key_file>
+./victoria-traces -otlpGRPCListenAddr=:4317 -otlpGRPC.tls -otlpGRPC.tlsCertFile=<cert_file> -otlpGRPC.tlsKeyFile=<key_file>
 ```
 
-> You can also **disable TLS** for incoming gRPC requests by setting `-otlpGRPC.tls=false`. TLS is recommended for production use, and disabling it should only be done when you're testing or aware of the potential risks.
+> TLS is disabled for incoming gRPC requests if `-otlpGRPC.tls` isn't set. TLS is recommended for production use, and disabling it should only be done when you're testing or aware of the potential risks.
 
 After that, specify endpoint for [OTLP/gRPC exporter](https://github.com/open-telemetry/opentelemetry-collector/blob/main/exporter/otlpexporter/README.md):
 

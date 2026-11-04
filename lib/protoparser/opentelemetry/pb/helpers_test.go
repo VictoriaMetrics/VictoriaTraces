@@ -56,4 +56,31 @@ func TestFormatString(t *testing.T) {
 			},
 		},
 	}, `["1",["1"]]`)
+
+	// null items in key-value lists nested under array values are skipped
+	f(&AnyValue{
+		ArrayValue: &ArrayValue{
+			Values: []*AnyValue{
+				{
+					KeyValueList: &KeyValueList{
+						Values: []*KeyValue{
+							nil,
+							{
+								Key: "test1",
+								Value: &AnyValue{
+									StringValue: strptr("1"),
+								},
+							},
+							nil,
+						},
+					},
+				},
+				{
+					KeyValueList: &KeyValueList{
+						Values: []*KeyValue{nil},
+					},
+				},
+			},
+		},
+	}, `[{"test1":"1"},{}]`)
 }

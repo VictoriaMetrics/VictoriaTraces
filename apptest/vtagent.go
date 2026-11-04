@@ -53,7 +53,7 @@ func StartVtagent(instance string, remoteWriteURLs, flags, env []string, cli *Cl
 	return &Vtagent{
 		app: app,
 		ServesMetrics: &ServesMetrics{
-			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[1]),
+			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[0]),
 			cli:        cli,
 		},
 

@@ -66,13 +66,12 @@ func createHTTP2ServerWithTLS(t *testing.T, addr string) {
 
 	createTLSFiles(certFile, keyFile)
 
-	tlsCfg, err := NewTLSConfig(certFile, keyFile, "TLS13", nil)
-	if err != nil {
-		t.Fatalf("unexpected error when creating TLS config: %v", err)
-		return
-	}
+	*tlsEnable = []bool{true}
+	*tlsCertFile = []string{certFile}
+	*tlsKeyFile = []string{keyFile}
+	*tlsMinVersion = []string{"TLS13"}
 
-	Serve(addr, testHTTPHandler, tlsCfg)
+	Serve([]string{addr}, testHTTPHandler, ServeOptions{})
 }
 
 func stopHTTP2ServerWithTLS(t *testing.T, addr string) {

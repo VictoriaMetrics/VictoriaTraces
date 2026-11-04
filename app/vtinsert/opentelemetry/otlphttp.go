@@ -1,8 +1,10 @@
 package opentelemetry
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -11,11 +13,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaTraces/app/vtinsert/insertutil"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
-)
-
-const (
-	contentTypeProtobuf = "application/x-protobuf"
-	contentTypeJSON     = "application/json"
 )
 
 var (
@@ -41,10 +38,11 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 }
 
 func handleTracesRequest(r *http.Request, w http.ResponseWriter) bool {
-	switch contentType := r.Header.Get("Content-Type"); contentType {
-	case contentTypeProtobuf:
+	contentType := r.Header.Get("Content-Type")
+	switch {
+	case contentType == "application/x-protobuf" || strings.HasPrefix(contentType, "application/x-protobuf;"):
 		handleProtobufRequest(r, w)
-	case contentTypeJSON:
+	case contentType == "application/json" || strings.HasPrefix(contentType, "application/json;"):
 		handleJSONRequest(r, w)
 	default:
 		httpserver.Errorf(w, r, "Content-Type %s isn't supported for opentelemetry format. Use protobuf or JSON encoding", contentType)
@@ -131,7 +129,7 @@ func handleJSONRequest(r *http.Request, w http.ResponseWriter) {
 			callbackErr error
 		)
 		tsp := cp.NewTraceProcessor("opentelemetry_traces_otlphttp_json", false)
-		if callbackErr = req.UnmarshalJSONCustom(data); callbackErr != nil {
+		if callbackErr = json.Unmarshal(data, &req); callbackErr != nil {
 			return fmt.Errorf("cannot unmarshal request from %d json bytes: %w", len(data), callbackErr)
 		}
 		callbackErr = pushExportTraceServiceRequest(&req, tsp)
