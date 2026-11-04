@@ -30,7 +30,7 @@ to the remote storage is repaired.
 - Efficient tail-based sampling with on-disk buffering of trace spans.
 - Retroactive sampling.
 
-## When to use vtagent
+## When to use `vtagent`
 
 Use `vtagent` when:
 
@@ -55,7 +55,7 @@ and sends the collected trace spans to VictoriaTraces instance at `victoria-trac
 /path/to/vtagent-prod -remoteWrite.url=http://victoria-traces:10428/insert/opentelemetry/v1/traces
 ```
 
-vtagent can also accept data over OTLP/gRPC at the port specified by `-otlpGRPCListenAddr`.
+`vtagent` can also accept data over OTLP/gRPC at the port specified by `-otlpGRPCListenAddr`.
 
 Pass `-help` to `vtagent` in order to see [the full list of supported command-line flags with their descriptions](https://docs.victoriametrics.com/victoriatraces/vtagent/#advanced-usage).
 
@@ -95,8 +95,9 @@ Bigger `-remoteWrite.maxBlockSize` and `-remoteWrite.flushInterval` values reduc
 Make sure that remote storage accepts requests of `-remoteWrite.maxBlockSize` size.
 
 Blocks never exceed `-remoteWrite.maxBlockSize`, since accepted OTLP requests aren't split. So `vtagent` rejects OTLP requests bigger than `-remoteWrite.maxBlockSize`.
-The maximum accepted request size is set via `-opentelemetry.traces.maxRequestSize`, and it shouldn't exceed `-remoteWrite.maxBlockSize`.
-`vtagent` logs a warning at startup otherwise.
+The maximum accepted request size is set via `-opentelemetry.traces.maxRequestSize`, and it cannot exceed `-remoteWrite.maxBlockSize`.
+`vtagent` fails to start otherwise.
+It isn't recommended to set `-remoteWrite.maxBlockSize` above `32MiB`, since `vtagent` may crash if a compressed block exceeds `32MiB`, the maximum block size supported by the persistent queue. `vtagent` logs a warning at startup in this case.
 
 ## SRV URLs
 

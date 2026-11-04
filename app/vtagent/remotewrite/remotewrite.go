@@ -105,6 +105,10 @@ func Init(tmpDataPath string) {
 	if len(*remoteWriteURLs) == 0 {
 		logger.Fatalf("at least one `-remoteWrite.url` command-line flag must be set")
 	}
+	if maxUnpackedBlockSize.N > persistentqueue.MaxBlockSize {
+		logger.Warnf("-remoteWrite.maxBlockSize=%d exceeds %d bytes; vtagent may crash if a block doesn't fit %d bytes after compression, "+
+			"since bigger blocks cannot be stored in the persistent queue", maxUnpackedBlockSize.N, persistentqueue.MaxBlockSize, persistentqueue.MaxBlockSize)
+	}
 	if *queues > maxQueues {
 		*queues = maxQueues
 	}
