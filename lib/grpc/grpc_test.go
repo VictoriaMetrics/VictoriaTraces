@@ -3,6 +3,8 @@ package grpc
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 )
 
 // TestGRPCErrorf verifies the gRPC headers in the error response.
@@ -90,4 +93,34 @@ func TestReadDataFrame_Failure(t *testing.T) {
 	f(nil, 10, "invalid gRPC header length: 0")
 	f(append(newDataFrame("foo"), 'x'), 10, "invalid gRPC message length")
 	f([]byte{2, 0, 0, 0, 0}, 10, "invalid gRPC compressed flag 2")
+}
+
+func TestStatusCodeFromError(t *testing.T) {
+	f := func(err error, codeExpected string) {
+		t.Helper()
+		if code := StatusCodeFromError(err); code != codeExpected {
+			t.Fatalf("unexpected gRPC status code for %v; got %q; want %q", err, code, codeExpected)
+		}
+	}
+
+	withStatus := func(statusCode int) error {
+		return fmt.Errorf("cannot read OpenTelemetry protocol data: %w", &httpserver.ErrorWithStatusCode{
+			Err:        errors.New("test error"),
+			StatusCode: statusCode,
+		})
+	}
+
+	// errors without HTTP status code
+	f(errors.New("test error"), StatusCodeInternal)
+
+	// errors, which must be retried by clients
+	f(&httpserver.ErrorWithStatusCode{Err: errors.New("test error"), StatusCode: http.StatusTooManyRequests}, StatusCodeUnavailable)
+	f(withStatus(http.StatusTooManyRequests), StatusCodeUnavailable)
+	f(withStatus(http.StatusServiceUnavailable), StatusCodeUnavailable)
+	f(withStatus(http.StatusBadGateway), StatusCodeUnavailable)
+	f(withStatus(http.StatusGatewayTimeout), StatusCodeUnavailable)
+
+	// errors, which must not be retried by clients
+	f(withStatus(http.StatusBadRequest), StatusCodeInternal)
+	f(withStatus(http.StatusRequestEntityTooLarge), StatusCodeInternal)
 }

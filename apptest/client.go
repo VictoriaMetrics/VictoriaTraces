@@ -2,6 +2,7 @@ package apptest
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -13,6 +14,8 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputil"
+
+	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
 // Client is used for interacting with the apps over the network.
@@ -212,4 +215,44 @@ func GetHTTP2Client() *http.Client {
 		}
 	})
 	return http2Client
+}
+
+// otlpGRPCExportTraces sends request as an `Export` gRPC call to url and returns the grpc-status of the response.
+//
+// gRPC errors are returned with HTTP status 200, so the caller must check grpc-status.
+func otlpGRPCExportTraces(t *testing.T, url string, request *otelpb.ExportTraceServiceRequest) string {
+	t.Helper()
+
+	pbData := request.MarshalProtobuf(nil)
+
+	// 5 bytes prefix: 1 byte compress flag + 4 bytes body length
+	buf := make([]byte, 5)
+	binary.BigEndian.PutUint32(buf[1:5], uint32(len(pbData)))
+
+	reqBody := append(buf, pbData...)
+
+	// must use a http2 client
+	client := GetHTTP2Client()
+
+	resp, err := client.Post(url, "application/grpc", bytes.NewReader(reqBody))
+	if err != nil {
+		t.Fatalf("go error: %s", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		t.Fatalf("got %d, expected 200", resp.StatusCode)
+	}
+
+	// trailers are available only after the body is read
+	if _, err := io.ReadAll(resp.Body); err != nil {
+		t.Fatalf("cannot read response body: %s", err)
+	}
+	status := resp.Trailer.Get("grpc-status")
+	if status == "" {
+		status = resp.Header.Get("grpc-status")
+	}
+	if status == "" {
+		t.Fatalf("missing grpc-status in the response")
+	}
+	return status
 }

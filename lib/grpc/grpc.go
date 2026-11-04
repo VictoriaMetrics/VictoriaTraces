@@ -2,12 +2,14 @@ package grpc
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ioutil"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/http2server"
@@ -86,6 +88,22 @@ func CheckDataFrame(req []byte) error {
 		return fmt.Errorf("invalid gRPC message length: %d, actual length: %d", messageLength, n)
 	}
 	return nil
+}
+
+// StatusCodeFromError returns the gRPC status code for err.
+//
+// It returns StatusCodeUnavailable if err has an HTTP status code that OTLP/HTTP clients retry,
+// since OTLP/gRPC clients retry Unavailable and drop the data on Internal.
+// See https://opentelemetry.io/docs/specs/otlp/#failures and https://opentelemetry.io/docs/specs/otlp/#retryable-response-codes
+func StatusCodeFromError(err error) string {
+	var esc *httpserver.ErrorWithStatusCode
+	if errors.As(err, &esc) {
+		switch esc.StatusCode {
+		case http.StatusTooManyRequests, http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
+			return StatusCodeUnavailable
+		}
+	}
+	return StatusCodeInternal
 }
 
 // Errorf writes formatted error code and message in gRPC protocol over HTTP to w, and to logger.
