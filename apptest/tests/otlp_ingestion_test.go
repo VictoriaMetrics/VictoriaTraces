@@ -28,6 +28,18 @@ func TestSingleOTLPIngestionJaegerQuery(t *testing.T) {
 	testOTLPIngestionJaegerQuery(tc, sut)
 }
 
+// TestClusterOTLPIngestionJaegerQuery is the same as TestSingleOTLPIngestionJaegerQuery, but for vt-cluster.
+func TestClusterOTLPIngestionJaegerQuery(t *testing.T) {
+	fs.MustRemoveDir(t.Name())
+
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	sut := tc.MustStartDefaultVtcluster()
+
+	testOTLPIngestionJaegerQuery(tc, sut)
+}
+
 func testOTLPIngestionJaegerQuery(tc *at.TestCase, sut at.VictoriaTracesWriteQuerier) {
 	t := tc.T()
 
@@ -52,6 +64,18 @@ func TestSingleOTLPgRPCIngestionJaegerQuery(t *testing.T) {
 	defer tc.Stop()
 
 	sut := tc.MustStartDefaultVtsingle()
+
+	testOTLPgRPCIngestionJaegerQuery(tc, sut)
+}
+
+// TestClusterOTLPgRPCIngestionJaegerQuery is the same as TestSingleOTLPgRPCIngestionJaegerQuery, but for vt-cluster.
+func TestClusterOTLPgRPCIngestionJaegerQuery(t *testing.T) {
+	fs.MustRemoveDir(t.Name())
+
+	tc := at.NewTestCase(t)
+	defer tc.Stop()
+
+	sut := tc.MustStartDefaultVtcluster()
 
 	testOTLPgRPCIngestionJaegerQuery(tc, sut)
 }
