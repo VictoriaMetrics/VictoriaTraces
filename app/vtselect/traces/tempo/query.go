@@ -173,7 +173,7 @@ func GetTrace(ctx context.Context, cp *tracecommon.CommonParams, traceID string,
 	}
 	if err != nil {
 		// something wrong when trying to find the trace_id's start and end time.
-		return nil, fmt.Errorf("cannot find trace_id %q start time: %s", traceID, err)
+		return nil, fmt.Errorf("cannot find trace_id %q start time: %w", traceID, err)
 	}
 
 	// trace start time found, search in [trace start time, trace start time + *traceMaxDurationWindow] time range.
