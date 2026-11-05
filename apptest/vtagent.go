@@ -1,8 +1,6 @@
 package apptest
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 	"os"
@@ -79,23 +77,8 @@ func (app *Vtagent) OTLPHTTPExportTraces(t *testing.T, request *otelpb.ExportTra
 func (app *Vtagent) OTLPgRPCExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, _ QueryOpts) {
 	t.Helper()
 
-	pbData := request.MarshalProtobuf(nil)
-
-	// 5 bytes prefix: 1 byte compress flag + 4 bytes body length
-	buf := make([]byte, 5)
-	binary.BigEndian.PutUint32(buf[1:5], uint32(len(pbData)))
-
-	reqBody := append(buf, pbData...)
-
-	// must use a http2 client
-	client := GetHTTP2Client()
-
-	resp, err := client.Post(app.otlpGRPCTracesURL, "application/grpc", bytes.NewReader(reqBody))
-	if err != nil {
-		t.Fatalf("go error: %s", err)
-	}
-	if resp.StatusCode != 200 {
-		t.Fatalf("got %d, expected 200", resp.StatusCode)
+	if status := otlpGRPCExportTraces(t, app.otlpGRPCTracesURL, request); status != "0" {
+		t.Fatalf("got grpc-status %q, expected \"0\"", status)
 	}
 }
 

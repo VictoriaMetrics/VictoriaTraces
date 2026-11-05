@@ -26,6 +26,8 @@ Released at 2026-11-05
 * FEATURE: [VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/), and [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): add `-healthcheck` command-line flag, which checks that the running process accepts connections at `-httpListenAddr` and exits with non-zero code if the check fails. This allows setting up Docker `HEALTHCHECK` in images without `curl` or `wget`. See [these docs](https://docs.victoriametrics.com/victoriatraces/quick-start/#starting-victoriatraces-single-node-via-docker) and [VictoriaLogs issue #1565](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1565).
 * FEATURE: [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): buffer and forward OTLP trace export requests as is, without converting them to log rows, and send them to `-remoteWrite.url` over OTLP/HTTP protobuf. This makes vtagent useful for non-VictoriaTraces users, and allows using any OTLP-compatible backend as remote storage.
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/), vtinsert in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/) and [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): return `UNAVAILABLE` gRPC status instead of `INTERNAL` for OTLP/gRPC requests rejected because of too many concurrent inserts or read-only storage. Previously, OTLP clients didn't retry such requests and dropped the spans, while the same requests sent over OTLP/HTTP were retried. See [issue #306](https://github.com/VictoriaMetrics/VictoriaTraces/issues/306).
+
 ## [v0.12.1](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.12.1)
 
 Released at 2026-10-23

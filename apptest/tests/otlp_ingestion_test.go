@@ -314,3 +314,25 @@ func getDefaultIngestRequestAndAssertFunc(tc *at.TestCase, sut at.VictoriaTraces
 	}
 	return req, assertFunc
 }
+
+// TestSingleOTLPgRPCIngestionReadOnlyStorage verifies that OTLP/gRPC requests rejected by read-only storage
+// get the retryable Unavailable code, so clients retry them like they retry HTTP 429.
+func TestSingleOTLPgRPCIngestionReadOnlyStorage(t *testing.T) {
+	os.RemoveAll(t.Name())
+
+	tc := at.NewTestCase(t)
+
+	defer tc.Stop()
+
+	// the storage switches to read-only mode, since the free disk space is always smaller than this value
+	sut := tc.MustStartVtsingle("vtsingle", []string{
+		"-storageDataPath=" + tc.Dir() + "/vtsingle",
+		"-storage.minFreeDiskSpaceBytes=1000000000000000",
+	})
+
+	req, _ := getDefaultIngestRequestAndAssertFunc(tc, sut)
+
+	if status := sut.OTLPgRPCExportTracesStatus(t, req); status != "14" {
+		t.Fatalf("unexpected grpc-status for read-only storage; got %q; want %q", status, "14")
+	}
+}

@@ -1,8 +1,6 @@
 package apptest
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -233,24 +231,17 @@ func (app *Vtsingle) OTLPHTTPExportTraces(t *testing.T, request *otelpb.ExportTr
 func (app *Vtsingle) OTLPgRPCExportTraces(t *testing.T, request *otelpb.ExportTraceServiceRequest, _ QueryOpts) {
 	t.Helper()
 
-	pbData := request.MarshalProtobuf(nil)
-
-	// 5 bytes prefix: 1 byte compress flag + 4 bytes body length
-	buf := make([]byte, 5)
-	binary.BigEndian.PutUint32(buf[1:5], uint32(len(pbData)))
-
-	reqBody := append(buf, pbData...)
-
-	// must use a http2 client
-	client := GetHTTP2Client()
-
-	resp, err := client.Post(app.otlpGRPCTracesURL, "application/grpc", bytes.NewReader(reqBody))
-	if err != nil {
-		t.Fatalf("go error: %s", err)
+	if status := otlpGRPCExportTraces(t, app.otlpGRPCTracesURL, request); status != "0" {
+		t.Fatalf("got grpc-status %q, expected \"0\"", status)
 	}
-	if resp.StatusCode != 200 {
-		t.Fatalf("got %d, expected 200", resp.StatusCode)
-	}
+}
+
+// OTLPgRPCExportTracesStatus is a test helper function that sends an `Export` gRPC call to Vtsingle
+// and returns the grpc-status of the response. Use it for tests which expect a gRPC error.
+func (app *Vtsingle) OTLPgRPCExportTracesStatus(t *testing.T, request *otelpb.ExportTraceServiceRequest) string {
+	t.Helper()
+
+	return otlpGRPCExportTraces(t, app.otlpGRPCTracesURL, request)
 }
 
 // OTLPHTTPExportRawTraces is a test helper function that exports raw OTLP trace data in []byte
