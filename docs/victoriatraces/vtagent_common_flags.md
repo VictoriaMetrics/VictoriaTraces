@@ -9,14 +9,10 @@ sitemap:
 <!-- The file has to be manually updated during feature work in PR, "TAG=... make docs-update-flags" command could be used periodically to ensure the flags in sync with the given release TAG. -->
 ```shellhelp
 
-vtagent collects trace spans via popular data ingestion protocols and routes it to VictoriaTraces.
+vtagent collects trace spans via OpenTelemetry protocol (OTLP) and routes them to VictoriaTraces or other OTLP-compatible backends.
 
 See the docs at https://docs.victoriametrics.com/victoriatraces/vtagent/ .
 
-  -blockcache.missesBeforeCaching int
-     The number of cache misses before putting the block into cache. Higher values may reduce indexdb/dataBlocks cache size at the cost of higher CPU and disk read usage (default 2)
-  -defaultMsgValue string
-     Default value for _msg field; see https://docs.victoriametrics.com/victorialogs/keyconcepts/#message-field (default "-")
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP are used
   -envflag.enable
@@ -29,12 +25,16 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/vtagent/ .
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -flagsAuthKey=file:///abs/path/to/file or -flagsAuthKey=file://./relative/path/to/file.
      Flag value can be read from the given http/https url when using -flagsAuthKey=http://host/path or -flagsAuthKey=https://host/path
+  -fs.disableAdviseRandomRead
+     Whether to disable FADV_RANDOM and MADV_RANDOM hints for data part files. Typical queries with selectors access data part files at random offsets, so FADV_RANDOM is enforced to reduce excessive disk readahead.Use this flag if your query read pattern benefits from sequential read (e.g. query by metric name without selectors) to prefer FADV_NORMAL. (default true)
   -fs.disableMincore
      Whether to disable the mincore() syscall for checking mmap()ed files. By default, mincore() is used to detect whether mmap()ed file pages are resident in memory. Disabling mincore() may be needed on older ZFS filesystems (below 2.1.5), since it may trigger ZFS bug. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/10327 for details.
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -fs.maxConcurrency int
-     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 16x CPU cores, default capped at 256)
+     The maximum number of concurrent goroutines to work with files; smaller values may help reducing Go scheduling latency on systems with small number of CPU cores; higher values may help reducing data ingestion latency on systems with high-latency storage such as NFS or Ceph (default 192 = 16x CPU cores, capped at 256)
+  -healthcheck
+     Whether to check that the running process accepts connections at -httpListenAddr and exit. The exit code is non-zero if the check fails. This is useful for Docker HEALTHCHECK in images without curl or wget. Pass the same -httpListenAddr as the checked process has
   -http.connTimeout duration
      Incoming connections to -httpListenAddr are closed after the configured timeout. This may help evenly spreading load among a cluster of services behind TCP-level load balancer. Zero value disables closing of incoming connections (default 2m0s)
   -http.disableCORS
@@ -73,12 +73,6 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/vtagent/ .
      Whether to use proxy protocol for connections accepted at the corresponding -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
      Supports array of values separated by comma or specified via multiple flags.
      Empty values are set to false.
-  -insert.disable
-     Whether to disable both /insert/* and /internal/insert HTTP endpoints and OpenTelemetry gRPC ingestion endpoint. Useful for dedicated vtselect nodes. See also -internalinsert.disable. See https://docs.victoriametrics.com/victoriatraces/cluster/#security
-  -insert.indexFlushInterval duration
-     Amount of time after which the index of a trace is flushed. VictoriaTraces creates an index for each trace ID based on its start and end times.Each trace ID must wait in the queue for -insert.indexFlushInterval, continuously updating its start and end times before being flushed into the index. (default 20s)
-  -insert.maxFieldsPerLine int
-     The maximum number of log fields per line, which can be read by /insert/* handlers; see https://docs.victoriametrics.com/victorialogs/faq/#how-many-fields-a-single-log-entry-may-contain (default 1000)
   -insert.maxQueueDuration duration
      The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
   -internStringCacheExpireDuration duration
@@ -87,11 +81,6 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/vtagent/ .
      Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
      The maximum length for strings to intern. A lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
-  -internalinsert.disable
-     Whether to disable /internal/insert HTTP endpoint. See also -insert.disable. See https://docs.victoriametrics.com/victoriatraces/cluster/#security
-  -internalinsert.maxRequestSize size
-     The maximum size in bytes of a single request, which can be accepted at /internal/insert HTTP endpoint
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -111,7 +100,7 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/vtagent/ .
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 2x CPU cores)
+     The maximum number of concurrent insert requests. Set higher value when clients send data over slow networks. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage. See also -insert.maxQueueDuration (default 24 = 2x CPU cores)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from the OS page cache resulting in higher disk IO usage. The process may behave unexpectedly if this flag is set too small (e.g., 1 byte).
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -123,26 +112,31 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/vtagent/ .
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -metricsAuthKey=file:///abs/path/to/file or -metricsAuthKey=file://./relative/path/to/file.
      Flag value can be read from the given http/https url when using -metricsAuthKey=http://host/path or -metricsAuthKey=https://host/path
-  -nativeinsert.maxRequestSize size
-     The maximum size in bytes of a single request, which can be accepted at /insert/native and /insert/multitenant/native HTTP endpoints
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -opentelemetry.traces.maxRequestSize size
-     The maximum size in bytes of a single OpenTelemetry trace export request.
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
-  -otlpGRPC.tls
-     Enable TLS for incoming gRPC request at the given -otlpGRPCListenAddr. It's set to true by default, and -otlpGRPC.tlsCertFile and -otlpGRPC.tlsKeyFile must be set. It could be configured to false to allow insecure connection. (default true)
-  -otlpGRPC.tlsCertFile string
-     Path to file with TLS certificate for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is not set to false. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated.
-  -otlpGRPC.tlsCipherSuites array
-     Optional TLS cipher suites for incoming requests over HTTPS if -otlpGRPC.tls is not set to false. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+     The maximum size in bytes of a single OpenTelemetry trace export request. It shouldn't exceed -remoteWrite.maxBlockSize, since bigger requests are rejected
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
+  -otlpGRPC.tls array
+     Whether to enable TLS for incoming gRPC requests at the given -otlpGRPCListenAddr. -otlpGRPC.tlsCertFile and -otlpGRPC.tlsKeyFile must be set if -otlpGRPC.tls is set
+     Supports array of values separated by comma or specified via multiple flags.
+     Empty values are set to false.
+  -otlpGRPC.tlsCertFile array
+     Path to file with TLS certificate for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
-  -otlpGRPC.tlsKeyFile string
-     Path to file with TLS key for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is not set to false. The provided key file is automatically re-read every second, so it can be dynamically updated.
-  -otlpGRPC.tlsMinVersion string
-     Optional minimum TLS version to use for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is not set to false. Supported values: TLS10, TLS11, TLS12, TLS13.
+  -otlpGRPC.tlsCipherSuites array
+     Optional list of TLS cipher suites for incoming requests over HTTPS if -otlpGRPC.tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -otlpGRPC.tlsKeyFile array
+     Path to file with TLS key for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
+  -otlpGRPC.tlsMinVersion array
+     Optional minimum TLS version to use for the corresponding -otlpGRPCListenAddr if -otlpGRPC.tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
+     Supports an array of values separated by comma or specified via multiple flags.
+     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -otlpGRPCListenAddr string
-     TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317".
+     TCP address for accepting OTLP gRPC requests. Defaults to empty, which means it is disabled. The recommended port is ":4317". See also -otlpGRPC.tls
   -pprofAuthKey value
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides -httpAuth.*
      Flag value can be read from the given file when using -pprofAuthKey=file:///abs/path/to/file or -pprofAuthKey=file://./relative/path/to/file.
@@ -189,17 +183,13 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/vtagent/ .
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.flushInterval duration
      Interval for flushing the data to remote storage. This option takes effect only when less than 2MB of data per second are pushed to -remoteWrite.url (default 1s)
-  -remoteWrite.format array
-     The data format to use for sending data to the corresponding -remoteWrite.url. Available formats: native, jsonline. Default is native. See https://docs.victoriametrics.com/victoriatraces/vtagent/#remote-write-format
-     Supports an array of values separated by comma or specified via multiple flags.
-     Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.headers array
      Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.maxBlockSize size
-     The maximum block size to send to remote storage. Bigger blocks may improve performance at the cost of the increased memory usage.
-     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 8388608)
+     The maximum block size to send to remote storage. Bigger blocks may improve performance at the cost of the increased memory usage. Requests bigger than this value are rejected. See also -opentelemetry.traces.maxRequestSize
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -remoteWrite.maxDiskUsagePerURL array
      The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. Buffered data is stored in ~500MB chunks. It is recommended to set the value for this flag to a multiple of the block size 500MB. Disk usage is unlimited if the value is set to 0
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB. (default 0)
@@ -234,7 +224,7 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/vtagent/ .
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -remoteWrite.queues int
-     The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage (default 2x CPU cores)
+     The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues isn't enough for sending high volume of collected data to remote storage. Default value depends on the number of available CPU cores. It should work fine in most cases since it minimizes resource usage (default 24)
   -remoteWrite.rateLimit array
      Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. By default, the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data  (default 0)
      Supports array of values separated by comma or specified via multiple flags.
@@ -280,7 +270,7 @@ See the docs at https://docs.victoriametrics.com/victoriatraces/vtagent/ .
   -remoteWrite.tmpDataPath string
      Path to directory for storing pending data, which isn't sent to the configured -remoteWrite.url. If this flag isn't set, then pending data is stored in the vtagent-remotewrite-data subdirectory under the -tmpDataPath directory; see also -remoteWrite.maxDiskUsagePerURL
   -remoteWrite.url array
-     Remote storage URL to write data to. Example url: http://<victoriatraces-host>:10428/insert/native. Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. See also -remoteWrite.maxDiskUsagePerURL and -remoteWrite.format
+     Remote storage URL to write data to. The data is sent in OTLP/HTTP protobuf format, so the url must point to an OTLP/HTTP traces endpoint. Example url: http://<victoriatraces-host>:10428/insert/opentelemetry/v1/traces. Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. See also -remoteWrite.maxDiskUsagePerURL
      Supports an array of values separated by comma or specified via multiple flags.
      Each array item can contain comma inside single-quoted or double-quoted string, {}, [] and () braces.
   -secret.flags array
