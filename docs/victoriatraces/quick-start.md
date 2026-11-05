@@ -49,7 +49,7 @@ This command will make VictoriaTraces run in the foreground, and store the inges
 
 After VictoriaTraces is running, verify VMUI is working by going to `http://<victoria-traces>:10428/select/vmui`.
 
-The Docker image doesn't contain `curl` or `wget`. Use the `-healthcheck` command-line flag{{% available_from "#" %}} for Docker `HEALTHCHECK` instead.
+The Docker image doesn't contain `curl` or `wget`. Use the `-healthcheck` command-line flag{{% available_from "v0.13.0" %}} for Docker `HEALTHCHECK` instead.
 It checks that the running VictoriaTraces accepts connections at `-httpListenAddr` and exits with non-zero code if the check fails.
 Pass the same `-httpListenAddr` as the checked process has. For example, in Docker Compose:
 
