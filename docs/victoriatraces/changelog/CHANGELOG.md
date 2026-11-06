@@ -12,7 +12,7 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
-* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): fix a data race in the Tempo search tags and tag values APIs when they receive an invalid TraceQL query. Previously, all such requests used and modified one shared fallback query. See [issue #304](https://github.com/VictoriaMetrics/VictoriaTraces/issues/304).
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): fix a data race in the Tempo search tags and tag values APIs when they receive an invalid TraceQL query. See [issue #304](https://github.com/VictoriaMetrics/VictoriaTraces/issues/304).
 
 ## [v0.13.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.13.0)
 
