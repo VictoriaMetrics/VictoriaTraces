@@ -107,6 +107,39 @@ func TestParseQuery(t *testing.T) {
 
 	// Regex match operator `=~` must become LogsQL `~` (not `=~`).
 	f(`{resource.host.name =~ "kimi-k2-a.*"}`, `"resource_attr:host.name":~"kimi-k2-a.*"`)
+
+	// Quoted attribute names, e.g. span."attribute name with space".
+	f(`{span."foo" = "value"}`, `"span_attr:foo":=value`)
+	f(`{span."attribute name with space" = "value"}`, `"span_attr:attribute name with space":=value`)
+	f(`{span."abc cs"=xyz}`, `"span_attr:abc cs":=xyz`)
+	f(`{span."foo.bar" = "value"}`, `"span_attr:foo.bar":=value`)
+	f(`{span."bar z".foo = "value"}`, `"span_attr:bar z.foo":=value`)
+	f(`{span.foo."bar baz".qux = "value"}`, `"span_attr:foo.bar baz.qux":=value`)
+	f(`{span."a \" b" = "value"}`, `"span_attr:a \" b":=value`)
+
+	// Quoted attribute names in all scopes.
+	f(`{resource."service.name" = "svc"}`, `{"resource_attr:service.name"=svc}`)
+	f(`{resource."host name" = "h1"}`, `"resource_attr:host name":=h1`)
+	f(`{event."e x" = "v"}`, `"event:event_attr:e x":=v`)
+	f(`{link."l x" = "v"}`, `"link:link_attr:l x":=v`)
+	f(`{instrumentation."i x" = "v"}`, `"scope_attr:i x":=v`)
+
+	// Quoted attribute names with other operators.
+	f(`{span."x y" =~ "a.*"}`, `"span_attr:x y":~"a.*"`)
+	f(`{span."x y" != nil}`, `"span_attr:x y":*`)
+	f(`{span."n x" > 5}`, `"span_attr:n x":>5`)
+	f(`{span.foo = "a" && span."x y" = "b"}`, `"span_attr:foo":=a and "span_attr:x y":=b`)
+	f(`{span."x y" = "b" || span.foo = "a"}`, `"span_attr:x y":=b or "span_attr:foo":=a`)
+
+	// Quoted attribute names in pipes.
+	f(`{span.foo = "x"} | select(span."a b")`, `"span_attr:foo":=x | select("span.a b")`)
+	f(`{span.foo = "x"} | by(span."a b")`, `"span_attr:foo":=x | by("span.a b")`)
+	f(`{span.foo = "x"} | avg(span."a b") > 1`, `"span_attr:foo":=x | avg("span.a b") > 1`)
+
+	// Values must not be affected by quoted attribute names support.
+	f(`{span.foo = "a b"}`, `"span_attr:foo":="a b"`)
+	f(`{span.foo = foo-bar}`, `"span_attr:foo":="foo-bar"`)
+	f(`{span.foo = 10.5}`, `"span_attr:foo":=10.5`)
 }
 
 // TestParseQueryInvalid asserts that malformed inputs return an error
@@ -143,6 +176,13 @@ func TestParseQueryInvalid(t *testing.T) {
 	f(`{!}`)
 	f(`{-}`)
 	f(`{not a}`)
+
+	// Quoted attribute name must follow the '.' without whitespace, and must be closed.
+	f(`{span. "foo" = "value"}`)
+	f(`{span."foo}`)
+
+	// Quoted parts are allowed only in attribute names, not in values.
+	f(`{span.foo = foo."bar baz"}`)
 }
 
 func TestGetTraceDurationFilters(t *testing.T) {

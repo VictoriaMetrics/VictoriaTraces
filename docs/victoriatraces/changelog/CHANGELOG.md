@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): support quoted attribute names in TraceQL queries, such as `span."attribute name with space"`. See [issue #310](https://github.com/VictoriaMetrics/VictoriaTraces/issues/310).
+
 ## [v0.13.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.13.0)
 
 Released at 2026-11-05
