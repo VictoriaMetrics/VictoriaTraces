@@ -4,11 +4,57 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"slices"
+	"sync"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
+
+func TestSingleFieldResultCollectorConcurrent(t *testing.T) {
+	const (
+		blocks         = 32
+		valuesPerBlock = 32
+	)
+
+	r := singleFieldResultCollector{
+		values: make([]string, 0, blocks*valuesPerBlock),
+	}
+	want := make([]string, 0, blocks*valuesPerBlock)
+	dataBlocks := make([]*logstorage.DataBlock, blocks)
+	for i := range dataBlocks {
+		values := make([]string, valuesPerBlock)
+		for j := range values {
+			values[j] = fmt.Sprintf("value-%02d-%02d", i, j)
+		}
+		want = append(want, values...)
+		db := &logstorage.DataBlock{}
+		db.SetColumns([]logstorage.BlockColumn{{Name: "value", Values: values}})
+		dataBlocks[i] = db
+	}
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i, db := range dataBlocks {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			r.writeBlock(uint(i), db)
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	got := slices.Clone(r.values)
+	slices.Sort(got)
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
+		t.Fatalf("unexpected values; got %d; want %d", len(got), len(want))
+	}
+}
 
 // Intrinsic span fields have no attribute prefix, so they are not discovered by
 // the field_names scan. They must be advertised explicitly under the "intrinsic"
