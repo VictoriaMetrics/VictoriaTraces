@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtinsert in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): properly store span attributes with map values (`kvlistValue`) sent over OTLP/HTTP in JSON format. Previously, such attributes were stored as `-`. See [issue #308](https://github.com/VictoriaMetrics/VictoriaTraces/issues/308).
+
 ## [v0.13.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.13.0)
 
 Released at 2026-11-05
