@@ -1,5 +1,6 @@
 import { FC, useRef, useState } from "preact/compat";
 import { useSearchParams } from "react-router-dom";
+import { ACCOUNT_ID_URL_PARAM, PROJECT_ID_URL_PARAM } from "../../../../constants/tenant";
 import { useFetchAccountIds } from "./hooks/useFetchAccountIds";
 import TenantsSelect from "./TenantsSelect";
 import TenantsFields from "./TenantsFields";
@@ -23,8 +24,8 @@ const Tenants: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const accountId = searchParams.get("accountID") || "0";
-  const projectId = searchParams.get("projectID") || "0";
+  const accountId = searchParams.get(ACCOUNT_ID_URL_PARAM) || "0";
+  const projectId = searchParams.get(PROJECT_ID_URL_PARAM) || "0";
   const tenantId = `${accountId}:${projectId}`;
 
   const buttonRef = useRef<HTMLDivElement>(null);
@@ -40,8 +41,8 @@ const Tenants: FC = () => {
 
   const onChange = ({ accountId, projectId }: Partial<TenantType>) => {
     if (!isValidTenantId(accountId) || !isValidTenantId(projectId)) return;
-    if (accountId) searchParams.set("accountID", accountId);
-    if (projectId) searchParams.set("projectID", projectId);
+    if (accountId) searchParams.set(ACCOUNT_ID_URL_PARAM, accountId);
+    if (projectId) searchParams.set(PROJECT_ID_URL_PARAM, projectId);
     setSearchParams(searchParams);
     handleClosePopup();
   };

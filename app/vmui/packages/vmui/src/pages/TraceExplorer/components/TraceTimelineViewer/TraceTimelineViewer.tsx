@@ -16,7 +16,8 @@ import ScrollManager, { Accessors } from "./ScrollManager";
 import { createScroller } from "./scroll-page";
 import colorGenerator from "../../../../utils/color-generator";
 import { useAppState } from "../../../../state/common/StateContext";
-import { computeRpc, getSpanIdFromSearchParams, SPAN_ID_URL_PARAM } from "../../utils";
+import { computeRpc, getSpanIdFromSearchParams } from "../../utils";
+import { SPAN_ID_URL_PARAM } from "../../../../constants/trace";
 import { ViewRange } from "../../types";
 import { CriticalPathSection, OtelSpan, OtelTrace, PEER_SERVICE, TNil } from "../../types";
 

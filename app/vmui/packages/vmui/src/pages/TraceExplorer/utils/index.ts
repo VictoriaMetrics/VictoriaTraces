@@ -15,6 +15,7 @@ import {
   Trace,
 } from "../types";
 import colorGenerator from "../../../utils/color-generator";
+import { SPAN_ID_URL_PARAM } from "../../../constants/trace";
 
 export const SPAN_KIND_OPTIONS = ["SERVER", "CLIENT", "PRODUCER", "CONSUMER", "INTERNAL"];
 
@@ -419,12 +420,6 @@ export function formatApiError(error: ApiError): ApiErrorDetails {
 
   return { title: message, rows };
 }
-
-// ============================================================
-// span_id URL param
-// ============================================================
-
-export const SPAN_ID_URL_PARAM = "span_id";
 
 export function getSpanIdFromSearchParams(searchParams: URLSearchParams): { spanId: string | undefined } {
   return { spanId: searchParams.get(SPAN_ID_URL_PARAM) || undefined };

@@ -1,6 +1,7 @@
 import { FC, useMemo } from "preact/compat";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, To, useNavigate, useSearchParams } from "react-router-dom";
 import router from "../../router";
+import { getTenantSearchParams } from "../../hooks/useTenant";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
 import { LogoTracesIcon } from "../../components/Main/Icons";
 import { getCssVariable } from "../../utils/theme";
@@ -13,7 +14,7 @@ import HeaderControls from "./HeaderControls";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import useWindowSize from "../../hooks/useWindowSize";
 
-const Logo = () => <NavLink to={router.home}><LogoTracesIcon/></NavLink>;
+const Logo = ({ to }: { to: To }) => <NavLink to={to}><LogoTracesIcon/></NavLink>;
 
 const Header: FC = () => {
   const { isMobile } = useDeviceDetect();
@@ -40,6 +41,11 @@ const Header: FC = () => {
   }, [primaryColor, appModeEnable]);
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const homeLocation = useMemo(() => ({
+    pathname: router.home,
+    search: getTenantSearchParams(searchParams).toString(),
+  }), [searchParams]);
 
   const onClickLogo = (e: MouseEvent) => {
     const { ctrlKey, metaKey } = e;
@@ -47,7 +53,7 @@ const Header: FC = () => {
     if (ctrlMetaKey) return; // open in new tab
 
     e.preventDefault();
-    navigate({ pathname: router.home });
+    navigate(homeLocation);
     window.location.reload();
   };
 
@@ -74,7 +80,7 @@ const Header: FC = () => {
             onClick={onClickLogo}
             style={{ color }}
           >
-            {<Logo/>}
+            {<Logo to={homeLocation}/>}
           </div>
         )}
         <HeaderNav
@@ -92,7 +98,7 @@ const Header: FC = () => {
         onClick={onClickLogo}
         style={{ color }}
       >
-        {<Logo/>}
+        {<Logo to={homeLocation}/>}
       </div>
     )}
     <HeaderControls

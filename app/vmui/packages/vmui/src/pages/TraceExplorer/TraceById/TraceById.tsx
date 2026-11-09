@@ -17,12 +17,12 @@ import DragResizeHandle from "../../../components/Main/DragResizeHandle";
 import ApiErrorAlert from "../components/ApiErrorAlert";
 import { SpinnerIcon } from "../../../components/Main/Icons";
 import filterSpans, { getSpanIdFromSearchParams } from "../utils";
+import { TRACE_ID_URL_PARAM } from "../../../constants/trace";
 import { CriticalPathSection, OtelSpan, OtelTrace, ViewRange } from "../types";
 
 import "../style.scss";
 import "./style.scss";
 
-const TRACE_ID_URL_PARAM = "trace_id";
 const noop = () => {};
 
 // Returns a view of `trace` scoped to `isolatedSpanID` and its descendants — the picked
