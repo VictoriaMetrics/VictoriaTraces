@@ -12,33 +12,29 @@ import (
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
-func TestCollectSingleFieldValuesConcurrent(t *testing.T) {
+func TestSingleFieldResultCollectorConcurrent(t *testing.T) {
 	const blocks = 32
 	db := &logstorage.DataBlock{}
 	db.SetColumns([]logstorage.BlockColumn{{Name: "value", Values: []string{"foo"}}})
 
-	runQuery := func(writeBlock logstorage.WriteDataBlockFunc) error {
-		start := make(chan struct{})
-		var wg sync.WaitGroup
-		for i := range blocks {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				<-start
-				writeBlock(uint(i), db)
-			}()
-		}
-		close(start)
-		wg.Wait()
-		return nil
+	result := singleFieldResultCollector{
+		values: make([]string, 0, blocks),
 	}
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := range blocks {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			result.writeBlock(uint(i), db)
+		}()
+	}
+	close(start)
+	wg.Wait()
 
-	values, err := collectSingleFieldValues(blocks, runQuery)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	if len(values) != blocks {
-		t.Fatalf("unexpected number of values; got %d; want %d", len(values), blocks)
+	if len(result.values) != blocks {
+		t.Fatalf("unexpected number of values; got %d; want %d", len(result.values), blocks)
 	}
 }
 
