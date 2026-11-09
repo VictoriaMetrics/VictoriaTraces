@@ -1,5 +1,6 @@
 import { CSSProperties, RefObject, useMemo, useState } from "preact/compat";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { buildTraceLocation } from "../../../../hooks/useTenant";
 
 import { useAvailableHeight } from "../../hooks/useAvailableHeight";
 import Tabs from "../../../../components/Main/Tabs";
@@ -38,6 +39,7 @@ const SpanDetailPanel = ({ span, panelRef, width, onClose }: SpanDetailPanelProp
   const [showAbsoluteTime, setShowAbsoluteTime] = useState(false);
   const [prevSpanID, setPrevSpanID] = useState(span.spanID);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const { height, top } = useAvailableHeight(panelRef);
   const panelStyle: CSSProperties = useMemo(() => {
@@ -81,10 +83,7 @@ const SpanDetailPanel = ({ span, panelRef, width, onClose }: SpanDetailPanelProp
   };
 
   const openLinkedTrace = (link: Link) => {
-    navigate(
-      `/trace?trace_id=${encodeURIComponent(link.traceID)}&span_id=${encodeURIComponent(link.spanID)}`,
-      { state: { autoRun: true } }
-    );
+    navigate(buildTraceLocation(searchParams, link.traceID, link.spanID), { state: { autoRun: true } });
   };
 
   return (

@@ -1,9 +1,10 @@
 import { useCallback } from "preact/compat";
 import { useSearchParams } from "react-router-dom";
+import { TRACE_ID_URL_PARAM } from "../../../constants/trace";
 
 export const TRACE_QUERY_URL_PARAMS = {
   QUERY: "logsql_query",
-  TRACE_ID: "trace_id",
+  TRACE_ID: TRACE_ID_URL_PARAM,
 } as const;
 
 const DEFAULT_QUERY = "*";
