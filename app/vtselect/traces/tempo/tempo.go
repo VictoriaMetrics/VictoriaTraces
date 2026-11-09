@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/valyala/bytebufferpool"
@@ -525,29 +526,41 @@ func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLS
 // singleFieldQueryHelper execute queries which contains only a single field in response, and return as []string.
 // it's useful for queries looking for `field_name`s or `field_value`s.
 func singleFieldQueryHelper(ctx context.Context, q *logstorage.Query, cp *tracecommon.CommonParams, limit int) ([]string, error) {
-	resultList := make([]string, 0, limit)
-	writeBlock := func(_ uint, db *logstorage.DataBlock) {
-		columns := db.GetColumns(false)
-		if len(columns) != 1 {
-			logger.Panicf("BUG: unexpected column(s) returned for singleFieldQueryHelper: %v", columns)
-		}
-
-		for _, v := range columns[0].Values {
-			if v != "" {
-				resultList = append(resultList, strings.Clone(v))
-			}
-		}
+	result := singleFieldResultCollector{
+		values: make([]string, 0, limit),
 	}
 
 	cp.Query = q
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	if err := vtstorage.RunQuery(qctx, writeBlock); err != nil {
+	if err := vtstorage.RunQuery(qctx, result.writeBlock); err != nil {
 		return nil, err
 	}
+	return result.values, nil
+}
 
-	return resultList, nil
+type singleFieldResultCollector struct {
+	mu     sync.Mutex
+	values []string
+}
+
+func (r *singleFieldResultCollector) writeBlock(_ uint, db *logstorage.DataBlock) {
+	columns := db.GetColumns(false)
+	if len(columns) != 1 {
+		logger.Panicf("BUG: unexpected column(s) returned for singleFieldQueryHelper: %v", columns)
+	}
+
+	values := make([]string, 0, len(columns[0].Values))
+	for _, v := range columns[0].Values {
+		if v != "" {
+			values = append(values, strings.Clone(v))
+		}
+	}
+
+	r.mu.Lock()
+	r.values = append(r.values, values...)
+	r.mu.Unlock()
 }
 
 func searchTraces(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, start, end time.Time, limit, spss int) ([]traceSummary, error) {
