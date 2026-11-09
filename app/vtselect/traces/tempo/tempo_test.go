@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"slices"
 	"sync"
 	"testing"
@@ -13,46 +12,33 @@ import (
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
-func TestSingleFieldResultCollectorConcurrent(t *testing.T) {
-	const (
-		blocks         = 32
-		valuesPerBlock = 32
-	)
+func TestCollectSingleFieldValuesConcurrent(t *testing.T) {
+	const blocks = 32
+	db := &logstorage.DataBlock{}
+	db.SetColumns([]logstorage.BlockColumn{{Name: "value", Values: []string{"foo"}}})
 
-	r := singleFieldResultCollector{
-		values: make([]string, 0, blocks*valuesPerBlock),
-	}
-	want := make([]string, 0, blocks*valuesPerBlock)
-	dataBlocks := make([]*logstorage.DataBlock, blocks)
-	for i := range dataBlocks {
-		values := make([]string, valuesPerBlock)
-		for j := range values {
-			values[j] = fmt.Sprintf("value-%02d-%02d", i, j)
+	runQuery := func(writeBlock logstorage.WriteDataBlockFunc) error {
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		for i := range blocks {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-start
+				writeBlock(uint(i), db)
+			}()
 		}
-		want = append(want, values...)
-		db := &logstorage.DataBlock{}
-		db.SetColumns([]logstorage.BlockColumn{{Name: "value", Values: values}})
-		dataBlocks[i] = db
+		close(start)
+		wg.Wait()
+		return nil
 	}
 
-	start := make(chan struct{})
-	var wg sync.WaitGroup
-	for i, db := range dataBlocks {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			<-start
-			r.writeBlock(uint(i), db)
-		}()
+	values, err := collectSingleFieldValues(blocks, runQuery)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
 	}
-	close(start)
-	wg.Wait()
-
-	got := slices.Clone(r.values)
-	slices.Sort(got)
-	slices.Sort(want)
-	if !slices.Equal(got, want) {
-		t.Fatalf("unexpected values; got %d; want %d", len(got), len(want))
+	if len(values) != blocks {
+		t.Fatalf("unexpected number of values; got %d; want %d", len(values), blocks)
 	}
 }
 
