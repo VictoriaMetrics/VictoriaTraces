@@ -291,3 +291,20 @@ func TestSearchResponseJSON(t *testing.T) {
 		t.Fatalf("got %q; want %q", compactResponse.String(), compactExpect.String())
 	}
 }
+
+func TestParseFilterQueryOrNoop(t *testing.T) {
+	// An invalid query must fall back to a new query on every call, since callers modify it.
+	q1 := parseFilterQueryOrNoop("{ && }")
+	q2 := parseFilterQueryOrNoop("{ && }")
+	if q1 == q2 {
+		t.Fatalf("expected a new fallback query on every call")
+	}
+	if s, want := q1.String(), "*"; s != want {
+		t.Fatalf("unexpected fallback query; got %q; want %q", s, want)
+	}
+
+	// A valid query is parsed as usual.
+	if s := parseFilterQueryOrNoop(`{name="foo"}`).String(); s == "*" {
+		t.Fatalf("expected the valid query to be parsed, got the fallback")
+	}
+}
