@@ -2,6 +2,7 @@ import { useMemo } from "preact/compat";
 import { useSearchParams } from "react-router-dom";
 import { ACCOUNT_ID_URL_PARAM, PROJECT_ID_URL_PARAM } from "../constants/tenant";
 import { SPAN_ID_URL_PARAM, TRACE_ID_URL_PARAM } from "../constants/trace";
+import router from "../router";
 
 export const getTenantSearchParams = (source: URLSearchParams): URLSearchParams => {
   const params = new URLSearchParams();
@@ -20,7 +21,7 @@ export const buildTraceLocation = (
   const params = getTenantSearchParams(source);
   params.set(TRACE_ID_URL_PARAM, traceID);
   if (spanID) params.set(SPAN_ID_URL_PARAM, spanID);
-  return { pathname: "/trace", search: params.toString() };
+  return { pathname: router.trace, search: params.toString() };
 };
 
 export const useTenant = () => {
