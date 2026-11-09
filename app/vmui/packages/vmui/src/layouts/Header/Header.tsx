@@ -1,5 +1,5 @@
 import { FC, useMemo } from "preact/compat";
-import { NavLink, To, useNavigate, useSearchParams } from "react-router-dom";
+import { NavLink, To, useSearchParams } from "react-router-dom";
 import router from "../../router";
 import { getTenantSearchParams } from "../../hooks/useTenant";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
@@ -40,22 +40,11 @@ const Header: FC = () => {
     return { background, color };
   }, [primaryColor, appModeEnable]);
 
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const homeLocation = useMemo(() => ({
     pathname: router.home,
     search: getTenantSearchParams(searchParams).toString(),
   }), [searchParams]);
-
-  const onClickLogo = (e: MouseEvent) => {
-    const { ctrlKey, metaKey } = e;
-    const ctrlMetaKey = ctrlKey || metaKey;
-    if (ctrlMetaKey) return; // open in new tab
-
-    e.preventDefault();
-    navigate(homeLocation);
-    window.location.reload();
-  };
 
   return <header
     className={classNames({
@@ -77,7 +66,6 @@ const Header: FC = () => {
         {!appModeEnable && (
           <div
             className="vm-header-logo"
-            onClick={onClickLogo}
             style={{ color }}
           >
             {<Logo to={homeLocation}/>}
@@ -95,7 +83,6 @@ const Header: FC = () => {
           "vm-header-logo": true,
           "vm-header-logo_mobile": true,
         })}
-        onClick={onClickLogo}
         style={{ color }}
       >
         {<Logo to={homeLocation}/>}
