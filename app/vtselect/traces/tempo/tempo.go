@@ -81,6 +81,9 @@ func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request)
 		processQueryRequest(ctx, w, r)
 		tempoQueryDuration.UpdateDuration(startTime)
 		return true
+	} else if path == "/select/tempo/api/v2/traces/diff" {
+		http.Error(w, "trace diff is not supported", http.StatusNotFound)
+		return true
 	} else if strings.HasPrefix(path, "/select/tempo/api/v2/traces/") && len(path) > len("/select/tempo/api/v2/traces/") {
 		tempoQueryV2Requests.Inc()
 		processQueryV2Request(ctx, w, r)

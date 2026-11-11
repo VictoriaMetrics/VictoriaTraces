@@ -4,11 +4,32 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"slices"
 	"testing"
 
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
+
+func TestRequestHandlerTraceDiffNotSupported(t *testing.T) {
+	f := func(method, rawURL string) {
+		t.Helper()
+		r := httptest.NewRequest(method, rawURL, nil)
+		w := httptest.NewRecorder()
+		if !RequestHandler(context.Background(), w, r) {
+			t.Fatalf("%s %s must be handled", method, rawURL)
+		}
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("unexpected status code for %s %s; got %d; want %d",
+				method, rawURL, w.Code, http.StatusNotFound)
+		}
+	}
+
+	f(http.MethodGet, "/select/tempo/api/v2/traces/diff")
+	f(http.MethodPost, "/select/tempo/api/v2/traces/diff")
+	f(http.MethodPost, "/select/tempo/api/v2/traces/diff?start=1&end=2")
+}
 
 // Intrinsic span fields have no attribute prefix, so they are not discovered by
 // the field_names scan. They must be advertised explicitly under the "intrinsic"
