@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): properly return `502 Bad Gateway` error when one of `vtstorage` nodes returns non-200 status code and partial responses are allowed via `-search.allowPartialResponse`. Previously `vtselect` could return an empty or truncated response with `200 OK` status code depending on the order of nodes in `-storageNode`. See [VictoriaLogs issue #1935](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1935).
+
 ## [v0.13.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.13.0)
 
 Released at 2026-11-05
