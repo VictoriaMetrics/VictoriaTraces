@@ -15,11 +15,7 @@ func (fa *filterAnd) String() string {
 	filters := fa.filters
 	a := make([]string, len(filters))
 	for i, f := range filters {
-		s := f.String()
-		if _, ok := f.(*filterOr); ok {
-			s = "(" + s + ")"
-		}
-		a[i] = s
+		a[i] = f.String()
 	}
 	return strings.Join(a, " and ")
 }
