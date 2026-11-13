@@ -66,7 +66,7 @@ func TestParseQuery(t *testing.T) {
 	}
 
 	// normal queries
-	f(`{ac.name=~".*frontend.*" && name = "POST /api/orders"} && {ac.nn="sdf"} || {ac.nn="sdf"}`, `ac.name:~".*frontend.*" and {name="POST /api/orders"} and ac.nn:=sdf or ac.nn:=sdf`)
+	f(`{ac.name=~".*frontend.*" && name = "POST /api/orders"} && {ac.nn="sdf"} || {ac.nn="sdf"}`, `(ac.name:~".*frontend.*" and {name="POST /api/orders"} and ac.nn:=sdf or ac.nn:=sdf)`)
 	f(`(({a=b && a=c} || {a=d}) && {a=e})`, `(a:=b and a:=c or a:=d) and a:=e`)
 	f(`{nestedSetParent<0 && true}`, `parent_span_id:="" and *`)
 	f(`{nestedSetParent<0 && true && status=error}`, `parent_span_id:="" and * and status_code:=2`)
