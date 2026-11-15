@@ -74,6 +74,7 @@ func TestParseQuery(t *testing.T) {
 	f(`{ span.http.request_content_length > 10} | select(span.http.request_content_length) | by(span.http.request_content_length, span.http.request_content_length2) | sum(other_field) > 2m`, `"span_attr:http.request_content_length":>10 | select(span.http.request_content_length) | by(span.http.request_content_length, span.http.request_content_length2) | sum(other_field) > 2m`)
 	f(`{(a=b && c=d && c=d)}`, `a:=b and c:=d and c:=d`)
 	f(`{span.http.status_code = "200"}`, `"span_attr:http.status_code":=200`)
+	f(`{span.cache.ttl = "30s"}`, `"span_attr:cache.ttl":=30s`)
 	f(`{status = "error"}`, `status_code:=2`)
 	f(`{status = "unset"}`, `status_code:=0`)
 	f(`{resource.service.name = "my_service"}`, `{"resource_attr:service.name"=my_service}`)
