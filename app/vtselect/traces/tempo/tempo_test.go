@@ -5,10 +5,38 @@ import (
 	"context"
 	"encoding/json"
 	"slices"
+	"sync"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
 	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
+
+func TestSingleFieldResultCollectorConcurrent(t *testing.T) {
+	const blocks = 32
+	db := &logstorage.DataBlock{}
+	db.SetColumns([]logstorage.BlockColumn{{Name: "value", Values: []string{"foo"}}})
+
+	result := singleFieldResultCollector{
+		values: make([]string, 0, blocks),
+	}
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for i := range blocks {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			result.writeBlock(uint(i), db)
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	if len(result.values) != blocks {
+		t.Fatalf("unexpected number of values; got %d; want %d", len(result.values), blocks)
+	}
+}
 
 // Intrinsic span fields have no attribute prefix, so they are not discovered by
 // the field_names scan. They must be advertised explicitly under the "intrinsic"
