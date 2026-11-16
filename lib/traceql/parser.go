@@ -453,6 +453,7 @@ func parseFilterCommon(lex *lexer, fieldName string) (filter, error) {
 	op := lex.token
 	lex.nextToken()
 
+	isQuoted := lex.isQuotedToken()
 	phrase, err := lex.nextCompoundToken()
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse token after %q: %w", op, err)
@@ -462,6 +463,7 @@ func parseFilterCommon(lex *lexer, fieldName string) (filter, error) {
 		fieldName: fieldName,
 		op:        op,
 		value:     phrase,
+		isQuoted:  isQuoted,
 	}
 	return f, nil
 }

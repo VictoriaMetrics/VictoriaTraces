@@ -12,6 +12,7 @@ type filterCommon struct {
 	fieldName string
 	op        string
 	value     string
+	isQuoted  bool // value is a quoted string
 }
 
 // statusNameRegex matches the three TraceQL status name keywords at word
@@ -136,7 +137,7 @@ func (fc *filterCommon) String() string {
 	}
 
 	// translate duration to nanosecond.
-	if duration, ok := tryParseDuration(fieldValue); ok {
+	if duration, ok := tryParseDuration(fieldValue); ok && !fc.isQuoted {
 		fieldValue = strconv.FormatInt(duration, 10)
 	}
 

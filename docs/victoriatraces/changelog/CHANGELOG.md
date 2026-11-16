@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): match quoted string values that look like durations in TraceQL filters of the Tempo API, such as `{ span.cache.ttl = "30s" }`. Previously, such a value was converted to nanoseconds and the filter matched nothing. See [issue #321](https://github.com/VictoriaMetrics/VictoriaTraces/issues/321).
+
 ## [v0.13.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.13.0)
 
 Released at 2026-11-05
