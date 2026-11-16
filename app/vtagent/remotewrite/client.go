@@ -355,7 +355,7 @@ again:
 	}
 
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vtagent_remotewrite_requests_total{url=%q, status_code="%d"}`, c.sanitizedURL, statusCode)).Inc()
-	if statusCode == 400 || statusCode == 404 {
+	if statusCode == 400 || statusCode == 404 || statusCode == 413 || statusCode == 415 {
 		logBlockRejected(block, c.sanitizedURL, resp)
 		_ = resp.Body.Close()
 		c.packetsDropped.Inc()
