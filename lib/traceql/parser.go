@@ -688,7 +688,15 @@ func (lex *lexer) nextCompoundTokenExt(stopTokens []string) (string, error) {
 	s := lex.token
 	lex.nextToken()
 
-	for !lex.isSkippedSpace && lex.isAllowedCompoundToken(stopTokens) {
+	for !lex.isSkippedSpace {
+		if lex.isQuotedAttributeNamePart(s) {
+			s += lex.token
+			lex.nextToken()
+			continue
+		}
+		if !lex.isAllowedCompoundToken(stopTokens) {
+			break
+		}
 		s += lex.rawToken
 		lex.nextToken()
 	}
@@ -700,6 +708,31 @@ func (lex *lexer) nextCompoundTokenExt(stopTokens []string) (string, error) {
 	}
 
 	return s, nil
+}
+
+func (lex *lexer) isQuotedAttributeNamePart(s string) bool {
+	if !strings.HasSuffix(s, ".") || !strings.HasPrefix(lex.rawToken, `"`) {
+		return false
+	}
+	// Quoted parts are allowed only in attribute names, e.g. span."foo" or .foo."bar", not in values such as foo."bar".
+	if strings.HasPrefix(s, ".") {
+		return true
+	}
+	for _, prefix := range attributeScopePrefixes {
+		if strings.HasPrefix(s, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// attributeScopePrefixes contains TraceQL attribute scopes, which may be followed by a quoted attribute name.
+var attributeScopePrefixes = []string{
+	"span.",
+	"resource.",
+	"event.",
+	"link.",
+	"instrumentation.",
 }
 
 func (lex *lexer) isAllowedCompoundToken(stopTokens []string) bool {
