@@ -49,6 +49,10 @@ func TestTranslateMetricsQueryFull(t *testing.T) {
 	f(`{span.http.status_code >= 400} | count_over_time()`,
 		`{resource_attr:service.name!=""} AND "span_attr:http.status_code":>=400 | stats count() as value`)
 
+	// OR filter
+	f(`{status = error || duration > 5s} | count_over_time()`,
+		`{resource_attr:service.name!=""} AND (status_code:=2 or duration:>5000000000) | stats count() as value`)
+
 	// Name filter
 	f(`{name = "http_request"} | rate()`, `{resource_attr:service.name!=""} AND {name=http_request} | stats rate() as value`)
 

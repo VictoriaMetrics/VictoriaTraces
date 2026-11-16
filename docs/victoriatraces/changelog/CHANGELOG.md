@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return correct results for TraceQL filters with `||` in the Tempo API, such as `{ status = error || duration > 5s }`. Previously, such a filter could count extra spans, or the search failed with `cannot parse in()`, depending on the order of the conditions. See [issue #319](https://github.com/VictoriaMetrics/VictoriaTraces/issues/319).
+
 ## [v0.13.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.13.0)
 
 Released at 2026-11-05
