@@ -51,7 +51,7 @@ func GetServiceNameList(ctx context.Context, cp *tracecommon.CommonParams) ([]st
 
 	serviceHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.ResourceAttrServiceName, "", uint64(*tracecommon.TraceMaxTags))
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
+		return nil, fmt.Errorf("cannot obtain service names: %w", err)
 	}
 
 	serviceList := make([]string, 0, len(serviceHits))
@@ -80,7 +80,7 @@ func GetSpanNameList(ctx context.Context, cp *tracecommon.CommonParams, serviceN
 
 	spanNameHits, err := vtstorage.GetStreamFieldValues(qctx, otelpb.NameField, "", uint64(*tracecommon.TraceMaxTags))
 	if err != nil {
-		return nil, fmt.Errorf("get span name hits error: %s", err)
+		return nil, fmt.Errorf("cannot obtain span names: %w", err)
 	}
 
 	spanNameList := make([]string, 0, len(spanNameHits))
@@ -120,7 +120,7 @@ func GetTrace(ctx context.Context, cp *tracecommon.CommonParams, traceID string)
 	}
 	if err != nil {
 		// something wrong when trying to find the trace_id's start and end time.
-		return nil, fmt.Errorf("cannot find trace_id %q start time: %s", traceID, err)
+		return nil, fmt.Errorf("cannot find trace_id %q start time: %w", traceID, err)
 	}
 
 	// trace start time found, search in [trace start time, trace start time + *traceMaxDurationWindow] time range.

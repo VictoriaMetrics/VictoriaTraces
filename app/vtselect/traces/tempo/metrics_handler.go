@@ -677,7 +677,7 @@ func executeStatsQuery(ctx context.Context, cp *tracecommon.CommonParams, logsQL
 	defer cpCopy.UpdatePerQueryStatsMetrics()
 
 	if err := vtstorage.RunQuery(qctx, writeBlock); err != nil {
-		return nil, fmt.Errorf("cannot execute query [%s]: %s", logsQLStr, err)
+		return nil, fmt.Errorf("cannot execute query [%s]: %w", logsQLStr, err)
 	}
 
 	rows := make([]*metricsStatsSeries, 0, len(m))
