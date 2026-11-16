@@ -242,6 +242,7 @@ VictoriaTraces provides the following Tempo HTTP endpoints:
 - `/select/tempo/api/v2/search/tag/{tag}/values` for listing values of a given attribute for query auto-completion.
 - `/select/tempo/api/traces/{trace_id}` for fetching a single trace by its ID (v1).
 - `/select/tempo/api/v2/traces/{trace_id}` for fetching a single trace by its ID (v2, similar to v1 but with different data structure).
+- `/select/tempo/api/v2/traces/diff` always returns `404 Not Found`. Tempo's trace-diff API is not implemented.
 - `/select/tempo/api/metrics/query_range` for evaluating a TraceQL metrics query over a time range.
 
 #### Querying Examples
