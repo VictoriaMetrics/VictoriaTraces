@@ -270,6 +270,43 @@ func TestTranslateMetricsQueryErrors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for invalid query")
 	}
+
+	// LogsQL gives wrong results for these on the ":*" event and link wildcard:
+	// histogram() fails to parse, min() returns an empty value, and by() groups nothing.
+	f := func(q, field string) {
+		t.Helper()
+		_, err := translateMetricsQuery(q, ts)
+		if err == nil {
+			t.Errorf("expected error for %s", q)
+			return
+		}
+		if !strings.Contains(err.Error(), field) {
+			t.Errorf("error for %s must name %q; got %q", q, field, err)
+		}
+	}
+	f(`{} | histogram_over_time(event.foo)`, "event.foo")
+	f(`{} | min_over_time(link:spanID)`, "link:spanID")
+	f(`{} | rate() by (resource.service.name, link:traceID)`, "link:traceID")
+}
+
+func TestTranslateMetricsQueryEventLinkFields(t *testing.T) {
+	ts := time.Now().UnixNano()
+
+	f := func(q, statsExprExpected string) {
+		t.Helper()
+		tr, err := translateMetricsQuery(q, ts)
+		if err != nil {
+			t.Fatalf("unexpected error for %s: %s", q, err)
+		}
+		baseQueryExpected := `{resource_attr:service.name!=""} AND * | stats ` + statsExprExpected
+		if tr.baseQuery != baseQueryExpected {
+			t.Fatalf("unexpected query for %s\ngot\n%s\nwant\n%s", q, tr.baseQuery, baseQueryExpected)
+		}
+	}
+	f(`{} | max_over_time(link.foo)`, `max("link:link_attr:foo:*") as value`)
+	f(`{} | avg_over_time(event.foo)`, `avg("event:event_attr:foo:*") as value`)
+	f(`{} | sum_over_time(event.foo)`, `sum("event:event_attr:foo:*") as value`)
+	f(`{} | quantile_over_time(event:name, 0.9)`, `quantile(0.9, "event:event_name:*") as p_0`)
 }
 
 // TestTranslateMetricsQueryQuantileLabels verifies that quantile_over_time

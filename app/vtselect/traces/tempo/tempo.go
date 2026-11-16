@@ -162,6 +162,7 @@ func processSearchTagValuesRequest(ctx context.Context, w http.ResponseWriter, r
 		} else if strings.HasPrefix(tagName, "span.") {
 			mappedTagName = otelpb.SpanAttrPrefixField + tagName[len("span."):]
 		} else if strings.HasPrefix(tagName, "event.") {
+			// No ":*" here, since the field_values pipe reads one named field.
 			mappedTagName = otelpb.EventPrefix + otelpb.EventAttrPrefix + tagName[len("event."):]
 		} else {
 			mappedTagName = tagName

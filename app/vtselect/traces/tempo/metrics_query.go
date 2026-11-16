@@ -63,6 +63,10 @@ func translateMetricsQuery(traceQLStr string, timestamp int64) (*metricsQueryTra
 	vtByFields := make([]string, len(traceQLByFields))
 	for i, f := range traceQLByFields {
 		vtByFields[i] = traceql.TraceQLFieldToVTField(f)
+		// LogsQL `stats by` takes no wildcard, so it would group nothing.
+		if isEventLinkField(vtByFields[i]) {
+			return nil, fmt.Errorf("grouping by the event and link scopes is not supported; got %q", f)
+		}
 	}
 
 	result := &metricsQueryTranslation{
@@ -129,13 +133,18 @@ func buildStatsQuery(filterStr string, vtByFields []string, statsExpr string) st
 // quantile and a map of alias→quantile-value so the executor can attach a `p`
 // label that distinguishes the resulting series.
 func metricsToLogsQLStats(funcName, fieldName string, quantiles []string) (statsExpr string, valueColumnLabels map[string]string, err error) {
-	vtField := quoteLogsQLField(traceql.TraceQLFieldToVTField(fieldName))
+	vtFieldName := traceql.TraceQLFieldToVTField(fieldName)
+	vtField := quoteLogsQLField(vtFieldName)
 	switch funcName {
 	case "rate":
 		return "rate() as value", nil, nil
 	case "count_over_time":
 		return "count() as value", nil, nil
 	case "min_over_time":
+		// min() counts a missing event or link index as an empty value, so it would return "".
+		if isEventLinkField(vtFieldName) {
+			return "", nil, fmt.Errorf("min_over_time does not support the event and link scopes; got %q", fieldName)
+		}
 		return "min(" + vtField + ") as value", nil, nil
 	case "max_over_time":
 		return "max(" + vtField + ") as value", nil, nil
@@ -144,6 +153,10 @@ func metricsToLogsQLStats(funcName, fieldName string, quantiles []string) (stats
 	case "sum_over_time":
 		return "sum(" + vtField + ") as value", nil, nil
 	case "histogram_over_time":
+		// histogram() takes no wildcard, so LogsQL would fail to parse the query.
+		if isEventLinkField(vtFieldName) {
+			return "", nil, fmt.Errorf("histogram_over_time does not support the event and link scopes; got %q", fieldName)
+		}
 		return "histogram(" + vtField + ") as value", nil, nil
 	case "quantile_over_time":
 		if len(quantiles) == 0 {
@@ -175,6 +188,11 @@ func metricsToLogsQLStats(funcName, fieldName string, quantiles []string) (stats
 // quantile value (which can contain '.') to keep aliases identifier-safe.
 func quantileAlias(i int) string {
 	return fmt.Sprintf("p_%d", i)
+}
+
+// isEventLinkField reports whether traceql.TraceQLFieldToVTField added the ":*" index wildcard.
+func isEventLinkField(vtFieldName string) bool {
+	return strings.HasSuffix(vtFieldName, ":*")
 }
 
 // quoteLogsQLField quotes a field name for LogsQL if it contains special characters.
