@@ -66,31 +66,35 @@ func StartVtsingle(instance string, flags, env []string, cli *Client) (*Vtsingle
 		return nil, err
 	}
 
+	return newVtsingle(app, cli, stderrExtracts[0], stderrExtracts[1], stderrExtracts[2]), nil
+}
+
+func newVtsingle(app *app, cli *Client, storageDataPath, httpListenAddr, gRPCListenAddr string) *Vtsingle {
 	return &Vtsingle{
 		app: app,
 		ServesMetrics: &ServesMetrics{
-			metricsURL: fmt.Sprintf("http://%s/metrics", stderrExtracts[1]),
+			metricsURL: fmt.Sprintf("http://%s/metrics", httpListenAddr),
 			cli:        cli,
 		},
-		storageDataPath: stderrExtracts[0],
-		httpListenAddr:  stderrExtracts[1],
+		storageDataPath: storageDataPath,
+		httpListenAddr:  httpListenAddr,
 
-		forceFlushURL: fmt.Sprintf("http://%s/internal/force_flush", stderrExtracts[1]),
-		forceMergeURL: fmt.Sprintf("http://%s/internal/force_merge", stderrExtracts[1]),
+		forceFlushURL: fmt.Sprintf("http://%s/internal/force_flush", httpListenAddr),
+		forceMergeURL: fmt.Sprintf("http://%s/internal/force_merge", httpListenAddr),
 
-		jaegerAPIServicesURL:     fmt.Sprintf("http://%s/select/jaeger/api/services", stderrExtracts[1]),
-		jaegerAPIOperationsURL:   fmt.Sprintf("http://%s/select/jaeger/api/services/%%s/operations", stderrExtracts[1]),
-		jaegerAPITracesURL:       fmt.Sprintf("http://%s/select/jaeger/api/traces", stderrExtracts[1]),
-		jaegerAPITraceURL:        fmt.Sprintf("http://%s/select/jaeger/api/traces/%%s", stderrExtracts[1]),
-		jaegerAPIDependenciesURL: fmt.Sprintf("http://%s/select/jaeger/api/dependencies", stderrExtracts[1]),
+		jaegerAPIServicesURL:     fmt.Sprintf("http://%s/select/jaeger/api/services", httpListenAddr),
+		jaegerAPIOperationsURL:   fmt.Sprintf("http://%s/select/jaeger/api/services/%%s/operations", httpListenAddr),
+		jaegerAPITracesURL:       fmt.Sprintf("http://%s/select/jaeger/api/traces", httpListenAddr),
+		jaegerAPITraceURL:        fmt.Sprintf("http://%s/select/jaeger/api/traces/%%s", httpListenAddr),
+		jaegerAPIDependenciesURL: fmt.Sprintf("http://%s/select/jaeger/api/dependencies", httpListenAddr),
 
-		tempoAPISearchURL: fmt.Sprintf("http://%s/select/tempo/api/search", stderrExtracts[1]),
+		tempoAPISearchURL: fmt.Sprintf("http://%s/select/tempo/api/search", httpListenAddr),
 
-		logsQLQueryURL: fmt.Sprintf("http://%s/select/logsql/query", stderrExtracts[1]),
+		logsQLQueryURL: fmt.Sprintf("http://%s/select/logsql/query", httpListenAddr),
 
-		otlpTracesURL:     fmt.Sprintf("http://%s/insert/opentelemetry/v1/traces", stderrExtracts[1]),
-		otlpGRPCTracesURL: fmt.Sprintf("http://%s/opentelemetry.proto.collector.trace.v1.TraceService/Export", stderrExtracts[2]),
-	}, nil
+		otlpTracesURL:     fmt.Sprintf("http://%s/insert/opentelemetry/v1/traces", httpListenAddr),
+		otlpGRPCTracesURL: fmt.Sprintf("http://%s/opentelemetry.proto.collector.trace.v1.TraceService/Export", gRPCListenAddr),
+	}
 }
 
 // ForceFlush is a test helper function that forces the flushing of inserted
