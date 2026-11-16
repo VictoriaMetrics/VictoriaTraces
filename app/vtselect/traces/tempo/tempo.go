@@ -44,10 +44,6 @@ var (
 	tempoMetricsQueryRangeDuration = metrics.NewSummary(`vt_http_request_duration_seconds{path="/select/tempo/api/metrics/query_range"}`)
 )
 
-var (
-	defaultNoopFilter, _ = traceql.ParseQuery("{}")
-)
-
 func RequestHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) bool {
 	httpserver.EnableCORS(w, r)
 	startTime := time.Now()
@@ -372,10 +368,7 @@ func getIntrinsicTagsCopy() []string {
 
 func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr string, scope string, start, end int64, limit int) (*searchTagResult, error) {
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
-	filterQuery, err := traceql.ParseQuery(traceQLStr)
-	if err != nil {
-		filterQuery = defaultNoopFilter
-	}
+	filterQuery := parseFilterQueryOrNoop(traceQLStr)
 
 	// exclude queries that contain non-hint pipes (select/by/with are OK to ignore).
 	if filterQuery.HasNonHintPipe() {
@@ -479,10 +472,7 @@ func appendNoExceedN(s []string, item string, n int64) []string {
 
 func searchTagValues(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr, tagName string, start, end int64, limit int) ([]string, error) {
 	// transform traceQL into LogsQL as filter. It should contain filter only without any pipe.
-	filterQuery, err := traceql.ParseQuery(traceQLStr)
-	if err != nil {
-		filterQuery = defaultNoopFilter
-	}
+	filterQuery := parseFilterQueryOrNoop(traceQLStr)
 
 	// exclude queries that contain non-hint pipes (select/by/with are OK to ignore).
 	if filterQuery.HasNonHintPipe() {
@@ -755,4 +745,17 @@ func parseTempoAPIParam(_ context.Context, r *http.Request, allowDefaultTime boo
 	p.q = q.Get("q")
 
 	return p, nil
+}
+
+// parseFilterQueryOrNoop parses traceQLStr, falling back to a query that matches everything if it is invalid.
+// The fallback is a new query on every call: callers modify it via StripHintPipes, so it must not be shared between requests.
+func parseFilterQueryOrNoop(traceQLStr string) *traceql.Query {
+	q, err := traceql.ParseQuery(traceQLStr)
+	if err != nil {
+		q, err = traceql.ParseQuery("{}")
+		if err != nil {
+			logger.Panicf("BUG: cannot parse the fallback query `{}`: %s", err)
+		}
+	}
+	return q
 }
