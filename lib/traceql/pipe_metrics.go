@@ -2,6 +2,7 @@ package traceql
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -108,7 +109,7 @@ func parsePipeOverTime(lex *lexer) (pipe, error) {
 // pipeQuantileOverTime represents `quantile_over_time(field, q1, q2, ...)`.
 type pipeQuantileOverTime struct {
 	fieldName string
-	quantiles []string // kept as strings to preserve original precision
+	quantiles []string // normalized decimals, so `.9` is stored as `0.9`
 }
 
 func (pq *pipeQuantileOverTime) String() string {
@@ -156,7 +157,18 @@ func parsePipeQuantileOverTime(lex *lexer) (pipe, error) {
 		if quantile == "" {
 			return nil, fmt.Errorf("quantile_over_time() requires at least one quantile value")
 		}
-		quantiles = append(quantiles, quantile)
+		phi, err := strconv.ParseFloat(quantile, 64)
+		if err != nil {
+			return nil, fmt.Errorf("expecting a number for quantile in quantile_over_time; got %q", quantile)
+		}
+		if math.IsNaN(phi) || phi < 0 || phi > 1 {
+			return nil, fmt.Errorf("quantile in quantile_over_time must be in the range [0..1]; got %q", quantile)
+		}
+		if phi == 0 {
+			// Drop the sign of -0.
+			phi = 0
+		}
+		quantiles = append(quantiles, strconv.FormatFloat(phi, 'f', -1, 64))
 		if !lex.isKeyword(",") {
 			break
 		}
