@@ -76,6 +76,8 @@ func TestTranslateMetricsQueryFull(t *testing.T) {
 	// Multiple quantiles emit one stats output per quantile so each becomes its own series.
 	f(`{} | quantile_over_time(duration, 0.5, 0.9, 0.99)`,
 		`{resource_attr:service.name!=""} AND * | stats quantile(0.5, duration) as p_0, quantile(0.9, duration) as p_1, quantile(0.99, duration) as p_2`)
+	f(`{} | quantile_over_time(duration, .99, .9)`,
+		`{resource_attr:service.name!=""} AND * | stats quantile(0.99, duration) as p_0, quantile(0.9, duration) as p_1`)
 
 	// Field name mapping in aggregation
 	f(`{} | sum_over_time(span.kafka.lag)`, `{resource_attr:service.name!=""} AND * | stats sum("span_attr:kafka.lag") as value`)
@@ -306,6 +308,11 @@ func TestTranslateMetricsQueryQuantileLabels(t *testing.T) {
 		"p_0": "0.5",
 		"p_1": "0.9",
 		"p_2": "0.99",
+	})
+
+	f(`{} | quantile_over_time(duration, .9, 0.50)`, "p", map[string]string{
+		"p_0": "0.9",
+		"p_1": "0.5",
 	})
 
 	// Non-quantile metrics do not carry the column→label map.

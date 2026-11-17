@@ -193,6 +193,19 @@ func TestParsePipeQuantileOverTime(t *testing.T) {
 
 	// Multi quantile without spaces (matches the URL-encoded form Drilldown sends).
 	f(`{} | quantile_over_time(duration,0.5,0.9)`, "duration", []string{"0.5", "0.9"})
+
+	// Quantiles are normalized, so every spelling of a value gives the same label.
+	f(`{} | quantile_over_time(duration, .9)`, "duration", []string{"0.9"})
+	f(`{} | quantile_over_time(duration, .99, .9, .5)`, "duration", []string{"0.99", "0.9", "0.5"})
+	f(`{} | quantile_over_time(duration,.99,.9)`, "duration", []string{"0.99", "0.9"})
+	f(`{} | quantile_over_time(duration, 0.99, .9, 0.5)`, "duration", []string{"0.99", "0.9", "0.5"})
+	f(`{} | quantile_over_time(duration, 0.90)`, "duration", []string{"0.9"})
+	f(`{} | quantile_over_time(duration, 9e-1)`, "duration", []string{"0.9"})
+	f(`{} | quantile_over_time(duration, 0)`, "duration", []string{"0"})
+	f(`{} | quantile_over_time(duration, -0)`, "duration", []string{"0"})
+	f(`{} | quantile_over_time(duration, 1)`, "duration", []string{"1"})
+	f(`{} | quantile_over_time(duration, 1.0)`, "duration", []string{"1"})
+	f(`{} | quantile_over_time(duration, 0.000001)`, "duration", []string{"0.000001"})
 }
 
 func TestParsePipeQuantileOverTimeErrors(t *testing.T) {
@@ -211,6 +224,22 @@ func TestParsePipeQuantileOverTimeErrors(t *testing.T) {
 	// Missing field.
 	if _, err := ParseQuery(`{} | quantile_over_time()`); err == nil {
 		t.Fatal("expected error for quantile_over_time without field")
+	}
+
+	// Quantiles that are not numbers in [0..1].
+	for _, q := range []string{
+		`99`,
+		`1.5`,
+		`1.0000001`,
+		`-0.1`,
+		`abc`,
+		`NaN`,
+		`Inf`,
+		`"abc"`,
+	} {
+		if _, err := ParseQuery(`{} | quantile_over_time(duration, ` + q + `)`); err == nil {
+			t.Fatalf("expected error for quantile %s", q)
+		}
 	}
 }
 
