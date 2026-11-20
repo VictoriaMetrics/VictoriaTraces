@@ -3,18 +3,20 @@ import uPlot, { AlignedData } from "uplot";
 import { DATE_TIME_FORMAT } from "../../../../constants/date";
 import classNames from "classnames";
 import "./style.scss";
-import { sortLogHits } from "../hitsUtils";
+import { getHitKey, sortLogHits } from "../hitsUtils";
+import { LogHits } from "../../../../api/types";
 import { vmDate } from "../../../../utils/time";
 
 interface Props {
   data: AlignedData;
+  logHits: LogHits[];
   uPlotInst?: uPlot;
   focusDataIdx: number;
 }
 
 const timeFormat = (ts: number) => vmDate(ts * 1000).tz().format(DATE_TIME_FORMAT);
 
-const BarHitsTooltip: FC<Props> = ({ data, focusDataIdx, uPlotInst }) => {
+const BarHitsTooltip: FC<Props> = ({ data, logHits, focusDataIdx, uPlotInst }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   const tooltipData = useMemo(() => {
@@ -28,7 +30,10 @@ const BarHitsTooltip: FC<Props> = ({ data, focusDataIdx, uPlotInst }) => {
       const stroke = (targetSeries?.stroke as () => string)?.();
       const label = targetSeries?.label as string;
       const show = targetSeries?.show;
+      const logHit = logHits[i];
       return {
+        key: logHit ? getHitKey(logHit) : label,
+        isOther: logHit?._isOther,
         label,
         stroke,
         value,
@@ -47,7 +52,7 @@ const BarHitsTooltip: FC<Props> = ({ data, focusDataIdx, uPlotInst }) => {
       total: tooltipItems.reduce((acc, item) => acc + item.value, 0),
       timestamp: `${timeFormat(time)} - ${timeFormat(timeNext)}`,
     };
-  }, [focusDataIdx, uPlotInst, data]);
+  }, [focusDataIdx, uPlotInst, data, logHits]);
 
   const tooltipPosition = useMemo(() => {
     if (!uPlotInst || !tooltipData.total || !tooltipRef.current) return;
@@ -98,7 +103,7 @@ const BarHitsTooltip: FC<Props> = ({ data, focusDataIdx, uPlotInst }) => {
         {tooltipData.values.map((item) => (
           <div
             className="vm-chart-tooltip-data"
-            key={item.label}
+            key={item.key}
           >
             <span
               className="vm-chart-tooltip-data__marker"
