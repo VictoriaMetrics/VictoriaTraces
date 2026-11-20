@@ -104,7 +104,7 @@ export function buildInClause(field: string, values: string[]): string {
 }
 
 export function buildExcludeClause(field: string, value: string): string {
-  return `-${formatLogsqlField(field)}:${quoteLogsqlValue(value)}`;
+  return `-${formatLogsqlField(field)}:=${quoteLogsqlValue(value)}`;
 }
 
 export function buildDurationClause(minValue: string, maxValue: string): string {
