@@ -13,7 +13,7 @@ import classNames from "classnames";
 import BarHitsTooltip from "../BarHitsTooltip/BarHitsTooltip";
 import { TimeParams, TimePeriod } from "../../../../types";
 import BarHitsLegend from "../BarHitsLegend/BarHitsLegend";
-import { calculateTotalHits, sortLogHits } from "../hitsUtils";
+import { calculateTotalHits, sortLogHits, toggleHiddenLabels } from "../hitsUtils";
 
 interface Props {
   logHits: LogHits[];
@@ -36,9 +36,17 @@ const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, se
   const { onReadyChart, isPanning } = useReadyChart(setPlotScale);
   useZoomChart({ uPlotInst, element: uPlotRef, xRange, setPlotScale });
 
+  const [hiddenLabels, setHiddenLabels] = useState<Set<string>>(() => new Set());
+  const labels = useMemo(() => logHits.map(getLabelFromLogHit), [logHits]);
+
+  const handleToggleSeries = useCallback((label: string, isMultiSelect: boolean) => {
+    setHiddenLabels(prev => toggleHiddenLabels(labels, prev, label, isMultiSelect));
+  }, [labels]);
+
   const { data, bands } = useMemo(() => {
-    return graphOptions.stacked ? stack(_data, () => false) : { data: _data, bands: [] };
-  }, [graphOptions, _data]);
+    if (!graphOptions.stacked) return { data: _data, bands: [] };
+    return stack(_data, i => hiddenLabels.has(labels[i - 1]));
+  }, [graphOptions, _data, labels, hiddenLabels]);
 
   const { options, series, focusDataIdx } = useBarHitsOptions({
     data,
@@ -77,12 +85,7 @@ const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, se
   useEffect(() => {
     if (!uPlotInst) return;
 
-    const oldSeriesMap = new Map(uPlotInst.series.map(s => [s.label, s]));
-
-    const syncedSeries = series.map(s => {
-      const old = oldSeriesMap.get(s.label);
-      return old ? { ...s, show: old.show } : s;
-    });
+    const syncedSeries = series.map(s => ({ ...s, show: !hiddenLabels.has(`${s.label}`) }));
 
     delSeries(uPlotInst);
     addSeries(uPlotInst, syncedSeries, true);
@@ -91,7 +94,7 @@ const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, se
       uPlotInst.addBand(band);
     });
     uPlotInst.redraw();
-  }, [series, bands, uPlotInst]);
+  }, [series, bands, hiddenLabels, uPlotInst]);
 
   useEffect(() => {
     if (!uPlotRef.current) return;
@@ -140,7 +143,8 @@ const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, se
         />
       </div>
       {uPlotInst && <BarHitsLegend
-        uPlotInst={uPlotInst}
+        hiddenLabels={hiddenLabels}
+        onToggleSeries={handleToggleSeries}
         onApplyFilter={onApplyFilter}
         legendDetails={legendDetails}
       />}

@@ -1,32 +1,18 @@
-import { FC, useEffect, useState } from "preact/compat";
-import uPlot, { Series } from "uplot";
+import { FC } from "preact/compat";
 import "./style.scss";
 import BarHitsLegendItem from "./BarHitsLegendItem";
 import { LegendLogHits } from "../../../../api/types";
 import { ApplyHitsFilter } from "../types";
 
 interface Props {
-  uPlotInst: uPlot;
   legendDetails: LegendLogHits[];
+  hiddenLabels: ReadonlySet<string>;
+  onToggleSeries: (label: string, isMultiSelect: boolean) => void;
   onApplyFilter: ApplyHitsFilter;
 }
 
-const BarHitsLegend: FC<Props> = ({ uPlotInst, legendDetails, onApplyFilter }) => {
-  const [series, setSeries] = useState<Series[]>([]);
+const BarHitsLegend: FC<Props> = ({ legendDetails, hiddenLabels, onToggleSeries, onApplyFilter }) => {
   const totalHits = legendDetails[0]?.totalHits || 0;
-
-  const handleRedrawGraph = () => {
-    uPlotInst.redraw();
-  };
-
-  useEffect(() => {
-    if (!uPlotInst.hooks.draw) {
-      uPlotInst.hooks.draw = [];
-    }
-    uPlotInst.hooks.draw.push(() => {
-      setSeries(uPlotInst.series.filter(s => s.scale !== "x"));
-    });
-  }, [uPlotInst]);
 
   return (
     <div className="vm-bar-hits-legend">
@@ -34,8 +20,8 @@ const BarHitsLegend: FC<Props> = ({ uPlotInst, legendDetails, onApplyFilter }) =
         <BarHitsLegendItem
           key={legend.label}
           legend={legend}
-          series={series}
-          onRedrawGraph={handleRedrawGraph}
+          isHidden={hiddenLabels.has(legend.label)}
+          onToggleSeries={onToggleSeries}
           onApplyFilter={onApplyFilter}
         />
       ))}

@@ -1,6 +1,5 @@
-import { FC, useMemo, useRef, useState, MouseEvent } from "preact/compat";
+import { FC, useRef, useState, MouseEvent } from "preact/compat";
 import classNames from "classnames";
-import { Series } from "uplot";
 import { LegendLogHits } from "../../../../api/types";
 import { formatNumberShort } from "../../../../utils/number";
 import Popper from "../../../Main/Popper/Popper";
@@ -10,12 +9,12 @@ import { ApplyHitsFilter } from "../types";
 
 interface Props {
   legend: LegendLogHits;
-  series: Series[];
-  onRedrawGraph: () => void;
+  isHidden: boolean;
+  onToggleSeries: (label: string, isMultiSelect: boolean) => void;
   onApplyFilter: ApplyHitsFilter;
 }
 
-const BarHitsLegendItem: FC<Props> = ({ legend, series, onRedrawGraph, onApplyFilter }) => {
+const BarHitsLegendItem: FC<Props> = ({ legend, isHidden, onToggleSeries, onApplyFilter }) => {
   const {
     value: openContextMenu,
     setTrue: handleOpenContextMenu,
@@ -25,23 +24,10 @@ const BarHitsLegendItem: FC<Props> = ({ legend, series, onRedrawGraph, onApplyFi
   const legendRef = useRef<HTMLDivElement>(null);
   const [clickPosition, setClickPosition] = useState<{ top: number; left: number } | null>(null);
 
-  const targetSeries = useMemo(() => series.find(s => s.label === legend.label), [series, legend.label]);
-
   const totalShortFormatted = formatNumberShort(legend.total);
 
   const handleClickByStream = (e: MouseEvent<HTMLDivElement>) => {
-    if (!targetSeries) return;
-
-    if (e.metaKey || e.ctrlKey) {
-      targetSeries.show = !targetSeries.show;
-    } else {
-      const isOnlyTargetVisible = series.every(s => s === targetSeries || !s.show);
-      series.forEach(s => {
-        s.show = isOnlyTargetVisible || (s === targetSeries);
-      });
-    }
-
-    onRedrawGraph();
+    onToggleSeries(legend.label, e.metaKey || e.ctrlKey);
   };
 
   const handleContextMenu = (e: MouseEvent<HTMLDivElement>) => {
@@ -56,7 +42,7 @@ const BarHitsLegendItem: FC<Props> = ({ legend, series, onRedrawGraph, onApplyFi
       className={classNames({
         "vm-bar-hits-legend-item": true,
         "vm-bar-hits-legend-item_other": legend.isOther,
-        "vm-bar-hits-legend-item_hide": !targetSeries?.show,
+        "vm-bar-hits-legend-item_hide": isHidden,
       })}
       onClick={handleClickByStream}
       onContextMenu={handleContextMenu}
