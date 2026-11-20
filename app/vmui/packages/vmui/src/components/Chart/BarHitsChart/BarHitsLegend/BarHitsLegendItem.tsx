@@ -10,7 +10,7 @@ import { ApplyHitsFilter } from "../types";
 interface Props {
   legend: LegendLogHits;
   isHidden: boolean;
-  onToggleSeries: (label: string, isMultiSelect: boolean) => void;
+  onToggleSeries: (key: string, isMultiSelect: boolean) => void;
   onApplyFilter: ApplyHitsFilter;
 }
 
@@ -27,7 +27,7 @@ const BarHitsLegendItem: FC<Props> = ({ legend, isHidden, onToggleSeries, onAppl
   const totalShortFormatted = formatNumberShort(legend.total);
 
   const handleClickByStream = (e: MouseEvent<HTMLDivElement>) => {
-    onToggleSeries(legend.label, e.metaKey || e.ctrlKey);
+    onToggleSeries(legend.key, e.metaKey || e.ctrlKey);
   };
 
   const handleContextMenu = (e: MouseEvent<HTMLDivElement>) => {

@@ -6,21 +6,21 @@ import { ApplyHitsFilter } from "../types";
 
 interface Props {
   legendDetails: LegendLogHits[];
-  hiddenLabels: ReadonlySet<string>;
-  onToggleSeries: (label: string, isMultiSelect: boolean) => void;
+  hiddenKeys: ReadonlySet<string>;
+  onToggleSeries: (key: string, isMultiSelect: boolean) => void;
   onApplyFilter: ApplyHitsFilter;
 }
 
-const BarHitsLegend: FC<Props> = ({ legendDetails, hiddenLabels, onToggleSeries, onApplyFilter }) => {
+const BarHitsLegend: FC<Props> = ({ legendDetails, hiddenKeys, onToggleSeries, onApplyFilter }) => {
   const totalHits = legendDetails[0]?.totalHits || 0;
 
   return (
     <div className="vm-bar-hits-legend">
       {legendDetails.map((legend) => (
         <BarHitsLegendItem
-          key={legend.label}
+          key={legend.key}
           legend={legend}
-          isHidden={hiddenLabels.has(legend.label)}
+          isHidden={hiddenKeys.has(legend.key)}
           onToggleSeries={onToggleSeries}
           onApplyFilter={onApplyFilter}
         />

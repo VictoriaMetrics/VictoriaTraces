@@ -13,7 +13,7 @@ import classNames from "classnames";
 import BarHitsTooltip from "../BarHitsTooltip/BarHitsTooltip";
 import { TimeParams, TimePeriod } from "../../../../types";
 import BarHitsLegend from "../BarHitsLegend/BarHitsLegend";
-import { calculateTotalHits, sortLogHits, toggleHiddenLabels } from "../hitsUtils";
+import { calculateTotalHits, getHitKey, pruneHiddenSeries, sortLogHits, toggleHiddenSeries } from "../hitsUtils";
 
 interface Props {
   logHits: LogHits[];
@@ -25,7 +25,7 @@ interface Props {
 }
 
 const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, setPeriod, onApplyFilter }: Props) => {
-  // ResizeObserver (not window resize) so the plot picks up its real size when the panel goes from hidden to shown.
+  // ResizeObserver, not window resize: a hidden panel gets its real size when shown.
   const containerRef = useRef<HTMLDivElement>(null);
   const { width: containerWidth = 0, height: containerHeight = 0 } = useResizeObserver({ ref: containerRef });
   const containerSize = useMemo(() => ({ width: containerWidth, height: containerHeight }), [containerWidth, containerHeight]);
@@ -36,17 +36,24 @@ const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, se
   const { onReadyChart, isPanning } = useReadyChart(setPlotScale);
   useZoomChart({ uPlotInst, element: uPlotRef, xRange, setPlotScale });
 
-  const [hiddenLabels, setHiddenLabels] = useState<Set<string>>(() => new Set());
-  const labels = useMemo(() => logHits.map(getLabelFromLogHit), [logHits]);
+  const [hiddenKeys, setHiddenKeys] = useState<Set<string>>(() => new Set());
+  const seriesKeys = useMemo(() => logHits.map(getHitKey), [logHits]);
 
-  const handleToggleSeries = useCallback((label: string, isMultiSelect: boolean) => {
-    setHiddenLabels(prev => toggleHiddenLabels(labels, prev, label, isMultiSelect));
-  }, [labels]);
+  // Adjusted during render so the stack never sees keys of a previous data set.
+  const [prevSeriesKeys, setPrevSeriesKeys] = useState(seriesKeys);
+  if (prevSeriesKeys !== seriesKeys) {
+    setPrevSeriesKeys(seriesKeys);
+    setHiddenKeys(prev => pruneHiddenSeries(prev, seriesKeys));
+  }
+
+  const handleToggleSeries = useCallback((key: string, isMultiSelect: boolean) => {
+    setHiddenKeys(prev => toggleHiddenSeries(seriesKeys, prev, key, isMultiSelect));
+  }, [seriesKeys]);
 
   const { data, bands } = useMemo(() => {
     if (!graphOptions.stacked) return { data: _data, bands: [] };
-    return stack(_data, i => hiddenLabels.has(labels[i - 1]));
-  }, [graphOptions, _data, labels, hiddenLabels]);
+    return stack(_data, i => hiddenKeys.has(seriesKeys[i - 1]));
+  }, [graphOptions, _data, seriesKeys, hiddenKeys]);
 
   const { options, series, focusDataIdx } = useBarHitsOptions({
     data,
@@ -60,16 +67,15 @@ const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, se
   });
 
   const prepareLegend = useCallback((hits: LogHits[], totalHits: number): LegendLogHits[] => {
-    return hits.map((hit) => {
-      const label = getLabelFromLogHit(hit);
-
+    return hits.map((hit, i) => {
       const legendItem: LegendLogHits = {
-        label,
+        key: getHitKey(hit),
+        label: getLabelFromLogHit(hit),
         isOther: hit._isOther,
         fields: hit.fields,
         total: hit.total || 0,
         totalHits,
-        stroke: series.find((s) => s.label === label)?.stroke,
+        stroke: series[i + 1]?.stroke,
       };
 
       return legendItem;
@@ -85,7 +91,7 @@ const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, se
   useEffect(() => {
     if (!uPlotInst) return;
 
-    const syncedSeries = series.map(s => ({ ...s, show: !hiddenLabels.has(`${s.label}`) }));
+    const syncedSeries = series.map((s, i) => (i ? { ...s, show: !hiddenKeys.has(seriesKeys[i - 1]) } : s));
 
     delSeries(uPlotInst);
     addSeries(uPlotInst, syncedSeries, true);
@@ -94,15 +100,15 @@ const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, se
       uPlotInst.addBand(band);
     });
     uPlotInst.redraw();
-  }, [series, bands, hiddenLabels, uPlotInst]);
+  }, [series, bands, seriesKeys, hiddenKeys, uPlotInst]);
 
   useEffect(() => {
     if (!uPlotRef.current) return;
     const uplot = new uPlot(options, data, uPlotRef.current);
-    // eslint-disable-next-line @eslint-react/set-state-in-effect -- the uPlot instance can only be created once its container is in the DOM
+    // eslint-disable-next-line @eslint-react/set-state-in-effect -- the uPlot instance needs its container in the DOM
     setUPlotInst(uplot);
     return () => uplot.destroy();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- intentionally mount-only: later `options`/`data` changes are applied to the live instance by the effects below instead of re-creating it
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- mount-only: the effects below apply later `options`/`data` changes
   }, []);
 
   useEffect(() => {
@@ -139,11 +145,12 @@ const BarHitsPlot: FC<Props> = ({ graphOptions, logHits, data: _data, period, se
         <BarHitsTooltip
           uPlotInst={uPlotInst}
           data={_data}
+          logHits={logHits}
           focusDataIdx={focusDataIdx}
         />
       </div>
       {uPlotInst && <BarHitsLegend
-        hiddenLabels={hiddenLabels}
+        hiddenKeys={hiddenKeys}
         onToggleSeries={handleToggleSeries}
         onApplyFilter={onApplyFilter}
         legendDetails={legendDetails}
