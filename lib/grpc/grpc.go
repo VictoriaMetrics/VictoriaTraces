@@ -37,23 +37,42 @@ const (
 // dataFrameHeaderLen is the length of `Compressed-Flag` and `Message-Length` in DATA frame.
 const dataFrameHeaderLen = 5
 
-// ReadDataFrame reads DATA frame from r into bb and returns the message data without DATA frame header.
+// ReadDataFrame reads DATA frame from r into bb and returns the message data without DATA frame header,
+// along with whether Compressed-Flag is set.
 //
 // The maxMessageSize limits the maximum message data size, which can be read from r.
-func ReadDataFrame(bb *bytesutil.ByteBuffer, r io.Reader, maxMessageSize *flagutil.Bytes) ([]byte, error) {
+func ReadDataFrame(bb *bytesutil.ByteBuffer, r io.Reader, maxMessageSize *flagutil.Bytes) ([]byte, bool, error) {
 	lr := ioutil.GetLimitedReader(r, dataFrameHeaderLen+maxMessageSize.N+1)
 	defer ioutil.PutLimitedReader(lr)
 
 	if _, err := bb.ReadFrom(lr); err != nil {
-		return nil, fmt.Errorf("cannot read request body: %w", err)
+		return nil, false, fmt.Errorf("cannot read request body: %w", err)
 	}
 	if int64(len(bb.B)) > dataFrameHeaderLen+maxMessageSize.N {
-		return nil, fmt.Errorf("too big gRPC message size exceeding -%s=%d bytes", maxMessageSize.Name, maxMessageSize.N)
+		return nil, false, fmt.Errorf("too big gRPC message size exceeding -%s=%d bytes", maxMessageSize.Name, maxMessageSize.N)
 	}
 	if err := CheckDataFrame(bb.B); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return bb.B[dataFrameHeaderLen:], nil
+	return bb.B[dataFrameHeaderLen:], bb.B[0] == 1, nil
+}
+
+// ResolveEncoding returns the effective compression encoding for a gRPC message
+// given its Compressed-Flag and the `grpc-encoding` request header.
+//
+// Per gRPC over HTTP/2, Compressed-Flag=0 means the message is uncompressed even
+// when a `grpc-encoding` header is set.
+func ResolveEncoding(r *http.Request, isCompressed bool) (string, error) {
+	if !isCompressed {
+		return "", nil
+	}
+	encoding := r.Header.Get("grpc-encoding")
+	switch encoding {
+	case "", "identity", "none":
+		return "", fmt.Errorf("missing compression encoding in grpc-encoding header for compressed gRPC message: %q", encoding)
+	default:
+		return encoding, nil
+	}
 }
 
 // CheckDataFrame verify the `Compressed-Flag` and `Message-Length` in DATA frame.

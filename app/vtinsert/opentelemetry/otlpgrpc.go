@@ -67,7 +67,13 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	bb := compressedBytes.Get()
 	defer compressedBytes.Put(bb)
 
-	message, err := grpc.ReadDataFrame(bb, r.Body, maxRequestSize)
+	message, isCompressed, err := grpc.ReadDataFrame(bb, r.Body, maxRequestSize)
+	if err != nil {
+		errorsGRPCTotal.Inc()
+		grpc.Errorf(w, r, grpc.StatusCodeInternal, err.Error())
+		return
+	}
+	encoding, err := grpc.ResolveEncoding(r, isCompressed)
 	if err != nil {
 		errorsGRPCTotal.Inc()
 		grpc.Errorf(w, r, grpc.StatusCodeInternal, err.Error())
@@ -79,7 +85,6 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	// for potentially better efficiency.
 	cp.StreamFields = append(mandatoryStreamFields, cp.StreamFields...)
 
-	encoding := r.Header.Get("grpc-encoding")
 	err = protoparserutil.ReadUncompressedData(bytes.NewReader(message), encoding, maxRequestSize, func(data []byte) error {
 		var (
 			callbackErr error
