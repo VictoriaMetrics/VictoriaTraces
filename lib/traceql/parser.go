@@ -238,17 +238,17 @@ func parseFilter(lex *lexer, allowPipeKeywords bool) (filter, error) {
 		}
 	}
 
-	fo, err := parseFilterOr(lex, "")
+	fo, err := parseFilterOr(lex, "", false)
 	if err != nil {
 		return nil, err
 	}
 	return fo, nil
 }
 
-func parseFilterOr(lex *lexer, fieldName string) (filter, error) {
+func parseFilterOr(lex *lexer, fieldName string, inSpan bool) (filter, error) {
 	var filters []filter
 	for {
-		f, err := parseFilterAnd(lex, fieldName)
+		f, err := parseFilterAnd(lex, fieldName, inSpan)
 		if err != nil {
 			return nil, err
 		}
@@ -270,10 +270,10 @@ func parseFilterOr(lex *lexer, fieldName string) (filter, error) {
 	}
 }
 
-func parseFilterAnd(lex *lexer, fieldName string) (filter, error) {
+func parseFilterAnd(lex *lexer, fieldName string, inSpan bool) (filter, error) {
 	var filters []filter
 	for {
-		f, err := parseFilterGeneric(lex, fieldName)
+		f, err := parseFilterGeneric(lex, fieldName, inSpan)
 		if err != nil {
 			return nil, err
 		}
@@ -284,7 +284,8 @@ func parseFilterAnd(lex *lexer, fieldName string) (filter, error) {
 				return filters[0], nil
 			}
 			fa := &filterAnd{
-				filters: filters,
+				filters:   filters,
+				isSpanset: !inSpan,
 			}
 			return fa, nil
 		case lex.isKeyword("and", "&&"):
@@ -320,7 +321,7 @@ func parsePipes(lex *lexer) ([]pipe, error) {
 	}
 }
 
-func parseFilterGeneric(lex *lexer, fieldName string) (filter, error) {
+func parseFilterGeneric(lex *lexer, fieldName string, inSpan bool) (filter, error) {
 	// Verify the previous adjacent token
 	if lex.isKeyword("{", "(") {
 		if err := lex.checkPrevAdjacentToken("{", "(", "||", "&&"); err != nil {
@@ -338,7 +339,7 @@ func parseFilterGeneric(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword("{"):
 		return parseFilterCurlyBrackets(lex, fieldName)
 	case lex.isKeyword("("):
-		return parseFilterParens(lex, fieldName)
+		return parseFilterParens(lex, fieldName, inSpan)
 	case lex.isKeyword(">", "<", ">=", "<=", "=", "=~", "!=", "!~"):
 		return parseFilterCommon(lex, fieldName)
 	case lex.isKeyword("&&", "||", "and", "or"):
@@ -348,7 +349,7 @@ func parseFilterGeneric(lex *lexer, fieldName string) (filter, error) {
 	case lex.isKeyword("true", "false"):
 		return parseFilterTrue(lex, fieldName)
 	default:
-		return parseFilterPhrase(lex, fieldName)
+		return parseFilterPhrase(lex, fieldName, inSpan)
 	}
 }
 
@@ -369,7 +370,7 @@ func parseFilterTrue(lex *lexer, fieldName string) (filter, error) {
 	return &filterNoop{}, nil
 }
 
-func parseFilterParens(lex *lexer, fieldName string) (filter, error) {
+func parseFilterParens(lex *lexer, fieldName string, inSpan bool) (filter, error) {
 	lex.nextToken()
 
 	if lex.isKeyword("") {
@@ -380,7 +381,7 @@ func parseFilterParens(lex *lexer, fieldName string) (filter, error) {
 		}, nil
 	}
 
-	f, err := parseFilterOr(lex, fieldName)
+	f, err := parseFilterOr(lex, fieldName, inSpan)
 	if err != nil {
 		return nil, err
 	}
@@ -404,7 +405,7 @@ func parseFilterCurlyBrackets(lex *lexer, fieldName string) (filter, error) {
 		}, nil
 	}
 
-	f, err := parseFilterOr(lex, fieldName)
+	f, err := parseFilterOr(lex, fieldName, true)
 	if err != nil {
 		return nil, err
 	}
@@ -420,14 +421,14 @@ func parseFilterCurlyBrackets(lex *lexer, fieldName string) (filter, error) {
 	return ft, nil
 }
 
-func parseFilterPhrase(lex *lexer, fieldName string) (filter, error) {
+func parseFilterPhrase(lex *lexer, fieldName string, inSpan bool) (filter, error) {
 	phrase, err := lex.nextCompoundToken()
 	if err != nil {
 		return nil, err
 	}
 
 	if fieldName == "" {
-		return parseFilterGeneric(lex, phrase)
+		return parseFilterGeneric(lex, phrase, inSpan)
 	}
 
 	f := &filterPhrase{
