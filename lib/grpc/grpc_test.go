@@ -3,6 +3,8 @@ package grpc
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 )
 
 // TestGRPCErrorf verifies the gRPC headers in the error response.
@@ -90,4 +93,20 @@ func TestReadDataFrame_Failure(t *testing.T) {
 	f(nil, 10, "invalid gRPC header length: 0")
 	f(append(newDataFrame("foo"), 'x'), 10, "invalid gRPC message length")
 	f([]byte{2, 0, 0, 0, 0}, 10, "invalid gRPC compressed flag 2")
+}
+
+func TestStatusCodeFromError(t *testing.T) {
+	f := func(err error, want string) {
+		t.Helper()
+		if got := StatusCodeFromError(err); got != want {
+			t.Fatalf("StatusCodeFromError(%v) = %q, want %q", err, got, want)
+		}
+	}
+
+	f(nil, StatusCodeInternal)
+	f(errors.New("plain error"), StatusCodeInternal)
+	f(&httpserver.ErrorWithStatusCode{Err: errors.New("bad"), StatusCode: http.StatusBadRequest}, StatusCodeInternal)
+	f(&httpserver.ErrorWithStatusCode{Err: errors.New("readonly"), StatusCode: http.StatusTooManyRequests}, StatusCodeUnavailable)
+	f(&httpserver.ErrorWithStatusCode{Err: errors.New("busy"), StatusCode: http.StatusServiceUnavailable}, StatusCodeUnavailable)
+	f(fmt.Errorf("wrapped: %w", &httpserver.ErrorWithStatusCode{Err: errors.New("busy"), StatusCode: http.StatusServiceUnavailable}), StatusCodeUnavailable)
 }

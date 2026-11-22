@@ -2,12 +2,14 @@ package grpc
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ioutil"
 
 	"github.com/VictoriaMetrics/VictoriaTraces/lib/http2server"
@@ -86,6 +88,23 @@ func CheckDataFrame(req []byte) error {
 		return fmt.Errorf("invalid gRPC message length: %d, actual length: %d", messageLength, n)
 	}
 	return nil
+}
+
+// StatusCodeFromError returns the gRPC status code corresponding to err.
+//
+// Transient overload and rate-limit errors (HTTP 429, 502, 503, 504) map to
+// StatusCodeUnavailable so OTLP/gRPC clients retry them instead of dropping spans
+// on StatusCodeInternal.
+func StatusCodeFromError(err error) string {
+	var esc *httpserver.ErrorWithStatusCode
+	if errors.As(err, &esc) {
+		switch esc.StatusCode {
+		case http.StatusTooManyRequests, http.StatusServiceUnavailable,
+			http.StatusBadGateway, http.StatusGatewayTimeout:
+			return StatusCodeUnavailable
+		}
+	}
+	return StatusCodeInternal
 }
 
 // Errorf writes formatted error code and message in gRPC protocol over HTTP to w, and to logger.

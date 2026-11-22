@@ -51,7 +51,7 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 
 	if err := insertutil.CanWriteData(); err != nil {
 		errorsGRPCTotal.Inc()
-		grpc.Errorf(w, r, grpc.StatusCodeInternal, err.Error())
+		grpc.Errorf(w, r, grpc.StatusCodeFromError(err), err.Error())
 		return
 	}
 
@@ -91,7 +91,7 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	})
 	if err != nil {
 		errorsGRPCTotal.Inc()
-		grpc.Errorf(w, r, grpc.StatusCodeInternal, fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
+		grpc.Errorf(w, r, grpc.StatusCodeFromError(err), fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
 		return
 	}
 

@@ -63,7 +63,7 @@ func otlpExportTracesHandler(r *http.Request, w http.ResponseWriter) {
 	err = protoparserutil.ReadUncompressedData(bytes.NewReader(message), encoding, maxRequestSize, pushExportTraceServiceRequest)
 	if err != nil {
 		errorsGRPCTotal.Inc()
-		grpc.Errorf(w, r, grpc.StatusCodeInternal, fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
+		grpc.Errorf(w, r, grpc.StatusCodeFromError(err), fmt.Sprintf("cannot read OpenTelemetry protocol data: %s", err))
 		return
 	}
 
