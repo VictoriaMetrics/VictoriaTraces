@@ -1,7 +1,15 @@
 package traceql
 
 import (
+	"context"
+	"sort"
+	"strings"
+	"sync"
 	"testing"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaLogs/lib/logstorage"
+	otelpb "github.com/VictoriaMetrics/VictoriaTraces/lib/protoparser/opentelemetry/pb"
 )
 
 func TestLexer(t *testing.T) {
@@ -162,4 +170,134 @@ func TestGetTraceDurationFilters(t *testing.T) {
 	f(`{(traceDuration=10ms && c=d && c=d)}`, `* and c:=d and c:=d | join by (trace_id) ({trace_id_idx_stream!=""}  AND duration := 10000000  | fields trace_id_idx  | rename trace_id_idx as trace_id) inner`)
 	f(`{(traceDuration>10ms && c=d && c=d)}`, `* and c:=d and c:=d | join by (trace_id) ({trace_id_idx_stream!=""}  AND duration :> 10000000  | fields trace_id_idx  | rename trace_id_idx as trace_id) inner`)
 	f(`{(traceDuration>=10ms && traceDuration<1s && c=d)}`, `* and * and c:=d | join by (trace_id) ({trace_id_idx_stream!=""}  AND duration :>= 10000000 AND duration :< 1000000000  | fields trace_id_idx  | rename trace_id_idx as trace_id) inner`)
+	f(`{trace:duration=10ms}`, `* | join by (trace_id) ({trace_id_idx_stream!=""}  AND duration := 10000000  | fields trace_id_idx  | rename trace_id_idx as trace_id) inner`)
+	f(`{trace:duration>10ms && c=d}`, `* and c:=d | join by (trace_id) ({trace_id_idx_stream!=""}  AND duration :> 10000000  | fields trace_id_idx  | rename trace_id_idx as trace_id) inner`)
+}
+
+func TestTempoIntrinsicFilters(t *testing.T) {
+	f := func(s, expect string) {
+		t.Helper()
+		q, err := ParseQuery(s)
+		if err != nil {
+			t.Fatalf("ParseQuery(%q): %v", s, err)
+		}
+		got := q.String()
+		if got != expect {
+			t.Fatalf("ParseQuery(%q):\n  got:  %q\n  want: %q", s, got, expect)
+		}
+		full := `{resource_attr:service.name!=""} AND ` + got
+		if _, err := logstorage.ParseQuery(full); err != nil {
+			t.Fatalf("logstorage.ParseQuery(%q): %v", full, err)
+		}
+	}
+
+	// span:* intrinsics map to the same VictoriaTraces fields as unprefixed intrinsics.
+	f(`{span:name = "query"}`, `{name=query}`)
+	f(`{span:status = "error"}`, `status_code:=2`)
+	f(`{span:status =~ "ok|error"}`, `status_code:~"1|2"`)
+	f(`{span:kind = "server"}`, `kind:=2`)
+	f(`{span:duration > 10ms}`, `duration:>10000000`)
+	f(`{span:id = "0a0b"}`, `span_id:=0a0b`)
+	f(`{span:parentID = "0c0d"}`, `parent_span_id:=0c0d`)
+	f(`{span:statusMessage = "boom"}`, `status_message:=boom`)
+
+	// trace-root intrinsics query the trace's root span (parent_span_id="").
+	f(`{rootServiceName = "demo"}`,
+		`trace_id:in({resource_attr:service.name!=""} AND parent_span_id:="" AND {"resource_attr:service.name"=demo} | fields trace_id)`)
+	f(`{trace:rootService = "demo"}`,
+		`trace_id:in({resource_attr:service.name!=""} AND parent_span_id:="" AND {"resource_attr:service.name"=demo} | fields trace_id)`)
+	f(`{rootName = "query"}`,
+		`trace_id:in({resource_attr:service.name!=""} AND parent_span_id:="" AND {name=query} | fields trace_id)`)
+	f(`{trace:rootName = "query"}`,
+		`trace_id:in({resource_attr:service.name!=""} AND parent_span_id:="" AND {name=query} | fields trace_id)`)
+	f(`{span:name = "select" && trace:rootService = "demo"}`,
+		`{name="select"} and trace_id:in({resource_attr:service.name!=""} AND parent_span_id:="" AND {"resource_attr:service.name"=demo} | fields trace_id)`)
+}
+
+// TestTempoIntrinsicFiltersAgainstStorage verifies that the LogsQL queries produced
+// for span:name, span:status, trace:rootService, rootServiceName, and rootName
+// match the expected trace spans when executed against real logstorage.Storage.
+func TestTempoIntrinsicFiltersAgainstStorage(t *testing.T) {
+	storage := logstorage.MustOpenStorage(t.TempDir(), &logstorage.StorageConfig{})
+	t.Cleanup(storage.MustClose)
+
+	ts := time.Now().Add(-2 * time.Minute).UnixNano()
+	streamFields := []string{otelpb.ResourceAttrServiceName, otelpb.NameField}
+	lr := logstorage.GetLogRows(streamFields, nil, nil, nil, "-")
+	defer logstorage.PutLogRows(lr)
+
+	addSpan := func(traceID, spanID, parentSpanID, service, name, statusCode string) {
+		lr.MustAdd(logstorage.TenantID{}, ts, []logstorage.Field{
+			{Name: "_msg", Value: "-"},
+			{Name: otelpb.TraceIDField, Value: traceID},
+			{Name: otelpb.SpanIDField, Value: spanID},
+			{Name: otelpb.ParentSpanIDField, Value: parentSpanID},
+			{Name: otelpb.ResourceAttrServiceName, Value: service},
+			{Name: otelpb.NameField, Value: name},
+			{Name: otelpb.StatusCodeField, Value: statusCode},
+		}, -1)
+	}
+
+	// Trace 1: root "demo"/"query" (error) + child "db"/"select" (ok)
+	addSpan("trace-demo", "span-1", "", "demo", "query", "2")
+	addSpan("trace-demo", "span-2", "span-1", "db", "select", "1")
+	// Trace 2: root "other"/"health" (ok)
+	addSpan("trace-other", "span-3", "", "other", "health", "1")
+	storage.MustAddRows(lr)
+	storage.DebugFlush()
+
+	runSpanIDs := func(traceQL string) []string {
+		t.Helper()
+		fq, err := ParseQuery(traceQL)
+		if err != nil {
+			t.Fatalf("ParseQuery(%q): %v", traceQL, err)
+		}
+		qStr := `{resource_attr:service.name!=""} AND ` + fq.String()
+		lq, err := logstorage.ParseQueryAtTimestamp(qStr, time.Now().UnixNano())
+		if err != nil {
+			t.Fatalf("logstorage.ParseQuery(%q): %v", qStr, err)
+		}
+		var qs logstorage.QueryStats
+		qctx := logstorage.NewQueryContext(context.Background(), &qs, []logstorage.TenantID{{}}, lq, false, nil)
+		var mu sync.Mutex
+		var got []string
+		storage.RunQuery(qctx, func(_ uint, db *logstorage.DataBlock) {
+			for _, col := range db.GetColumns(false) {
+				if col.Name == otelpb.SpanIDField {
+					mu.Lock()
+					for _, v := range col.Values {
+						got = append(got, strings.Clone(v))
+					}
+					mu.Unlock()
+				}
+			}
+		})
+		sort.Strings(got)
+		return got
+	}
+
+	cases := []struct {
+		traceQL string
+		want    []string
+	}{
+		{`{span:name = "query"}`, []string{"span-1"}},
+		{`{span:status = "error"}`, []string{"span-1"}},
+		{`{rootServiceName = "demo"}`, []string{"span-1", "span-2"}},
+		{`{trace:rootService = "demo"}`, []string{"span-1", "span-2"}},
+		{`{rootName = "query"}`, []string{"span-1", "span-2"}},
+		{`{span:name = "select" && trace:rootService = "demo"}`, []string{"span-2"}},
+		{`{rootServiceName != "demo"}`, []string{"span-3"}},
+		{`{rootServiceName = "demo" || rootName = "health"}`, []string{"span-1", "span-2", "span-3"}},
+	}
+	for _, tc := range cases {
+		got := runSpanIDs(tc.traceQL)
+		if len(got) != len(tc.want) {
+			t.Fatalf("%s: got %v, want %v", tc.traceQL, got, tc.want)
+		}
+		for i := range tc.want {
+			if got[i] != tc.want[i] {
+				t.Fatalf("%s: got %v, want %v", tc.traceQL, got, tc.want)
+			}
+		}
+	}
 }

@@ -1,6 +1,7 @@
 package traceql
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -95,10 +96,43 @@ func SpanKindToName(code string) string {
 	return code
 }
 
+func isTraceDurationField(fieldName string) bool {
+	return fieldName == "traceDuration" || fieldName == "trace:duration"
+}
+
+func (fc *filterCommon) rootSpanField() (string, bool) {
+	switch fc.fieldName {
+	case "rootServiceName", "trace:rootService":
+		return otelpb.ResourceAttrServiceName, true
+	case "rootName", "trace:rootName":
+		return otelpb.NameField, true
+	default:
+		return "", false
+	}
+}
+
 func (fc *filterCommon) String() string {
-	// traceDuration must be treated as pipe
-	if fc.fieldName == "traceDuration" {
+	// traceDuration / trace:duration must be treated as pipe
+	if isTraceDurationField(fc.fieldName) {
 		return "*"
+	}
+
+	// rootServiceName / trace:rootService / rootName / trace:rootName match trace
+	// properties determined by the trace's root span (parent_span_id=""), so
+	// match any span belonging to a trace whose root span satisfies the predicate.
+	if targetField, ok := fc.rootSpanField(); ok {
+		rootFilter := &filterCommon{
+			fieldName: targetField,
+			op:        fc.op,
+			value:     fc.value,
+		}
+		return fmt.Sprintf(`%s:in({%s!=""} AND %s:="" AND %s | fields %s)`,
+			otelpb.TraceIDField,
+			otelpb.ResourceAttrServiceName,
+			otelpb.ParentSpanIDField,
+			rootFilter.String(),
+			otelpb.TraceIDField,
+		)
 	}
 
 	// nestedSetParent<0 is Tempo's way to select root spans.
@@ -177,10 +211,24 @@ func TraceQLFieldToVTField(fieldName string) string {
 		return otelpb.LinkPrefix + otelpb.LinkAttrPrefix + fieldName[len("link."):]
 	} else if strings.HasPrefix(fieldName, "instrumentation.") {
 		return otelpb.InstrumentationScopeAttrPrefix + fieldName[len("instrumentation."):]
-	} else if fieldName == "status" {
+	}
+	switch fieldName {
+	case "status", "span:status":
 		return otelpb.StatusCodeField
-	} else if fieldName == "service.name" || fieldName == ".service.name" {
+	case "service.name", ".service.name":
 		return otelpb.ResourceAttrServiceName
+	case "span:name":
+		return otelpb.NameField
+	case "span:kind":
+		return otelpb.KindField
+	case "span:duration":
+		return otelpb.DurationField
+	case "span:id":
+		return otelpb.SpanIDField
+	case "span:parentID":
+		return otelpb.ParentSpanIDField
+	case "span:statusMessage", "statusMessage":
+		return otelpb.StatusMessageField
 	}
 
 	return fieldName
@@ -220,7 +268,7 @@ func isStreamField(fieldName string) bool {
 }
 
 func (fc *filterCommon) GetTraceDurationFilters() []*filterCommon {
-	if fc.fieldName == "traceDuration" {
+	if isTraceDurationField(fc.fieldName) {
 		return []*filterCommon{fc}
 	}
 	return nil

@@ -118,6 +118,10 @@ func TestTranslateMetricsQueryByFields(t *testing.T) {
 	// Status field mapping in by()
 	f(`{} | rate() | by(status)`,
 		`{resource_attr:service.name!=""} AND * | stats by (status_code) rate() as value`)
+	f(`{} | rate() | by(span:name, span:status)`,
+		`{resource_attr:service.name!=""} AND * | stats by (name, status_code) rate() as value`)
+	f(`{} | avg_over_time(span:duration)`,
+		`{resource_attr:service.name!=""} AND * | stats avg(duration) as value`)
 
 	// Multiple by fields
 	f(`{} | avg_over_time(duration) | by(resource.service.name, span.http.method)`,

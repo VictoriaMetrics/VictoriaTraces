@@ -97,7 +97,7 @@ func translateMetricsQuery(traceQLStr string, timestamp int64) (*metricsQueryTra
 	// renders metric values on duration panels as seconds. Aggregations like
 	// min/max/avg/sum/quantile over duration need to be scaled down.
 	// histogram_over_time already produces bucket labels in seconds.
-	if fieldName == "duration" && funcName != "histogram_over_time" && funcName != "count_over_time" && funcName != "rate" {
+	if (fieldName == "duration" || fieldName == "span:duration") && funcName != "histogram_over_time" && funcName != "count_over_time" && funcName != "rate" {
 		result.scaleDurationToSeconds = true
 	}
 	return result, nil

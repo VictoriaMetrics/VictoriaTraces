@@ -268,6 +268,13 @@ func TestTraceQLFieldToVTField(t *testing.T) {
 	f("service.name", "resource_attr:service.name")
 	f("duration", "duration")
 	f("name", "name")
+	f("span:name", "name")
+	f("span:status", "status_code")
+	f("span:kind", "kind")
+	f("span:duration", "duration")
+	f("span:id", "span_id")
+	f("span:parentID", "parent_span_id")
+	f("span:statusMessage", "status_message")
 }
 
 func TestVTFieldToTraceQL(t *testing.T) {
