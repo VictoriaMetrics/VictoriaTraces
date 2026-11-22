@@ -22,8 +22,22 @@ func newGRPCFrame(payload []byte) []byte {
 
 func TestOTLPGRPCExportStatusCodes(t *testing.T) {
 	t.Run("busy write concurrency limit returns UNAVAILABLE", func(t *testing.T) {
-		_ = flag.Set("maxConcurrentInserts", "1")
-		_ = flag.Set("insert.maxQueueDuration", "10ms")
+		oldMaxConcurrentInserts := flag.Lookup("maxConcurrentInserts").Value.String()
+		oldMaxQueueDuration := flag.Lookup("insert.maxQueueDuration").Value.String()
+		t.Cleanup(func() {
+			if err := flag.Set("maxConcurrentInserts", oldMaxConcurrentInserts); err != nil {
+				t.Errorf("failed restoring maxConcurrentInserts: %v", err)
+			}
+			if err := flag.Set("insert.maxQueueDuration", oldMaxQueueDuration); err != nil {
+				t.Errorf("failed restoring insert.maxQueueDuration: %v", err)
+			}
+		})
+		if err := flag.Set("maxConcurrentInserts", "1"); err != nil {
+			t.Fatal(err)
+		}
+		if err := flag.Set("insert.maxQueueDuration", "10ms"); err != nil {
+			t.Fatal(err)
+		}
 		if err := writeconcurrencylimiter.IncConcurrency(); err != nil {
 			t.Fatalf("IncConcurrency setup failed: %v", err)
 		}
