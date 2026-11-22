@@ -172,6 +172,8 @@ func TestGetTraceDurationFilters(t *testing.T) {
 	f(`{(traceDuration>=10ms && traceDuration<1s && c=d)}`, `* and * and c:=d | join by (trace_id) ({trace_id_idx_stream!=""}  AND duration :>= 10000000 AND duration :< 1000000000  | fields trace_id_idx  | rename trace_id_idx as trace_id) inner`)
 	f(`{trace:duration=10ms}`, `* | join by (trace_id) ({trace_id_idx_stream!=""}  AND duration := 10000000  | fields trace_id_idx  | rename trace_id_idx as trace_id) inner`)
 	f(`{trace:duration>10ms && c=d}`, `* and c:=d | join by (trace_id) ({trace_id_idx_stream!=""}  AND duration :> 10000000  | fields trace_id_idx  | rename trace_id_idx as trace_id) inner`)
+	f(`{trace:duration>10ms || rootName = "health"}`,
+		`trace_id:in({trace_id_idx_stream!=""} AND duration:>10000000 | fields trace_id_idx) or trace_id:in({resource_attr:service.name!=""} AND parent_span_id:="" AND {name=health} | fields trace_id)`)
 }
 
 func TestTempoIntrinsicFilters(t *testing.T) {
@@ -238,12 +240,26 @@ func TestTempoIntrinsicFiltersAgainstStorage(t *testing.T) {
 		}, -1)
 	}
 
-	// Trace 1: root "demo"/"query" (error) + child "db"/"select" (ok)
+	// Trace 1: root "demo"/"query" (error, 500ms) + child "db"/"select" (ok)
 	addSpan("trace-demo", "span-1", "", "demo", "query", "2")
 	addSpan("trace-demo", "span-2", "span-1", "db", "select", "1")
-	// Trace 2: root "other"/"health" (ok)
+	// Trace 2: root "other"/"health" (ok, 5ms)
 	addSpan("trace-other", "span-3", "", "other", "health", "1")
 	storage.MustAddRows(lr)
+
+	idxLR := logstorage.GetLogRows([]string{otelpb.TraceIDIndexStreamName}, nil, nil, nil, "-")
+	defer logstorage.PutLogRows(idxLR)
+	addIdx := func(part, traceID, duration string) {
+		idxLR.MustAdd(logstorage.TenantID{}, ts, []logstorage.Field{
+			{Name: "_msg", Value: "-"},
+			{Name: otelpb.TraceIDIndexStreamName, Value: part},
+			{Name: otelpb.TraceIDIndexFieldName, Value: traceID},
+			{Name: otelpb.TraceIDIndexDuration, Value: duration},
+		}, -1)
+	}
+	addIdx("0", "trace-demo", "500000000")
+	addIdx("1", "trace-other", "5000000")
+	storage.MustAddRows(idxLR)
 	storage.DebugFlush()
 
 	runSpanIDs := func(traceQL string) []string {
@@ -261,7 +277,7 @@ func TestTempoIntrinsicFiltersAgainstStorage(t *testing.T) {
 		qctx := logstorage.NewQueryContext(context.Background(), &qs, []logstorage.TenantID{{}}, lq, false, nil)
 		var mu sync.Mutex
 		var got []string
-		storage.RunQuery(qctx, func(_ uint, db *logstorage.DataBlock) {
+		if err := storage.RunQuery(qctx, func(_ uint, db *logstorage.DataBlock) {
 			for _, col := range db.GetColumns(false) {
 				if col.Name == otelpb.SpanIDField {
 					mu.Lock()
@@ -271,7 +287,9 @@ func TestTempoIntrinsicFiltersAgainstStorage(t *testing.T) {
 					mu.Unlock()
 				}
 			}
-		})
+		}); err != nil {
+			t.Fatalf("storage.RunQuery(%q): %v", qStr, err)
+		}
 		sort.Strings(got)
 		return got
 	}
@@ -288,6 +306,8 @@ func TestTempoIntrinsicFiltersAgainstStorage(t *testing.T) {
 		{`{span:name = "select" && trace:rootService = "demo"}`, []string{"span-2"}},
 		{`{rootServiceName != "demo"}`, []string{"span-3"}},
 		{`{rootServiceName = "demo" || rootName = "health"}`, []string{"span-1", "span-2", "span-3"}},
+		{`{trace:duration > 100ms || rootName = "health"}`, []string{"span-1", "span-2", "span-3"}},
+		{`{trace:duration > 100ms && span:name = "health"}`, nil},
 	}
 	for _, tc := range cases {
 		got := runSpanIDs(tc.traceQL)

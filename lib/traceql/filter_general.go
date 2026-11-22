@@ -100,6 +100,24 @@ func isTraceDurationField(fieldName string) bool {
 	return fieldName == "traceDuration" || fieldName == "trace:duration"
 }
 
+// inlineTraceDurationString renders a trace-duration constraint as a standalone
+// LogsQL filter via trace_id:in(...) against the trace index stream so it preserves
+// boolean scoping inside OR expressions without leaking into a global join.
+func (fc *filterCommon) inlineTraceDurationString() string {
+	v := fc.value
+	if duration, ok := tryParseDuration(v); ok {
+		v = strconv.FormatInt(duration, 10)
+	}
+	return fmt.Sprintf(`%s:in({%s!=""} AND %s:%s%s | fields %s)`,
+		otelpb.TraceIDField,
+		otelpb.TraceIDIndexStreamName,
+		otelpb.TraceIDIndexDuration,
+		fc.op,
+		quoteTokenIfNeeded(v),
+		otelpb.TraceIDIndexFieldName,
+	)
+}
+
 func (fc *filterCommon) rootSpanField() (string, bool) {
 	switch fc.fieldName {
 	case "rootServiceName", "trace:rootService":

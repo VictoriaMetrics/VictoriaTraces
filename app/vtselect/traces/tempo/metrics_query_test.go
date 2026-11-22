@@ -122,6 +122,13 @@ func TestTranslateMetricsQueryByFields(t *testing.T) {
 		`{resource_attr:service.name!=""} AND * | stats by (name, status_code) rate() as value`)
 	f(`{} | avg_over_time(span:duration)`,
 		`{resource_attr:service.name!=""} AND * | stats avg(duration) as value`)
+	spanDurationTr, err := translateMetricsQuery(`{} | avg_over_time(span:duration)`, ts)
+	if err != nil {
+		t.Fatalf("translateMetricsQuery(span:duration): %v", err)
+	}
+	if !spanDurationTr.scaleDurationToSeconds {
+		t.Fatalf("expected scaleDurationToSeconds=true for span:duration aggregation")
+	}
 
 	// Multiple by fields
 	f(`{} | avg_over_time(duration) | by(resource.service.name, span.http.method)`,

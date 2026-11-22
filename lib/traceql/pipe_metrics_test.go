@@ -275,6 +275,7 @@ func TestTraceQLFieldToVTField(t *testing.T) {
 	f("span:id", "span_id")
 	f("span:parentID", "parent_span_id")
 	f("span:statusMessage", "status_message")
+	f("statusMessage", "status_message")
 }
 
 func TestVTFieldToTraceQL(t *testing.T) {
