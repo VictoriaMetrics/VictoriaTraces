@@ -222,7 +222,7 @@ func processSearchRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 func getTraceByID(ctx context.Context, cp *tracecommon.CommonParams, traceID string, start, end time.Time) ([]*otelpb.ResourceSpans, error) {
 	rows, err := GetTrace(ctx, cp, traceID, start, end)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get traces list: %s", err)
+		return nil, fmt.Errorf("cannot get traces list: %w", err)
 	}
 
 	resourceSpans, err := rowsToResourceSpans(rows)
@@ -432,7 +432,7 @@ func searchTags(ctx context.Context, cp *tracecommon.CommonParams, traceQLStr st
 
 	fieldNames, err := singleFieldQueryHelper(ctx, q, cp, pipeLimit)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse query [%s]: %s", qStr, err)
+		return nil, fmt.Errorf("cannot execute query [%s]: %w", qStr, err)
 	}
 
 	result := &searchTagResult{

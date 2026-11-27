@@ -175,6 +175,19 @@ func (tc *TestCase) MustStartVtsingle(instance string, flags []string, env ...st
 	return app
 }
 
+// MustStartVtselect is a test helper function that starts an instance of
+// vtselect and fails the test if the app fails to start.
+func (tc *TestCase) MustStartVtselect(instance string, storageNodes, flags []string, env ...string) *Vtselect {
+	tc.t.Helper()
+
+	app, err := StartVtselect(instance, storageNodes, flags, env, tc.cli)
+	if err != nil {
+		tc.t.Fatalf("Could not start %s: %v", instance, err)
+	}
+	tc.addApp(instance, app)
+	return app
+}
+
 // MustStartVtagent is a test helper function that starts an instance of
 // vtagent and fails the test if the app fails to start.
 func (tc *TestCase) MustStartVtagent(instance string, remoteWriteURLs, flags []string, env ...string) *Vtagent {
