@@ -110,7 +110,7 @@ type AnyValue struct {
 	IntValue     *int64        `json:"-"`
 	DoubleValue  *float64      `json:"doubleValue,omitempty"`
 	ArrayValue   *ArrayValue   `json:"arrayValue,omitempty"`
-	KeyValueList *KeyValueList `json:"keyValueList,omitempty"`
+	KeyValueList *KeyValueList `json:"kvlistValue,omitempty"`
 	BytesValue   *[]byte       `json:"bytesValue,omitempty"`
 }
 

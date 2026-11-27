@@ -90,7 +90,7 @@ func TestUnmarshalExportTraceServiceRequestNullItems(t *testing.T) {
 				"attributes": [
 					null,
 					{"key": "a", "value": {"arrayValue": {"values": [null]}}},
-					{"key": "b", "value": {"keyValueList": {"values": [null]}}}
+					{"key": "b", "value": {"kvlistValue": {"values": [null]}}}
 				]
 			},
 			"scopeSpans": [
@@ -103,7 +103,7 @@ func TestUnmarshalExportTraceServiceRequestNullItems(t *testing.T) {
 			"resource": {
 				"attributes": [
 					{"key": "a", "value": {"arrayValue": {}}},
-					{"key": "b", "value": {"keyValueList": {}}}
+					{"key": "b", "value": {"kvlistValue": {}}}
 				]
 			},
 			"scopeSpans": [
@@ -363,7 +363,7 @@ func TestMarshalJSON(t *testing.T) {
 	f(&AnyValue{}, `{"doubleValue":1.5}`)
 	f(&AnyValue{}, `{"bytesValue":"AQI="}`)
 	f(&AnyValue{}, `{"arrayValue":{"values":[{"intValue":"1"},{"stringValue":"a"}]}}`)
-	f(&AnyValue{}, `{"keyValueList":{"values":[{"key":"k","value":{"boolValue":false}}]}}`)
+	f(&AnyValue{}, `{"kvlistValue":{"values":[{"key":"k","value":{"boolValue":false}}]}}`)
 
 	// request with all the fields set
 	f(&ExportTraceServiceRequest{}, `{
