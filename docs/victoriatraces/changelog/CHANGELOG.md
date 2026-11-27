@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): add `-remoteWrite.retryMaxInterval` command-line flag as a replacement for the deprecated `-remoteWrite.retryMaxTime` flag. The old name and its description suggested a limit on the total retry time, while it sets the maximum delay between retries. vtagent still accepts `-remoteWrite.retryMaxTime` and logs a warning when it is set. The same change was made in vmagent, see [VictoriaMetrics issue #9169](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/9169).
+
 ## [v0.13.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.13.0)
 
 Released at 2026-11-05

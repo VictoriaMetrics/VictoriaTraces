@@ -109,6 +109,9 @@ func Init(tmpDataPath string) {
 		logger.Warnf("-remoteWrite.maxBlockSize=%d exceeds 32MB; blocks with the size after compression still bigger than 32MB are dropped, "+
 			"since such blocks cannot be stored in the persistent queue", maxUnpackedBlockSize.N)
 	}
+	if retryMaxTime.String() != "" {
+		logger.Warnf("-remoteWrite.retryMaxTime is deprecated; use -remoteWrite.retryMaxInterval instead")
+	}
 	if *queues > maxQueues {
 		*queues = maxQueues
 	}
