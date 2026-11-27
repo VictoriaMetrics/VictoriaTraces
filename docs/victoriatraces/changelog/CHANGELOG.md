@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [vtagent](https://docs.victoriametrics.com/victoriatraces/vtagent/): drop a block when `-remoteWrite.url` responds with `413 Request Entity Too Large` or `415 Unsupported Media Type`, the same way as for `400` and `404`. Previously vtagent re-sent such a block forever, so it held the queue and no newer data was sent. See [#318](https://github.com/VictoriaMetrics/VictoriaTraces/issues/318).
+
 ## [v0.13.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.13.0)
 
 Released at 2026-11-05
