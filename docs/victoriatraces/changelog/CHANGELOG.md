@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return `404 Not Found` for `GET` and `POST` requests to `/select/tempo/api/v2/traces/diff` without searching storage. Previously the `/select/tempo/api/v2/traces/` prefix treated `diff` as a trace ID, scanned the retention period for it, and returned `200` with an empty trace. See [pull request #315](https://github.com/VictoriaMetrics/VictoriaTraces/pull/315).
+
 ## [v0.13.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.13.0)
 
 Released at 2026-11-05
