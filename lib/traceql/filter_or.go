@@ -18,7 +18,7 @@ func (fo *filterOr) String() string {
 		s := f.String()
 		a[i] = s
 	}
-	return strings.Join(a, " or ")
+	return "(" + strings.Join(a, " or ") + ")"
 }
 
 func (fo *filterOr) GetTraceDurationFilters() []*filterCommon {

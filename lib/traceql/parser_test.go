@@ -74,9 +74,9 @@ func TestParseQuery(t *testing.T) {
 
 	// normal queries
 	f(`{ac.name=~".*frontend.*" && name = "POST /api/orders"} && {ac.nn="sdf"} || {ac.nn="sdf"}`,
-		`((ac.name:~".*frontend.*" and {name="POST /api/orders"}) or (ac.nn:=sdf)) and trace_id:in({resource_attr:service.name!=""} AND (ac.name:~".*frontend.*" and {name="POST /api/orders"}) | uniq by (trace_id)) and trace_id:in({resource_attr:service.name!=""} AND (ac.nn:=sdf) | uniq by (trace_id)) or ac.nn:=sdf`)
+		`(((ac.name:~".*frontend.*" and {name="POST /api/orders"}) or (ac.nn:=sdf)) and trace_id:in({resource_attr:service.name!=""} AND (ac.name:~".*frontend.*" and {name="POST /api/orders"}) | uniq by (trace_id)) and trace_id:in({resource_attr:service.name!=""} AND (ac.nn:=sdf) | uniq by (trace_id)) or ac.nn:=sdf)`)
 	f(`(({a=b && a=c} || {a=d}) && {a=e})`,
-		`((a:=b and a:=c or a:=d) or (a:=e)) and trace_id:in({resource_attr:service.name!=""} AND (a:=b and a:=c or a:=d) | uniq by (trace_id)) and trace_id:in({resource_attr:service.name!=""} AND (a:=e) | uniq by (trace_id))`)
+		`(((a:=b and a:=c or a:=d)) or (a:=e)) and trace_id:in({resource_attr:service.name!=""} AND ((a:=b and a:=c or a:=d)) | uniq by (trace_id)) and trace_id:in({resource_attr:service.name!=""} AND (a:=e) | uniq by (trace_id))`)
 	f(`{nestedSetParent<0 && true}`, `parent_span_id:="" and *`)
 	f(`{nestedSetParent<0 && true && status=error}`, `parent_span_id:="" and * and status_code:=2`)
 	f(`{} && {nestedSetParent<0 && true && "span.app.ads.ad_request_type" != "nil"}`, `parent_span_id:="" and * and "span_attr:app.ads.ad_request_type":*`)
