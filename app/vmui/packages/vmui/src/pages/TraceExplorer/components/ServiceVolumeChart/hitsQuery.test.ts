@@ -16,9 +16,18 @@ describe("ServiceVolumeChart/hitsQuery", () => {
       expect(buildServiceHitsQuery("", [])).toBe(SERVICE_FILTER);
     });
 
-    it("combines user filters and extra filters, dropping user pipes", () => {
-      const query = buildServiceHitsQuery("a OR b | stats count()", ["x:in(\"1\")"]);
+    it("combines user filters and extra filters", () => {
+      const query = buildServiceHitsQuery("a OR b", ["x:in(\"1\")"]);
       expect(query).toBe(`(a OR b) AND (x:in("1")) AND ${SERVICE_FILTER}`);
+    });
+
+    it("keeps user pipes after the filters", () => {
+      const query = buildServiceHitsQuery("a | filter status_code:=2", ["x:in(\"1\")"]);
+      expect(query).toBe(`(a) AND (x:in("1")) AND ${SERVICE_FILTER} | filter status_code:=2`);
+    });
+
+    it("keeps user pipes of an unfiltered query", () => {
+      expect(buildServiceHitsQuery("* | filter status_code:=2", [])).toBe(`${SERVICE_FILTER} | filter status_code:=2`);
     });
   });
 

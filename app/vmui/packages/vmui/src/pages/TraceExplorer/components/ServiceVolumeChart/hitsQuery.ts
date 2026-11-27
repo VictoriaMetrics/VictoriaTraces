@@ -2,7 +2,7 @@ import { AlignedData } from "uplot";
 import { LogHits } from "../../../../api/types";
 import { HITS_BARS_VIEW, HITS_FIELDS_LIMIT } from "../../../../constants/logs";
 import { NANOSECONDS_PER_MILLISECOND, nanosToIsoString } from "../../../../utils/time";
-import { SERVICE_FIELD, splitFiltersAndPipes } from "../../utils";
+import { SERVICE_FIELD, joinFiltersAndPipes, splitFiltersAndPipes } from "../../utils";
 import { isEmptyObject } from "../../../../utils/object";
 
 export type RawLogHits = Omit<LogHits, "_isOther">;
@@ -12,14 +12,14 @@ const SERVICE_FILTER = `"${SERVICE_FIELD}":*`;
 
 const MS_PER_SECOND = 1000;
 
-// Hits are counted on spans only, so user pipes are dropped: the hits API returns nothing for queries with pipes.
 export function buildServiceHitsQuery(filterQuery: string, extraClauses: string[]): string {
-  const { filters } = splitFiltersAndPipes(filterQuery);
-  return [filters, ...extraClauses]
+  const { filters, pipes } = splitFiltersAndPipes(filterQuery);
+  const spanFilter = [filters, ...extraClauses]
     .filter(filter => filter && filter !== "*")
     .map(filter => `(${filter})`)
     .concat(SERVICE_FILTER)
     .join(" AND ");
+  return joinFiltersAndPipes(spanFilter, pipes);
 }
 
 // Splits the period into HITS_BARS_VIEW buckets; the server rejects sub-millisecond steps.

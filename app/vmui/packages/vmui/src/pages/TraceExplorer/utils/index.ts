@@ -147,7 +147,7 @@ export function splitFiltersAndPipes(query: string): { filters: string; pipes: s
   return { filters: query.trim(), pipes: "" };
 }
 
-function joinFiltersAndPipes(filters: string, pipes: string): string {
+export function joinFiltersAndPipes(filters: string, pipes: string): string {
   return pipes ? `${filters} ${pipes}` : filters;
 }
 
