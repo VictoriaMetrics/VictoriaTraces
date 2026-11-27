@@ -1,4 +1,4 @@
-export const STORAGE_PREFIX = "VLUI:" as const;
+export const STORAGE_PREFIX = "VTUI:" as const;
 
 export const ALL_STORAGE_KEYS = [
   "AUTOCOMPLETE",

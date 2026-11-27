@@ -103,6 +103,10 @@ export function buildInClause(field: string, values: string[]): string {
   return `${formatLogsqlField(field)}:in(${values.map(quoteLogsqlValue).join(",")})`;
 }
 
+export function buildExcludeClause(field: string, value: string): string {
+  return `-${formatLogsqlField(field)}:=${quoteLogsqlValue(value)}`;
+}
+
 export function buildDurationClause(minValue: string, maxValue: string): string {
   const parts: string[] = [];
   const minMs = parseDurationMs(minValue);
@@ -143,7 +147,7 @@ export function splitFiltersAndPipes(query: string): { filters: string; pipes: s
   return { filters: query.trim(), pipes: "" };
 }
 
-function joinFiltersAndPipes(filters: string, pipes: string): string {
+export function joinFiltersAndPipes(filters: string, pipes: string): string {
   return pipes ? `${filters} ${pipes}` : filters;
 }
 

@@ -39,6 +39,7 @@ export interface LogHits {
 }
 
 export interface LegendLogHits {
+  key: string;
   label: string;
   total: number;
   totalHits: number;

@@ -12,6 +12,8 @@ The following `tip` changes can be tested by building VictoriaTraces components 
 
 ## tip
 
+* FEATURE: [vmui](https://docs.victoriametrics.com/victoriatraces/querying/#web-ui): add the `Volume by service` chart to the Trace Explorer page. It shows the number of spans over time for the top 20 services, so ingestion spikes and the traffic split across services are visible. See [this issue #263](https://github.com/VictoriaMetrics/VictoriaTraces/issues/263).
+
 * BUGFIX: [Single-node VictoriaTraces](https://docs.victoriametrics.com/victoriatraces/) and vtselect in [VictoriaTraces cluster](https://docs.victoriametrics.com/victoriatraces/cluster/): return correct results for TraceQL filters with `||` in the Tempo API, such as `{ status = error || duration > 5s }`. Previously, such a filter could count extra spans, or the search failed with `cannot parse in()`, depending on the order of the conditions. Thank @ZeXi0308 for [the issue #319](https://github.com/VictoriaMetrics/VictoriaTraces/issues/319) and [the pull request #320](https://github.com/VictoriaMetrics/VictoriaTraces/pull/320).
 
 ## [v0.13.0](https://github.com/VictoriaMetrics/VictoriaTraces/releases/tag/v0.13.0)
