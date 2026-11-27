@@ -59,10 +59,14 @@ and sends the collected trace spans to VictoriaTraces instance at `victoria-trac
 
 Pass `-help` to `vtagent` in order to see [the full list of supported command-line flags with their descriptions](https://docs.victoriametrics.com/victoriatraces/vtagent/#advanced-usage).
 
-## Replication
+## Replication and high availability
+
+`vtagent` can replicate spans to multiple remote storages and buffers them on disk, so data isn't lost when a remote storage is unavailable.
+
+### Replication
 
 `vtagent` can accept multiple `-remoteWrite.url` command-line flags. In this case it replicates every collected span to all the configured remote storages,
-which is useful for running multiple VictoriaTraces instances for high availability:
+which is useful for running multiple VictoriaTraces instances for **high availability**:
 
 ```sh
 /path/to/vtagent-prod \
@@ -78,9 +82,9 @@ Command-line flags described as applying to "the corresponding -remoteWrite.url"
 such as `-remoteWrite.maxDiskUsagePerURL`, `-remoteWrite.headers`, `-remoteWrite.basicAuth.*` or `-remoteWrite.tls*`, can be set individually
 for every `-remoteWrite.url`, in the same order as the `-remoteWrite.url` flags.
 
-## Data persistence
+### Data persistence
 
-`vtagent` buffers the accepted trace spans before sending them to remote storage, so they aren't lost when remote storage is slow or unavailable.
+`vtagent` buffers the accepted trace spans before sending them to remote storage, so they aren't lost when a remote storage is slow or unavailable.
 The data goes through the following stages for every `-remoteWrite.url`:
 
 1. **Batching.** Accepted OTLP requests are merged in memory into bigger blocks, which reduces the number of requests to remote storage.
