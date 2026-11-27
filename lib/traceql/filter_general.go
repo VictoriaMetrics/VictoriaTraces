@@ -133,11 +133,11 @@ func (fc *filterCommon) String() string {
 	} else if fieldName == "kind" {
 		// map span kind (server, client, producer, consumer...) to numeric OpenTelemetry SpanKind values.
 		fieldValue = rewriteSpanKindInRegex(fieldValue)
-	}
-
-	// translate duration to nanosecond.
-	if duration, ok := tryParseDuration(fieldValue); ok {
-		fieldValue = strconv.FormatInt(duration, 10)
+	} else if fieldName == otelpb.DurationField {
+		// translate duration to nanosecond.
+		if duration, ok := tryParseDuration(fieldValue); ok {
+			fieldValue = strconv.FormatInt(duration, 10)
+		}
 	}
 
 	// for stream filter, just use the source op (=, !=, =~, !~), as they're identical in LogsQL.
